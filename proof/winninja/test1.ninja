@@ -1,0 +1,13 @@
+
+rule cp
+    command = cmd /c copy $in $out
+
+rule echo
+    command = cmd /c echo hello > $out
+
+
+build b.txt: cp a.txt
+
+build c.txt: echo
+
+build e2.txt: echo

@@ -1,0 +1,1 @@
+gen.stamp: a.txt

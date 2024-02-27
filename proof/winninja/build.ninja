@@ -1,0 +1,29 @@
+## TEST the usage of slash and backslash in windows version ninja
+## Result:
+##   In windows OS, Ninja treats files with both forward slashes (/) and 
+##   backslashes (\\) in their paths as referring to the same file.
+##   But the command may not. ('echo' will but 'copy' not)
+##
+##   Ninja retains the file path as-is and does not automatically convert 
+##   it to the system’s preferred separator
+##
+
+rule cp
+    command = cmd /c copy $in $out
+
+rule echo
+    command = cmd /c echo hello > $out
+
+
+# wrong!
+# because 'copy' cannot locate the file with forward-slash '/'
+#
+# build proof/winninja/b.txt: cp proof/winninja/a.txt
+
+# right!
+build proof\winninja\b.txt: cp proof\winninja\a.txt
+
+# right!
+# echo can read the path with forward-slash '/'
+#
+build proof/winninja/c.txt: echo

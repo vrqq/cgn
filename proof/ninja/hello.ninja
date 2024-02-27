@@ -1,0 +1,32 @@
+builddir = build
+
+rule cprule
+    command = cp $in $out
+    generator = 1
+
+build rr/rule.ninja: cprule rr/rule.ninja.in | rr/rule.ninja.in
+    generator = 1
+
+# rule showw
+#    command = ./regen_hello.sh
+#    generator = 1
+
+# build hello.ninja: showw | regen_hello.sh
+#     generator = 1
+
+######
+
+rule cc
+    command = g++ -c $in -o $out
+
+rule link_exe
+    command = g++ $in -o $out
+
+build hello.o: cc hello.cpp
+
+build hello: link_exe hello.o
+
+include_path = ./rr
+
+include rr/rule.ninja
+build exe1: cxx exe1.cpp

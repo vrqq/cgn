@@ -1,0 +1,19 @@
+## subninja test
+## subninja cannot include rule from sub-files
+##
+## Usage:
+##   in project-root then eun `ninja libh2.so`
+
+# rule cxx1
+#    command = g++ -fPIC --shared @$in -o $out
+
+include_path = .
+
+## wrong:
+# subninja ./proof/ninja/rr/rule.ninja
+
+## right:
+include ./proof/ninja/rr/rule.ninja
+
+build libh2.so: cxxrsp ./proof/ninja/h2.rsp
+

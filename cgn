@@ -1,0 +1,9 @@
+#pragma once
+
+//Include global cgn API
+#include "cgn.d/cgn.h"
+
+//Include rules
+// #include "cgn.d/glb.h"
+// #include "cgn.d/cxx/cxx.h"
+// #include "cgn.d/tools/tools.h"

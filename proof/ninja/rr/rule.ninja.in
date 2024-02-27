@@ -1,0 +1,10 @@
+compiler_cc = clang++
+
+rule cxx
+    command = $compiler_cc -fPIC --shared -I$include_path $in -o $out
+
+rule cxxrsp
+    command = g++ -fPIC --shared @$in -o $out
+
+rule new_rule
+    command = echo "NEW RULE"
