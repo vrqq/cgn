@@ -91,7 +91,7 @@ std::string CGN::shell_escape(const std::string &in)
     #else
         for (auto c: in)
             if (bash_special[c])
-                rv.append({' ', c});
+                rv.append({'\\', c});
             else
                 rv.push_back(c);
     #endif

@@ -88,9 +88,9 @@ public:
 
     static std::string escape_path(const std::string &in);
 
-    NinjaFile(const std::string &filepath) : filepath(filepath) {}
+    NinjaFile(const std::string &filepath);// : filepath(filepath) {}
 
-    ~NinjaFile() { flush(); }
+    ~NinjaFile();// { flush(); }
 
     // void set_builddir(const std::string &in) {
     //     builddir = in;

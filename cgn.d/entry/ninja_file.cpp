@@ -137,3 +137,7 @@ std::string NinjaFile::escape_path(const std::string &in)
             out += ch;
     return out;
 }
+
+NinjaFile::NinjaFile(const std::string &filepath) : filepath(filepath) {}
+
+NinjaFile::~NinjaFile() { flush(); }
