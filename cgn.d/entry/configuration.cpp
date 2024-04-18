@@ -12,6 +12,8 @@
 #include <cstdint>
 #include "configuration.h"
 
+namespace cgn {
+
 ConfigurationManager::ConfigurationManager(const std::string &storage_dir)
 : storage_dir(storage_dir)
 {
@@ -157,3 +159,5 @@ static void UlongToHexString(uint64_t num, char *s, bool lowerAlpha)
 	//copy string to output buffer
 	*(uint64_t *)s = x;
 } //UlongToHexString()
+
+} //namespace

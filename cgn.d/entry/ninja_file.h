@@ -7,6 +7,8 @@
 #include <vector>
 #include <unordered_map>
 
+namespace cgn {
+
 class NinjaFile {
 public:
     struct Section {
@@ -88,6 +90,8 @@ public:
 
     static std::string escape_path(const std::string &in);
 
+    // static std::string escape(const std::vector<std::string> &in);
+
     NinjaFile(const std::string &filepath);// : filepath(filepath) {}
 
     ~NinjaFile();// { flush(); }
@@ -107,3 +111,5 @@ private:
     // std::string builddir;
     // std::string ninja_required_version;
 };
+
+} //namespace

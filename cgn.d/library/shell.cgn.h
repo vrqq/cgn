@@ -17,10 +17,10 @@ struct ShellBinary
         std::vector<std::string> args;
         std::unordered_map<std::string, std::string> env;
         std::unordered_set<std::string> inputs, outputs;  //Implicit dependencies
-        Configuration cfg;
+        cgn::Configuration cfg;
 
-        Context(std::string name, Configuration cfg) 
-        : name(name), cfg(cfg) {}
+        Context(cgn::Configuration cfg, cgn::CGNTargetOpt opt) 
+        : name(opt.factory_name), cfg(cfg) {}
     };
 
     using context_type = Context;
@@ -31,9 +31,13 @@ struct ShellBinary
 
     static std::string shell_escape(const std::string &in) { return in; }
 
-    static TargetInfos interpret(context_type &x, TargetOpt opt);
+    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 };
 
-};
+}
 
 #define sh_binary(name, x) CGN_RULE_DEFINE(shell::ShellBinary, name, x)
+
+#ifdef CGN_PCH_MODE
+    CGN_SPECIALIZATION_PCH(shell::ShellBinary)
+#endif

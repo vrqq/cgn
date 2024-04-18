@@ -12,6 +12,8 @@
 #include <functional>
 #include <stdexcept>
 
+namespace cgn {
+
 using ConfigurationID = std::string;
 
 class Configuration
@@ -56,6 +58,9 @@ public:
         }
         bool operator==(const std::string &rhs) const {
             return pvalue? rhs.empty() : (*pvalue == rhs);
+        }
+        bool operator!=(const std::string &rhs) const {
+            return !(*this == rhs);
         }
 
         template<typename RV> bool operator==(const Cell<RV> &rhs) const {
@@ -198,3 +203,5 @@ private:
     std::string get_hash(size_t want);
 
 }; //class ConfigurationManager
+
+} //namespace

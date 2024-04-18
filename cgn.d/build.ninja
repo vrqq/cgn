@@ -3,27 +3,38 @@
 ## ============================
 builddir = build
 output = $builddir
-cflags = -I. -g -std=c++17 -fsanitize=address -fcolor-diagnostics -fshow-column -fshow-source-location -fcaret-diagnostics
+cflags = -I. -g -std=c++17 -fsanitize=address -fcolor-diagnostics $
+         -fshow-column -fshow-source-location -fcaret-diagnostics
 
 rule cc
     deps    = gcc
     depfile = $out.d
     command = clang++ -MMD -MF $out.d $cflags -c $in -o $out
 
+## -Wl,--undefined=_Z9cgn_setupR12CGNInitSetup $
+##
 rule link
     deps    = gcc
     depfile = $out.d
-    command = clang++ -fuse-ld=lld -Wl,--warn-unresolved-symbols -Wl,--export-dynamic -fvisibility=default -Wl,--undefined=_Z9cgn_setupR12CGNInitSetup -Wl,-rpath=$$ORIGIN -MMD -MF $out.d $cflags $in -o $out
+    command = clang++ -fuse-ld=lld -Wl,--warn-unresolved-symbols $
+              -Wl,--export-dynamic -fvisibility=default $
+              -Wl,-rpath=$$ORIGIN -MMD -MF $out.d $cflags $in -o $out
 
 build $output/configuration.o : cc entry/configuration.cpp
 
-build $output/ninja_file.o: cc entry/ninja_file.cpp
-
 build $output/dl_helper.o: cc entry/dl_helper.cpp
+
+build $output/graph.o: cc entry/graph.cpp
+
+build $output/ninja_file.o: cc entry/ninja_file.cpp
 
 build $output/cgn_impl.o: cc entry/cgn_impl.cpp
 
-build $output/cgn: link entry/cgn.cpp entry/cli.cpp build/cgn_impl.o build/configuration.o build/ninja_file.o build/dl_helper.o
+build $output/cgn_tools.o: cc entry/cgn_tools.cpp
+
+build $output/cgn: link entry/cgn.cpp entry/cli.cpp $
+                   build/cgn_impl.o build/cgn_tools.o build/configuration.o $
+                   build/ninja_file.o build/dl_helper.o build/graph.o 
 
 default $output/cgn
 

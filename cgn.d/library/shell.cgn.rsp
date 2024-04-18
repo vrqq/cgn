@@ -1,2 +1,3 @@
 shell.cgn.h
 shell.cgn.cc
+rule_shell.ninja

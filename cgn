@@ -4,6 +4,4 @@
 #include "cgn.d/cgn.h"
 
 //Include rules
-// #include "cgn.d/glb.h"
-// #include "cgn.d/cxx/cxx.h"
-// #include "cgn.d/tools/tools.h"
+#include "cgn.d/library/shell.cgn.h"

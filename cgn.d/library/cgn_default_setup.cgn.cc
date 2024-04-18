@@ -29,7 +29,7 @@ template<typename ...U> std::string get_one_of(
     return get_one_of(pool, others...);
 }
 
-Configuration gene_config(const std::string argstr)
+cgn::Configuration gene_config(const std::string argstr)
 {
     std::unordered_set<std::string> argls;
     for (std::size_t i=0, j=0; j<argstr.size(); i = j+1) {
@@ -39,9 +39,9 @@ Configuration gene_config(const std::string argstr)
             argls.insert(argstr.substr(i, j-i));
     }
 
-    HostInfo host = glb.get_host_info();
+    cgn::HostInfo host = api.get_host_info();
 
-    Configuration cfg;
+    cgn::Configuration cfg;
 
     if ((cfg["os"] = get_one_of(argls, "win", "mac", "linux")) == "")
         cfg["os"] = host.os;
@@ -79,7 +79,7 @@ void cgn_setup(CGNInitSetup &x) {
     // x.cfg_restrictions["sanitizer"] = {"asan", "lsan", "msan", "tsan", "ubsan"};
 
     std::string host_arg = "release,";
-    HostInfo hinfo = glb.get_host_info();
+    cgn::HostInfo hinfo = api.get_host_info();
     host_arg += hinfo.cpu + "," + hinfo.os;
     if (hinfo.os == "win")
         host_arg += "sys_msvc,msvc_MD,CONSOLE,";
@@ -90,8 +90,8 @@ void cgn_setup(CGNInitSetup &x) {
     x.configs["host_release"] = gene_config(host_arg);
 
     std::string default_argss = host_arg;
-    auto fdarg = glb.cmd_kvargs.find("target");
-    if (fdarg != glb.cmd_kvargs.end())
+    auto fdarg = api.get_kvargs().find("target");
+    if (fdarg != api.get_kvargs().end())
         default_argss = fdarg->second;
     x.configs["DEFAULT"] = gene_config(default_argss);
 }

@@ -1,114 +1,177 @@
-//Public header for CGN factory and rule author
-// CXX-Generate-Ninja 2024 vrqq.org
 #pragma once
-#include <unordered_map>
 #include <string>
+#include <memory>
 #include <functional>
-
-//Import basic header
-#include "providers/provider.h"
 #include "entry/configuration.h"
 #include "entry/ninja_file.h"
-#include "tools/tools.h"
+#include "provider.h"
 
-//
-struct CGNInitSetup {
-    //platforms[platform_name] = kv-pair
-    std::unordered_map<std::string, Configuration> configs;
+namespace cgn {
 
-    //cfg_restrictions[key] = value[]
-    std::unordered_map<std::string, std::vector<std::string>> cfg_restrictions;
+class  CGNImpl;
+struct DLHelper;
+struct GraphNode;
+
+// 2 examples of CGN Script
+// -----------------------
+// (build.cgn.cc) target-factory descriptor
+//   label : //demo/build.cgn.cc
+//   files : ["demo/build.cgn.cc", "cgn.d/library/lang_rust.bundle/lang_rust.h"]
+// (cgn.d/library/lang_rust.bundle) interpreter
+//   label : //cgn.d/library/lang_rust.bundle
+//   files : ["cgn.d/library/lang_rust.bundle/lang_rust.cgn.cc"]
+//           ["cgn.d/library/lang_rust.bundle/lang_rust.cgn.h"]
+//           ["cgn.d/library/lang_rust.bundle/rule.ninja"]
+struct CGNScript
+{
+    // the output dll
+    std::string sofile;
+    std::unique_ptr<DLHelper> sohandle;
+
+    GraphNode *adep;
+
+    // const std::vector<std::string> &files();
 };
-extern void cgn_setup(CGNInitSetup &x);
 
-// C++ 11 compatiblity without std::filesystem
-struct TargetOpt {
+class NinjaFile;
+struct CGNTargetOpt {
+    // target BUILD_ENTRY
+    //  某个target编译时会产生多个outputs 通过 ninja BUILD_STAMP 来编译整个target
     constexpr static const char BUILD_NINJA[] = "build.ninja",
-                                BUILD_STAMP[] = ".build_stamp",
-                                ANALYSIS_STAMP[] = ".analysis_stamp";
+                                BUILD_ENTRY[] = ".stamp";
 
-    // like "//project1:hello"
+    // factory_ulabel : "//demo:hello_world"
+    // factory_name   : "hello_world"
     std::string factory_ulabel;
+    std::string factory_name;
 
-    //enforce regenerate build.ninja evenif cfg unchanged.
-    bool enforce_regenerate;
+    // a rel path which trailing with '/' or '\' (system-path-separator)
+    // like "cgn-out/obj/project1_/hello_FFFF1234/"
+    std::string out_prefix;
 
-    // BUILD.cgn.cc unique file label.
-    // like "//project1/BUILD.cgn.cc"
-    std::string fin_ulabel;
+    // a rel path which trailing with '/' or '\' (system-path-separator)
+    // like 'project1/'
+    std::string src_prefix;
+    
+    // the target ninja
+    // "out_prefix + BUILD_ENTRY" is entry
+    NinjaFile *ninja;
 
-    // a rel path which trailing with '/' (ninja-format)
-    // like "cgn-out/obj/project1_/hello_12CDEF/"
-    std::string fout_prefix;
+    GraphNode *adep;
 };
 
-class CGNImpl;
-class CGN {
-public:
-    void load_cgn_script(const std::string &label);
+struct CGNTarget
+{
+    const CGNScript *cgn_script = nullptr;
 
-    void unload_cgn_script(const std::string &label);
+    GraphNode *adep = nullptr;
 
-    TargetInfos analyse(
-        const std::string &tf_label, 
-        const Configuration &plat_cfg
+    TargetInfos infos;
+};
+
+using CGNFactoryLoader = std::function<TargetInfos(Configuration cfg, CGNTargetOpt opt)>;
+
+struct HostInfo {
+    //os : win, linux, mac
+    //cpu: x86, x64, arm64
+    std::string os, cpu;
+
+    // gnu_get_libc_version() : 2.8
+    // gnu_get_libc_release() : stable
+    std::string glibc_version, glibc_release;
+};
+
+struct Tools {
+    static uint32_t host_to_u32be(uint32_t in);
+    static uint32_t u32be_to_host(uint32_t in);
+
+    static std::string shell_escape(
+        const std::string &in
     );
 
     static HostInfo get_host_info();
 
-    static std::string shell_escape(const std::string &in);
+    static std::string rebase_path(const std::string &p, const std::string &base);
 
-    // @param label: the file with cgn file-label format.
-    // @return array of filepath relavent to woriking-root
-    std::vector<std::string> get_path(const std::string &label);
+    static std::string locale_path(const std::string &in);
 
-    //Get output folder of specific target
-    std::string get_output_folder(
-        const std::string &tf_label, 
-        ConfigurationID cfg_hash_id
+    static std::unordered_map<std::string, std::string> read_kvfile(
+        const std::string &filepath);
+
+    static int64_t stat(const std::string &filepath);
+
+    static std::unordered_map<std::string, int64_t> win32_stat_folder(
+        const std::string &folder_path);
+
+    static bool win32_long_paths_enabled();
+
+    static bool is_win7_or_later();
+
+}; //struct Tools
+
+class CGN : public Tools {
+public:
+    std::string get_filepath(const std::string &file_label) const;
+
+    const CGNScript *active_script(const std::string &label);
+
+    void offline_script(const std::string &label);
+
+    CGNTarget analyse_target(
+        const std::string &label, const Configuration &cfg
     );
+
+    void build(const std::string &label, const Configuration &cfg);
 
     ConfigurationID commit_config(const Configuration &plat_cfg);
 
-    const Configuration *query_config(const std::string &name);
-
-    // Add target ninja file into main-entry.ninja 
-    // at cgn-out/obj/main.ninja
-    void register_ninjafile(const std::string &ninja_file_path);
+    const Configuration *query_config(const std::string &name) const;
+    
+    void add_adep_edge(GraphNode *early, GraphNode *late);
 
     template<typename Interpreter> std::shared_ptr<void> bind_target_factory(
-        const std::string &label_prefix, const std::string &name,
+        const std::string &label_prefix, const std::string &name, 
         void(*factory)(typename Interpreter::context_type&)
-    );
+    ) {
+        auto loader = [this, factory](const Configuration &cfg, CGNTargetOpt opt) {
+            if (Interpreter::script_label) {
+                const CGNScript *s = active_script(Interpreter::script_label);
+                add_adep_edge(s->adep, opt.adep);
+            }
+            typename Interpreter::context_type x{cfg, opt};
+            factory(x);
+            return Interpreter::interpret(x, opt);
+        };
+        return bind_factory_part2(label_prefix + name, loader);
+    }
 
-    // void set_default_config(const std::string &name);
+    // bool clean_all();
 
-    //command line args
-    const std::unordered_map<std::string, std::string> &cmd_kvargs;
+    void init(const std::unordered_map<std::string, std::string> &kvargs);
 
-    CGN(CGNImpl *impl);
+    const std::unordered_map<std::string, std::string> &get_kvargs() const;
+
+    ~CGN();
 
 private:
     CGNImpl *pimpl;
 
     std::shared_ptr<void> bind_factory_part2(
-        const std::string &label,
-        std::function<TargetInfos(const Configuration&, TargetOpt)> fn_apply
+        const std::string &label, CGNFactoryLoader loader
     );
 };
 
-template<typename Interpreter> std::shared_ptr<void> CGN::bind_target_factory(
-    const std::string &label_prefix, const std::string &name, 
-    void(*factory)(typename Interpreter::context_type&)
-) {
-    auto fn = [this, name, factory](const Configuration &cfg, TargetOpt opt) {
-        if (Interpreter::script_label)
-            load_cgn_script(Interpreter::script_label);
-        typename Interpreter::context_type x{name, cfg};
-        factory(x);
-        return Interpreter::interpret(x, opt);
-    };
-    return bind_factory_part2(label_prefix + name, std::move(fn));
-}
+} //nemspace
 
-extern CGN glb;
+// cgn_init functions
+// ------------------
+
+struct CGNInitSetup {
+    //platforms[platform_name] = kv-pair
+    std::unordered_map<std::string, cgn::Configuration> configs;
+
+    //cfg_restrictions[key] = value[]
+    std::unordered_map<std::string, std::vector<std::string>> cfg_restrictions;
+};
+
+extern cgn::CGN api;

@@ -1,157 +1,364 @@
 #include <fstream>
+#include <optional>
 #include <filesystem>
-
-#include "cgn_impl.h"
+#include <cassert>
 #include "raymii_command.hpp"
+#include "cgn_impl.h"
 #include "ninja_file.h"
-#include "common.hpp"
 
-bool CGNImpl::load_cgn_script(const std::string &_label)
+
+extern void cgn_setup(CGNInitSetup &x) __attribute__((weak));
+
+namespace cgn {
+
+
+static void loop_dir(std::vector<std::string> *out, std::filesystem::path p)
 {
-    ScriptLabel t = parse_script_label(_label);
-    if (!analytics_file_visited.insert(t.unique_label).second)
-        return false;
-    
-    std::vector<std::string> script_files{t.filepath_in};
+    if (std::filesystem::is_directory(p))
+        for (auto it : std::filesystem::directory_iterator(p))
+            loop_dir(out, it);
+    else
+        out->push_back(p.string());
+}
 
-    //create .ninja file if not existed.
-    // * .cgn.rsp : read content, convert file path
-    // * .cgn.cc  : writeen down directly
-    if (!std::filesystem::exists(t.ninjapath_mid) || regen_all) {
-        NinjaFile fout(t.ninjapath_mid);
-        fout.append_variable("builddir", t.ninjapath_mid.parent_path());
-        fout.append_include(scriptc_ninja);
-
-        auto *field = fout.append_build();
-        field->rule = "cgn_cc";
-        field->variables["var_prefix"] = t.def_var_prefix;
-        field->variables["ulabel_prefix"] = t.def_ulabel_prefix;
-        field->outputs = {t.libpath_out.string()};
-        if (t.filepath_in.extension() == ".rsp") {
-            std::ifstream fin(t.filepath_in);
+static std::vector<std::string> expand_scripts(std::filesystem::path p)
+{
+    std::vector<std::string> rv;
+    if (std::filesystem::is_directory(p))
+        loop_dir(&rv, p);
+    else if (std::filesystem::exists(p)){
+        if (p.extension() == ".rsp") {
+            std::ifstream fin(p);
             for (std::string ss; !fin.eof() && std::getline(fin, ss);) {
-                auto fpath = t.filepath_in.parent_path() / ss;
-                script_files.push_back(fpath);
-                if (fpath.extension() == ".cpp" || fpath.extension() == ".cc" || fpath.extension() == ".cxx")
-                    field->inputs.push_back(fpath);
-                else
-                    field->implicit_inputs.push_back(fpath);
+                // auto fpath = p.parent_path() / std::filesystem::path(ss).make_preferred();
+                auto fpath = p.parent_path() / ss;
+                rv.push_back(fpath.string());
             }
         }
         else
-            field->inputs.push_back(t.filepath_in);
+            rv.push_back(p.make_preferred().string());
     }
-
-    //run ninja build
-    auto exe_result = raymii::Command::exec(
-        "ninja -f " + t.ninjapath_mid.string()
-    );
-    if (exe_result.exitstatus != 0)
-        throw std::runtime_error{
-            "label:" + _label + " ninjabuild: " + exe_result.output
-        };
-
-    //(re)load dll
-    if (scripts[t.unique_label].handle) {
-        if (exe_result.output == NINJA_NO_WORK_TO_DO)
-            return false;
-        unload_cgn_script(t.unique_label);
-    }
-    scripts[t.unique_label].handle = std::make_shared<DLHelper>(t.libpath_out);
-    scripts[t.unique_label].files  = script_files;
-    // if (*scripts[t.unique_label].handle)
-    //     throw std::runtime_error{"Cannot load library: " + t.libpath_out.string()};
-    return true;
-}
-
-void CGNImpl::unload_cgn_script(const std::string &_label)
-{
-    ScriptLabel t = parse_script_label(_label);
-    if (scripts.erase(t.unique_label) != 1)
-        throw std::runtime_error{"Script not loaded " + _label};
-}
-
-TargetInfos CGNImpl::analyse(
-    const std::string &tf_label, 
-    const Configuration &plat_cfg
-) {
-    TargetOpt t = get_target_dir(tf_label, cfg_mgr->commit(plat_cfg));
-    bool enforce_regen = load_cgn_script(t.fin_ulabel);
-
-    auto fd = factories.find(t.factory_ulabel);
-    if (fd == factories.end())
-        throw std::runtime_error{"analyse: " + tf_label + " not found."};
-    auto &node = fd->second;
-
-    enforce_regen |= fd->second.flag_no_cache;
-    enforce_regen |= (std::filesystem::exists(t.fout_prefix + t.BUILD_NINJA) == false);
-    return fd->second.fn_apply(plat_cfg, t);
-}
-
-int CGNImpl::build(
-    const std::string &tf_label,
-    const Configuration &plat_cfg
-) {
-    TargetOpt t = get_target_dir(tf_label, cfg_mgr->commit(plat_cfg));
-
-    //test need regeneration
-    // if all of the BUILD.cgn.cc unmodified, the target must same with
-    // the last time.
-    auto result = raymii::Command::exec(
-        "ninja -f" + obj_main_ninja + " " 
-        + t.fout_prefix + t.ANALYSIS_STAMP + " 2&>1"
-    );
-    if (result.output != NINJA_NO_WORK_TO_DO)
-        analyse(tf_label, plat_cfg);
+    else
+        throw std::runtime_error{p.string() + " not found."};
     
-    //All build script up to date, run ninja to build
-    std::string cmd = "ninja -f" + obj_main_ninja 
-                    + " " + t.fout_prefix + t.BUILD_STAMP;
-    return system(cmd.c_str());
+    return rv;
 }
 
-// void CGNImpl::clean_all()
-// {}
+static std::string mangle_var_prefix(const std::string &in) {
+    constexpr static std::array<bool, 256> chk = [](){
+        std::array<bool, 256> rv{};
+        for (bool &bv : rv) bv=0;
+        for (unsigned char c='0'; c<='9'; c++) rv[c]=1;
+        for (unsigned char c='a'; c<='z'; c++) rv[c]=1;
+        for (unsigned char c='A'; c<='Z'; c++) rv[c]=1;
+        return rv;
+    }();
 
-std::shared_ptr<void> CGNImpl::auto_target_factory(
-    const std::string &label, TargetApplyFunc fn_apply
+    constexpr static std::array<std::array<char, 3>, 256> rep = [](){
+        std::array<char, 16> hex{
+            '0', '1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+        std::array<std::array<char, 3>, 256> rv{std::array<char, 3>{0}};
+        for (std::size_t i=0; i<256; i++)
+            rv[i] = {'_', hex[i/16], hex[i%16]};
+        return rv;
+    }();
+
+    std::string out;
+    for (auto ch : in) {
+        if (chk[ch])
+            out.push_back(ch);
+        else
+            out.append(rep[ch].data(), 3);
+    }
+    return out;
+}
+
+std::string CGNImpl::expand_filelabel_to_filepath(const std::string &in) const
+{
+    return _expand_cell(in);
+}
+
+// NodeName == unique_label
+// case1: script loaded && stat(files[]) == Latest
+//        return ;
+// case2: script loaded && stat(files[]) == Stale
+//        unload script => goto case 3
+// case3: script not-load && stat(files[]) == Stale
+//        rebuild => goto case 4
+// case4: script not-load && stat(files[]) == Latest
+//        load and return;
+const CGNScript &CGNImpl::active_script(const std::string &label)
+{
+    std::string labe2 = _expand_cell(label);
+    std::string ulabel = "//" + labe2;
+    
+    CGNScript s; //the next value of scripts[label]
+
+    if (auto fd = scripts.find(ulabel); fd != scripts.end()) {
+        graph.test_status(fd->second.adep);
+        if (fd->second.adep->status == GraphNode::Latest)
+            return fd->second; // case1: scripts existed, graph Latest
+        
+        // case2: script existed, graph Stale. 
+        //        erase script and goto case 3
+        s.adep   = fd->second.adep;
+        s.sofile = fd->second.sofile;
+        // offline_script(&(fd->second));
+        scripts.erase(fd);
+    }
+    else
+        graph.test_status(s.adep = graph.get_node(ulabel));
+
+    if (s.sofile.empty()) {
+        std::filesystem::path fpath{labe2};
+        #ifdef _WIN32
+            s.sofile = analysis_path / fpath.parent_path() 
+                        / (fpath.stem().string() + ".dll");
+        #else
+            s.sofile = analysis_path / fpath.parent_path() 
+                        / ("lib" + fpath.stem().string() + ".so");
+        #endif
+    }
+    
+    // case3: script not loaded, graph Stale
+    //        prepare CGNScript and GraphNode fields if necessary,
+    //        then build cgn script and goto case 4 if build successful.
+    if (s.adep->files.empty() || s.adep->status == GraphNode::Stale) {
+        std::filesystem::path fpath{labe2};
+
+        //(re)generate GraphNode.files[]
+        std::vector<std::string> script_files = expand_scripts(fpath);
+        script_files.insert(script_files.begin(), s.sofile);
+        graph.set_node_files(s.adep, script_files);
+
+        //start build
+        std::string def_var_prefix = mangle_var_prefix(labe2);
+        std::string def_ulabel_prefix = "//:";
+        if (auto fd = labe2.rfind('/'); fd != labe2.npos)
+            def_ulabel_prefix = "//" + labe2.substr(0, fd) + ":";
+
+        // .rsp file is temporary and not included in adep->files[]
+        // .so / .dll is in adep->files[] when first created.
+        std::filesystem::create_directories(analysis_path / fpath.parent_path());
+        std::ofstream frsp(s.sofile + ".rsp"); 
+        for (auto it : s.adep->files) {
+            auto ext = std::filesystem::path{*it->key_filepath}.extension();
+            if (ext == ".cc" || ext == ".cpp" || ext == ".c++" || ext == ".cxx")
+                frsp << *(it->key_filepath) << " ";
+        }
+
+        bool is_msvc = script_cc.size() > 4 
+                    && script_cc.substr(script_cc.size() - 5) == "cl.exe";
+        if (is_msvc)
+            frsp<<"/nologo /showIncludes "
+                "/DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
+                "/utf-8 /MD /link /DLL /OUT:" + s.sofile;
+        else
+            frsp<< "-MMD -MF " + s.sofile + ".d"
+                    " -fPIC --shared -fdiagnostics-color=always -g -glldb -std=c++11"
+                    " -I. -I " + Tools::shell_escape(cell_lnk_path.string()) + 
+                    " -DCGN_VAR_PREFIX=" + Tools::shell_escape(def_var_prefix) +
+                    " -DCGN_ULABEL_PREFIX=" + Tools::shell_escape(def_ulabel_prefix) + 
+                    " -o " + s.sofile;
+        frsp.close();
+        auto build_rv = raymii::Command::exec(
+            script_cc + " @" + s.sofile + ".rsp"
+        );
+
+        if (build_rv.exitstatus != 0)
+            throw std::runtime_error{build_rv.output};
+
+        //build successful, update graph and goto case 4
+        graph.set_node_status_to_latest(s.adep);
+    }
+
+    // case4: script not loaded, graph Latest
+    //        load into scripts[]
+    s.sohandle = std::make_unique<DLHelper>(s.sofile);
+    if (!s.sohandle->valid())
+        throw std::runtime_error{"cannot load cgn script."};
+    return scripts.emplace(ulabel, std::move(s)).first->second;
+} //CGNImpl::active_script()
+
+void CGNImpl::offline_script(const std::string &label)
+{
+    std::string ulabel = "//" + _expand_cell(label);
+    
+    // WARN: status只标注文件变动 和当前node对应的 Target/Script 在CGN系统里的状态无关
+    //       若文件修改 需要用户单独调用set_node_status_to_unknown() 重置状态
+    // e.g.: CGNService后台常驻，不是监听iNode改变而rebuild，而是在每次调用 cgn build 时
+    //       as new round to re-analyse all related Nodes
+    //       
+    // if (auto fd = scripts.find(ulabel); fd != scripts.end())
+    //     graph.set_node_status_to_unknown(fd->second.adep);
+    
+    scripts.erase(ulabel);
+}
+
+
+// cache supported
+// label: //hello:world
+// case1: target_cache[] existed, graph(target) Latest, last_tgt.no_store == false
+//        return cache
+// case2: target_cache[] existed, graph(target) Stale or last_tgt.no_store == true
+//        delete last target and goto case 3
+// case3: target_cache[] not existed
+//        re-active(target.cgn_script) and call into interpreter,
+//        then graph(target) would be updated to Latest while interpreter()
+//
+CGNTarget CGNImpl::analyse_target(
+    const std::string &label, 
+    const Configuration &cfg,
+    std::string *adep_test
 ) {
-    //fn add_target
-    auto &node = factories[label];
-    if (node.fn_apply)
-        throw std::runtime_error{"TargetFactory exist: " + label};
-    node.fn_apply = std::move(fn_apply);
+    std::string labe2 = _expand_cell(label);
+    ConfigurationID cfg_id = cfg_mgr->commit(cfg);
+
+    //expand short label
+    // factory_label: @cell//project:nameA
+    // labe2: cell_folder/project:nameA
+    // => stem: cell_folder/project ('/' slash only)
+    // => facty_name: nameA
+    std::string stem = labe2, facty_name;
+    if (auto fdc = stem.rfind(':'); fdc != stem.npos)
+        facty_name = stem.substr(fdc+1), stem.resize(fdc);
+
+    std::filesystem::path escaped_mid, src_dir;
+    std::string last_dir;
+    for (std::size_t i=0, fd=0; fd<stem.size(); i=fd+1) {
+        if (fd = stem.find('/', i); fd == stem.npos)
+            fd = stem.size();
+        escaped_mid /= (last_dir = stem.substr(i, fd-i)) + "_";
+    }
+    if (facty_name.empty()){
+        if (last_dir.empty())
+            throw std::runtime_error{"target factory name must be assgined: "+ stem};
+        facty_name = last_dir;
+    }
+    std::string factory_label = "//" + stem + ":" + facty_name;
+    std::string tgt_label = factory_label + "#" + cfg_id;
+    std::string out_prefix = cgn_out / "obj" / escaped_mid / (facty_name + "_" + cfg_id);
+    out_prefix.push_back(std::filesystem::path::preferred_separator);
+    
+    if (adep_cycle_detection.insert(tgt_label).second == false)
+        throw std::runtime_error{"analyse: cycle-dependency " + tgt_label};
+
+    //special case:
+    //  check the stat of target ninja file
+    //  return empty if Latest existed, otherwise enter normal analyse
+    if (adep_test != nullptr) {
+        GraphNode *node = graph.get_node(out_prefix);
+        if (node->files.size()) { //if existed in db (generate by previous analyse)
+            graph.test_status(node);
+            if (node->status == GraphNode::Latest) {
+                *adep_test = out_prefix + CGNTargetOpt::BUILD_ENTRY;
+                return {};
+            }
+        }
+    } //endif (adep_test != nullptr)
+
+    if (auto fd = targets.find(tgt_label); fd != targets.end()) {
+        // case 1: cache found and Latest, return directly
+        if (fd->second.adep->status == GraphNode::Latest)
+            return fd->second;
+        
+        // case 2: delete current and goto case 3
+        targets.erase(fd);
+    }
+
+    // case 3: active_script() and interpreter()
+
+    //prepare CGNTarget return value and CGNTargetOpt interpret parameter
+    std::string ninja_path = out_prefix + CGNTargetOpt::BUILD_NINJA;
+    CGNTarget rv;
+    CGNTargetOpt opt;
+    opt.factory_ulabel = factory_label;
+    opt.factory_name   = facty_name;
+    opt.src_prefix = std::filesystem::path{stem}.parent_path().string();
+    opt.src_prefix.push_back(std::filesystem::path::preferred_separator);
+    opt.out_prefix = out_prefix;
+    rv.cgn_script = &active_script("//" + stem + "/BUILD.cgn.cc");
+
+    // find factories after acrive_script
+    cgn::CGNFactoryLoader fn_loader;
+    if (auto fd = factories.find(factory_label); fd != factories.end())
+        fn_loader = fd->second;
+    else
+        return {}; //return immediately if factory not found
+
+    rv.adep = opt.adep = graph.get_node(opt.out_prefix);
+    graph.remove_inbound_edges(opt.adep);
+    graph.set_node_files(opt.adep, {ninja_path});
+    graph.add_edge(rv.cgn_script->adep, rv.adep);
+
+    std::unique_ptr<NinjaFile> nj = std::make_unique<NinjaFile>(ninja_path);
+    opt.ninja = nj.get();
+    if (main_subninja.insert(ninja_path).second) {
+        std::ofstream fout(obj_main_ninja, std::ios::app);
+        fout<<"subninja "<<NinjaFile::escape_path(ninja_path)<<"\n";
+    }
+
+    //call interpreter()
+    //  factory_entry(tgt) : xx_factory(xctx), xx_interpreter(xctx, tgt);
+    fn_loader(cfg, opt);
+
+    // release ninja file handle to write build.ninja down to disk
+    // then fstat() could get the right mtime to written down to fileDB
+    nj.reset(); 
+
+    //update mtime in fileDB after interpreter returned successful.
+    graph.set_node_status_to_latest(opt.adep);
+
+    //special case:
+    if (adep_test) {
+        assert(opt.adep->status == GraphNode::Latest);
+        *adep_test = out_prefix + CGNTargetOpt::BUILD_ENTRY;
+    }
+    
+    if (rv.infos.no_store)
+        return rv;
+    else
+        return targets.emplace(tgt_label, std::move(rv)).first->second;
+} //CGNImpl::analyse()
+
+
+void CGNImpl::add_adep(GraphNode *early, GraphNode *late)
+{
+    graph.add_edge(early, late);
+}
+
+
+void CGNImpl::precall_reset()
+{
+    graph.clear_mtime_cache();
+    adep_cycle_detection.clear();
+}
+
+
+std::shared_ptr<void> CGNImpl::bind_target_factory(
+    const std::string &ulabel, CGNFactoryLoader loader
+) {
+    if (factories.insert({ulabel, loader}).second == false)
+        throw std::runtime_error{"Factory exist: " + ulabel};
 
     //fn remove_target
     return std::shared_ptr<void>(nullptr, 
-        [this, label](void*) mutable{ factories.erase(label); }
+        [this, ulabel](void*) mutable{ factories.erase(ulabel); }
     );
 }
 
-void CGNImpl::prepare_main_ninja()
-{
-    constexpr std::string_view SUBNINJA{"subninja "};
-    std::ifstream fin(obj_main_ninja, std::ios::in);
-    if (!fin) {//create if not existed
-        std::ofstream{obj_main_ninja}; return;
-    }
-    for (std::string ln; !fin.eof() && std::getline(fin, ln);)
-        if (ln.size() > SUBNINJA.size())
-            main_subninja.insert(
-                NinjaFile::parse_ninja_str(ln.substr(SUBNINJA.size()))
-            );
+void CGNImpl::build_target(
+    const std::string &label, const Configuration &cfg
+) {
+    std::string ninja_target;
+    analyse_target(label, cfg, &ninja_target);
+    
+    std::string cmd = "ninja -f " + obj_main_ninja.string() 
+                    + " " + Tools::shell_escape(ninja_target);
+    system(cmd.c_str());
 }
 
-void CGNImpl::register_ninjafile(const std::string &ninja_file_path)
-{
-    if (main_subninja.insert(ninja_file_path).second) {
-        std::ofstream fout(obj_main_ninja, std::ios::app);
-        fout<<"subninja "<<NinjaFile::escape_path(ninja_file_path)<<"\n";
-    }
-}
-
-
-std::string CGNImpl::_expand_cell(const std::string &ss)
+std::string CGNImpl::_expand_cell(const std::string &ss) const
 {
     // ss: @cell//project:nameA
     // => rv: cell_folder/project:nameA
@@ -170,105 +377,14 @@ std::string CGNImpl::_expand_cell(const std::string &ss)
     }
     else
         throw std::runtime_error{"Invalid label format."};
-}
+} //CGNImpl::_expand_cell()
 
-constexpr std::array<bool, 256> gene_chk() {
-    std::array<bool, 256> rv{};
-    for (bool &bv : rv) bv=0;
-    for (unsigned char c='0'; c<='9'; c++) rv[c]=1;
-    for (unsigned char c='a'; c<='z'; c++) rv[c]=1;
-    for (unsigned char c='A'; c<='Z'; c++) rv[c]=1;
-    return rv;
-}
-constexpr std::array<std::array<char, 3>, 256> gene_rep() {
-    std::array<char, 16> hex{
-        '0', '1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
-    std::array<std::array<char, 3>, 256> rv{std::array<char, 3>{0}};
-    for (std::size_t i=0; i<256; i++)
-        rv[i] = {'_', hex[i/16], hex[i%16]};
-    return rv;
-}
-static void mapchar(std::string &out, unsigned char c) {
-    constexpr static std::array<bool, 256> chk = gene_chk();
-    constexpr static std::array<std::array<char, 3>, 256> rep = gene_rep();
-
-    if (chk[c])
-        out.push_back(c);
-    else
-        out.append(rep[c].data(), 3);
-}
-
-CGNImpl::ScriptLabel CGNImpl::parse_script_label(const std::string &label)
-{
-    //label: @cell//project/BUILD.cgn.cc
-    // => stem: cell_folder/project/BUILD.cgn.cc (on windows is '\\'backslash)
-    std::string labe2 = _expand_cell(label);
-
-    ScriptLabel rv;
-    rv.unique_label = "//" + labe2;
-    rv.filepath_in = std::filesystem::path{labe2}.make_preferred();
-
-    std::filesystem::path adir = rv.filepath_in.parent_path();
-    std::string stem_name = rv.filepath_in.stem();
-    rv.ninjapath_mid = analysis_path / adir / (stem_name + ".ninja");
-    rv.libpath_out   = analysis_path / adir / ("lib" + stem_name + ".so");
-
-    for (char c: labe2)
-        mapchar(rv.def_var_prefix, c);
-
-    if (auto fd = labe2.rfind('/'); fd != labe2.npos)
-        rv.def_ulabel_prefix = glb.shell_escape("\"//" + labe2.substr(0, fd) + ":\"");
-    else
-        rv.def_ulabel_prefix = "//:";
-    return rv;
-}
-
-TargetOpt CGNImpl::get_target_dir(
-    const std::string &tflabel, ConfigurationID hash_id
-) {
-    // tflabel: @cell//project:nameA
-    // => stem: cell_folder/project ('/' slash only)
-    // => facty_name: nameA
-    std::string stem = _expand_cell(tflabel), facty_name;
-    if (auto fdc = stem.rfind(':'); fdc != stem.npos)
-        facty_name = stem.substr(fdc+1), stem.resize(fdc);
-
-    std::filesystem::path objdir = cgn_out / "obj";
-    std::string last_dir;
-    for (std::size_t i=0, fd=0; fd<stem.size(); i=fd+1) {
-        if (fd = stem.find('/', i); fd == stem.npos)
-            fd = stem.size();
-        objdir /= (last_dir = stem.substr(i, fd-i)) + "_";
-    }
-
-    if (facty_name.empty()){
-        if (last_dir.empty())
-            throw std::runtime_error{"target factory name must be assgined: "+ stem};
-        facty_name = last_dir;
-    }
-
-    TargetOpt rv;
-    rv.factory_ulabel = "//" + stem + ":" + facty_name;
-    rv.fin_ulabel     = "//" + stem + "/BUILD.cgn.cc";
-    rv.fout_prefix    = objdir / (facty_name + "_" + hash_id);
-    rv.fout_prefix.push_back(std::filesystem::path::preferred_separator);
-    return rv;
-}
-
-std::vector<std::string> CGNImpl::get_script_filepath(const std::string &label)
-{
-    std::string filepath = _expand_cell(label);
-    if (auto fd = scripts.find("//" + filepath); fd != scripts.end())
-        return fd->second.files;
-    return {filepath};
-}
 
 void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
 {
     cgn_out = cmd_kvargs.at("cgn-out");
     analysis_path = cgn_out / "analysis";
     cell_lnk_path = cgn_out / "cell_include";
-    scriptc_ninja = analysis_path / "scriptc.cgn.ninja";
     obj_main_ninja = cgn_out / "obj" / "main.ninja";
 
     if (std::filesystem::exists(cgn_out)) {
@@ -283,58 +399,39 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
 
     std::ofstream stamp_file(cgn_out / ".cgn_out_root.stamp");
     stamp_file.close();
-    
-    if (cmd_kvargs.count("regeneration"))
-        regen_all = true;
+
+    // scriptcc variable
+    #ifdef _WIN32
+    script_cc = "cl.exe"
+    #else
+    script_cc = "clang++";
+    #endif
+    if (auto fd = cmd_kvargs.find("scriptcc"); fd != cmd_kvargs.end())
+        script_cc = fd->second;
+
+    // if (cmd_kvargs.count("regeneration"))
+    //     regen_all = true;
 
     cfg_mgr = std::make_unique<ConfigurationManager>(cgn_out / "configurations");
-    prepare_scriptc_ninja(cmd_kvargs["scriptc"]);
-    prepare_main_ninja();
-    cgn_cell_init();
-}
 
+    //prepare obj-main-ninja (entry of all targets)
+    constexpr std::string_view SUBNINJA{"subninja "};
+    std::ifstream fin(obj_main_ninja, std::ios::in);
+    if (!fin) {//create if not existed
+        std::ofstream{obj_main_ninja}; return;
+    }
+    for (std::string ln; !fin.eof() && std::getline(fin, ln);)
+        if (ln.size() > SUBNINJA.size())
+            main_subninja.insert(
+                NinjaFile::parse_ninja_str(ln.substr(SUBNINJA.size()))
+            );
+        
+    // graph init (load previous one)
+    graph.db_load(cgn_out / ".cgn_deps");
 
-void CGNImpl::prepare_scriptc_ninja(std::string cc) {
-constexpr static const char txt_unix[] = R"(
-rule cgn_cc
-    deps = gcc
-    depfile = $out.d
-    command = $compiler_cc @$out.rsp
-    rspfile = $out.rsp
-    rspfile_content = -MMD -MF $out.d -fPIC -fdiagnostics-color=always -g -glldb -std=c++11 -I. -I$cell_inc -DCGN_VAR_PREFIX=$var_prefix -DCGN_ULABEL_PREFIX=$ulabel_prefix --shared $in -o $out
-)";
-
-//TODO: detect msvc language
-constexpr static const char txt_win[] = R"(
-msvc_deps_prefix = Note: including file:
-rule cgn_cc
-    deps = msvc
-    command = $compiler_cc /showIncludes /c $in @$out.rsp
-    rspfile = $out.rsp
-    rspfile_content = /I. /I$cell_inc /DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_CONSOLE /D_AMD64_ /MD /link /DLL /OUT:$out
-)";
-
-#ifdef _WIN32
-    if (cc.empty())
-        cc = "cl.exe";
-    const char *txt2 = txt_win;
-#else
-    if (cc.empty())
-        cc = "clang++";
-    const char *txt2 = txt_unix;
-#endif
-
-    std::ofstream fout(scriptc_ninja);
-    fout<<"compiler_cc = " + cc + "\n"
-        <<"cell_inc = " + cell_lnk_path.string() + "\n"
-        <<txt2<<std::endl;
-}
-
-
-void CGNImpl::cgn_cell_init()
-{
+    //CGN cell init
     //load cell-path map from .cgn_init
-    cells = read_kvfile(".cgn_init");
+    cells = Tools::read_kvfile(".cgn_init");
 
     //create folder symbolic link
     std::filesystem::remove_all(cell_lnk_path);
@@ -347,7 +444,7 @@ void CGNImpl::cgn_cell_init()
     }
 
     if (auto fd = cells.find("CELL_SETUP"); fd != cells.end()) {
-        load_cgn_script(fd->second);
+        active_script(fd->second);
         cells.erase(fd);
 
         CGNInitSetup x;
@@ -358,6 +455,8 @@ void CGNImpl::cgn_cell_init()
         }
     }else{
         throw std::runtime_error{"CELL-SETUP UNASSIGNED!"};
-        load_cgn_script("@cgn.d//library/setup.cgn.cc");
+        // active_script("@cgn.d//library/cgn_default_setup.cgn.cc");
     }
-}
+} //CGNImpl::init()
+
+} //namespace

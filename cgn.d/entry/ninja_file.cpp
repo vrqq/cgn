@@ -1,6 +1,8 @@
 #include <filesystem>
 #include "ninja_file.h"
 
+namespace cgn{
+
 static std::string varlist_to_string(
     const std::unordered_map<std::string, std::string> &ls
 ) {
@@ -141,3 +143,5 @@ std::string NinjaFile::escape_path(const std::string &in)
 NinjaFile::NinjaFile(const std::string &filepath) : filepath(filepath) {}
 
 NinjaFile::~NinjaFile() { flush(); }
+
+} //namespace

@@ -12,18 +12,23 @@
     #ifndef NOMINMAX_DEFINED_OUTSIDE_DLLLOADER
         #undef NOMINMAX
     #endif
+    
+namespace cgn {
     DLHelper::DLHelper(const std::string &file) {
         m_ptr = LoadLibrary(file);
     }
     DLHelper::~DLHelper() {
         FreeLibrary(m_ptr);
     }
+}
 #endif
 
 #ifdef __linux__
     #include <dlfcn.h>
     #include <unistd.h>
     #include <linux/limits.h>
+    
+namespace cgn {
     DLHelper::DLHelper(const std::string &file) {
         m_ptr = dlopen(file.c_str(), RTLD_LAZY | RTLD_GLOBAL);
         if (!m_ptr)
@@ -33,4 +38,5 @@
     DLHelper::~DLHelper() {
         dlclose(m_ptr);
     }
+}
 #endif
