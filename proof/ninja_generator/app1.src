@@ -1,0 +1,10 @@
+
+rule echo
+    command = echo "Hello3331" > $out
+
+rule ech2
+    command = echo "World3331" > $out
+
+build exe1 : echo
+
+build exe2 : ech2

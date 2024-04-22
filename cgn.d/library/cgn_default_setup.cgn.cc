@@ -48,6 +48,15 @@ cgn::Configuration gene_config(const std::string argstr)
 
     if ((cfg["cpu"] = get_one_of(argls, "x86", "x86_64", "arm64")) == "")
         cfg["cpu"] = host.cpu;
+    
+    if ((cfg["toolchain"] = get_one_of(argls, "gcc", "llvm", "msvc")) == "") {
+        if (cfg["os"] == "win")
+            cfg["toolchain"] = "msvc";
+        else if (cfg["os"] == "mac")
+            cfg["toolchain"] = "llvm";
+        else
+            cfg["toolchain"] = "gcc";
+    }
 
     if ((cfg["optimization"] = get_one_of(argls, "debug", "release")) == "")
         cfg["optimization"] = "release";

@@ -95,6 +95,8 @@ struct Tools {
 
     static std::string locale_path(const std::string &in);
 
+    static std::string parent_path(const std::string &in);
+
     static std::unordered_map<std::string, std::string> read_kvfile(
         const std::string &filepath);
 
@@ -138,6 +140,7 @@ public:
                 const CGNScript *s = active_script(Interpreter::script_label);
                 add_adep_edge(s->adep, opt.adep);
             }
+            active_script(Interpreter::script_label);
             typename Interpreter::context_type x{cfg, opt};
             factory(x);
             return Interpreter::interpret(x, opt);

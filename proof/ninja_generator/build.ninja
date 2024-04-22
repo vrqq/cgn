@@ -1,0 +1,17 @@
+
+rule regen
+    command = ./regen.sh
+    description = Regenerating ninja files
+
+build build.ninja: regen build.src
+    generator = 1
+
+build app1.ninja: regen app1.src
+    generator = 1
+
+subninja app1.ninja
+
+rule ech4
+    command = echo "World333" > $out
+
+build exe3 : ech4

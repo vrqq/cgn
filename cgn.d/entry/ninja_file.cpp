@@ -8,8 +8,7 @@ static std::string varlist_to_string(
 ) {
     std::string rv;
     for (auto [k, v] : ls)
-        rv += "\n    " + NinjaFile::escape_path(k) 
-            + " = " + NinjaFile::escape_path(v);
+        rv += "\n    " + k + " = " + v;
     return rv;
 }
 
@@ -18,25 +17,25 @@ std::string NinjaFile::BuildSection::to_string() {
         throw std::runtime_error{"NinjaFile: empty outputs or rule."};
     std::string rv = "build ";
     for (auto &it: outputs)
-        rv += it + " ";
+        rv += escape_path(it) + " ";
     if (implicit_outputs.size()) {
         rv += "|";
         for (auto &it: implicit_outputs)
-            rv += it + " ";
+            rv += escape_path(it) + " ";
     }
 
     rv += ": " + rule + " ";
     for (auto &it: inputs)
-        rv += it + " ";
+        rv += escape_path(it) + " ";
     if (implicit_inputs.size()) {
         rv += "|";
         for (auto &it: implicit_inputs)
-            rv += it + " ";
+            rv += escape_path(it) + " ";
     }
     if (order_only.size()) {
         rv += "||";
         for (auto &it: order_only)
-            rv += it + " ";
+            rv += escape_path(it) + " ";
     }
     return rv + varlist_to_string(variables);
 }
@@ -72,7 +71,7 @@ std::string NinjaFile::CommentSection::to_string() {
 }
 
 std::string NinjaFile::GlobalVariable::to_string() {
-    return escape_path(key) + " = " + escape_path(value);
+    return key + " = " + value;
 }
 
 NinjaFile::BuildSection *NinjaFile::append_build() {

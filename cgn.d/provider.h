@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include <map>
+#include <vector>
 #include <unordered_set>
 #include <unordered_map>
 
@@ -11,21 +12,38 @@ namespace cgn {
 // the value accept both the relavent path of working root and absolute path.
 using FileLayout = std::map<std::string, std::string>;
 
+//vtable of target info
+struct TargetInfoV {
+    void        (*merge_from)(void *ecx, void *rhs);
+    std::string (*to_string)(void *ecx);
+};
+
 //Base class
 struct BaseInfo {
-    static const char *name() { return "BaseInfo"; }
-    virtual void merge_from(const BaseInfo *rhs) = 0;
-    virtual std::string to_string() const = 0;
-    virtual ~BaseInfo() {}
+    struct VTable {
+        void        (*merge_from)(void *ecx, const void *rhs);
+        std::string (*to_string)(const void *ecx);
+    };
+
+    BaseInfo(const VTable *vtable) : vtable(vtable) {};
+
+    void merge_from(const BaseInfo *rhs) {
+        return vtable->merge_from(this, rhs);
+    }
+    std::string to_string() const {
+        return vtable->to_string(this);
+    }
+
+private:
+    const VTable *vtable = nullptr;
 };
-inline std::ostream &operator<<(std::ostream &os, const BaseInfo &obj) {
-    os<<obj.to_string();
-    return os;
-}
 
 struct DefaultInfo : BaseInfo
 {
     std::string target_label;
+
+    // the ninja target name
+    std::string build_entry_name;
 
     //The files/folders relavent to WorkingRoot
     std::unordered_set<std::string> outputs;
@@ -33,17 +51,14 @@ struct DefaultInfo : BaseInfo
     //The CGN script label in dependency tree (.cgn.cc or .cgn.rsp)
     // std::unordered_set<std::string> dep_scripts;
 
+    DefaultInfo() : BaseInfo{&v} {}
     static const char *name() { return "DefaultInfo"; }
-    virtual void merge_from(const BaseInfo *rhs) override {
-        const DefaultInfo *rr = dynamic_cast<const DefaultInfo*>(rhs);
-        outputs.insert(rr->outputs.begin(), rr->outputs.end());
-        // dep_scripts.insert(rr->dep_scripts.begin(), rr->dep_scripts.end());
-    }
-    virtual std::string to_string() const override { return name(); }
-    virtual ~DefaultInfo() {}
+
+private:
+    static const VTable v;
 };
 
-struct BuildAndRunInfo : BaseInfo {
+struct LinkAndRunInfo : BaseInfo {
     //The file path relavent to WorkingRoot
     std::vector<std::string> shared_files, static_files, object_files;
     
@@ -51,10 +66,12 @@ struct BuildAndRunInfo : BaseInfo {
     // It may the indirect dependency, and folder path also accepted.
     FileLayout runtime_files;
 
-    static const char *name() { return "BuildAndRunInfo"; }
-    virtual void merge_from(const BaseInfo *rhs);
-    virtual std::string to_string() const;
-    virtual ~BuildAndRunInfo() {}
+    LinkAndRunInfo() : BaseInfo{&v} {}
+    
+    static const char *name() { return "LinkAndRunInfo"; }
+
+private:
+    static const VTable v;
 };
 
 class TargetInfos
@@ -79,7 +96,7 @@ public:
     bool empty() const { return _data.empty(); }
 
     // void merge_from(const TargetInfos &rhs);
-    void to_string() const;
+    std::string to_string() const;
 
     bool no_store = false;
 

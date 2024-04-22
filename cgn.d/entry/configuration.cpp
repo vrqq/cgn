@@ -63,6 +63,7 @@ ConfigurationManager::ConfigurationManager(const std::string &storage_dir)
         }
 } //ConfigurationManager()
 
+
 void ConfigurationManager::set_name(
     const std::string &name, const ConfigurationID &hash
 ) {
@@ -113,6 +114,8 @@ std::string ConfigurationManager::get_hash(size_t want) {
     throw std::runtime_error{"Too Many conflictions, please update the hash algorithm."};
     return "";
 } //ConfigurationManager::get_hash()
+
+std::string Configuration::empty_string;
 
 // https://johnnylee-sde.github.io/Fast-unsigned-integer-to-hex-string/
 static void UlongToHexString(uint64_t num, char *s, bool lowerAlpha)

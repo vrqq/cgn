@@ -176,6 +176,12 @@ std::string Tools::locale_path(const std::string &in)
     return std::filesystem::path{in}.make_preferred().string();
 }
 
+std::string Tools::parent_path(const std::string &in)
+{
+    auto p = std::filesystem::path{in}.parent_path();
+    return p.has_parent_path()? p.parent_path() : ".";
+}
+
 bool Tools::win32_long_paths_enabled() 
 {
 #ifdef _WIN32

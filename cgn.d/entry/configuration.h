@@ -54,10 +54,10 @@ public:
         }
 
         operator const std::string&() const {
-            return pvalue? *pvalue : "";
+            return pvalue? *pvalue : empty_string;
         }
         bool operator==(const std::string &rhs) const {
-            return pvalue? rhs.empty() : (*pvalue == rhs);
+            return pvalue? (*pvalue == rhs) : rhs.empty();
         }
         bool operator!=(const std::string &rhs) const {
             return !(*this == rhs);
@@ -137,6 +137,7 @@ private: friend class ConfigurationManager;
     int  hash_hlp = 0;       // the helper of hash function
     std::string hashid;      // the name of current configuration
     std::unordered_map<std::string, std::string> data;
+    static std::string empty_string;
     
     std::string *detect_value(const std::string &key) {
         auto fd = data.find(key);

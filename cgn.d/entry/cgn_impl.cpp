@@ -5,6 +5,7 @@
 #include "raymii_command.hpp"
 #include "cgn_impl.h"
 #include "ninja_file.h"
+#include "debug.h"
 
 
 extern void cgn_setup(CGNInitSetup &x) __attribute__((weak));
@@ -89,6 +90,7 @@ std::string CGNImpl::expand_filelabel_to_filepath(const std::string &in) const
 //        load and return;
 const CGNScript &CGNImpl::active_script(const std::string &label)
 {
+    logout<<"CGN::active_script("<< label <<")"<<std::endl;
     std::string labe2 = _expand_cell(label);
     std::string ulabel = "//" + labe2;
     
@@ -135,7 +137,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
         std::string def_var_prefix = mangle_var_prefix(labe2);
         std::string def_ulabel_prefix = "//:";
         if (auto fd = labe2.rfind('/'); fd != labe2.npos)
-            def_ulabel_prefix = "//" + labe2.substr(0, fd) + ":";
+            def_ulabel_prefix = "\"//" + labe2.substr(0, fd) + ":\"";
 
         // .rsp file is temporary and not included in adep->files[]
         // .so / .dll is in adep->files[] when first created.
@@ -213,6 +215,7 @@ CGNTarget CGNImpl::analyse_target(
 ) {
     std::string labe2 = _expand_cell(label);
     ConfigurationID cfg_id = cfg_mgr->commit(cfg);
+    logout<<"CGN::analyse_target("<< label <<", "<<cfg_id<<")"<<std::endl;
 
     //expand short label
     // factory_label: @cell//project:nameA
@@ -274,7 +277,7 @@ CGNTarget CGNImpl::analyse_target(
     CGNTargetOpt opt;
     opt.factory_ulabel = factory_label;
     opt.factory_name   = facty_name;
-    opt.src_prefix = std::filesystem::path{stem}.parent_path().string();
+    opt.src_prefix = stem;
     opt.src_prefix.push_back(std::filesystem::path::preferred_separator);
     opt.out_prefix = out_prefix;
     rv.cgn_script = &active_script("//" + stem + "/BUILD.cgn.cc");
@@ -352,6 +355,8 @@ void CGNImpl::build_target(
 ) {
     std::string ninja_target;
     analyse_target(label, cfg, &ninja_target);
+    if (ninja_target.empty())
+        throw std::runtime_error{label + " target not found."};
     
     std::string cmd = "ninja -f " + obj_main_ninja.string() 
                     + " " + Tools::shell_escape(ninja_target);
@@ -417,14 +422,14 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
     //prepare obj-main-ninja (entry of all targets)
     constexpr std::string_view SUBNINJA{"subninja "};
     std::ifstream fin(obj_main_ninja, std::ios::in);
-    if (!fin) {//create if not existed
-        std::ofstream{obj_main_ninja}; return;
-    }
-    for (std::string ln; !fin.eof() && std::getline(fin, ln);)
-        if (ln.size() > SUBNINJA.size())
-            main_subninja.insert(
-                NinjaFile::parse_ninja_str(ln.substr(SUBNINJA.size()))
-            );
+    if (!fin) //create if not existed
+        std::ofstream{obj_main_ninja};
+    else
+        for (std::string ln; !fin.eof() && std::getline(fin, ln);)
+            if (ln.size() > SUBNINJA.size())
+                main_subninja.insert(
+                    NinjaFile::parse_ninja_str(ln.substr(SUBNINJA.size()))
+                );
         
     // graph init (load previous one)
     graph.db_load(cgn_out / ".cgn_deps");

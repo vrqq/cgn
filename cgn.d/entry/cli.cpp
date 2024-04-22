@@ -81,7 +81,7 @@ int main(int argc, char **argv)
     }
     if (args[0] == "clean") {
         std::filesystem::path dir{args_kv["cgn-out"]};
-        if (std::filesystem::exists(dir / ".cgn-out_root.stamp"))
+        if (std::filesystem::exists(dir / ".cgn_out_root.stamp"))
             std::filesystem::remove_all(dir);
         else
             std::cerr<<dir.string()<<"\n"

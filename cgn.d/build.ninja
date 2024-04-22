@@ -32,7 +32,7 @@ build $output/cgn_impl.o: cc entry/cgn_impl.cpp
 
 build $output/cgn_tools.o: cc entry/cgn_tools.cpp
 
-build $output/cgn: link entry/cgn.cpp entry/cli.cpp $
+build $output/cgn: link entry/cgn.cpp entry/cli.cpp entry/provider.cpp $
                    build/cgn_impl.o build/cgn_tools.o build/configuration.o $
                    build/ninja_file.o build/dl_helper.o build/graph.o 
 

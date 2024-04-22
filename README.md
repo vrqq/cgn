@@ -1,5 +1,6 @@
 ## 写在最前面
-这是一个比较失败的烂尾项目: 无论gcc还是clang 编译dll的速度实在太慢(0.5秒)，若一个小型项目(几十个BUILD文件) 每次修改几个 都需要数秒analyze，首次生成甚至需要数十秒analyze 很难接受。几个改进方向:  
+这是一个比较失败的项目: 无论gcc还是clang 编译dll的速度实在太慢(0.5秒)，若一个小型项目(几十个BUILD文件) 每次修改几个 都需要数秒analyze，首次生成甚至需要数十秒analyze 很难接受。几个改进方向:  
+* 增加一个 test-build 在首次运行时尝试编译所有扫描到的cgn-script
 * JIT: llvm IR
 * PCH: instantiate member function 
 * 去C++ STL / 二次封装 减少模板解析时间
@@ -15,6 +16,7 @@
     * 或许使用任意c++ JIT (LLVM-IR / mmap + asm / ...) 能省掉
 
 或许C++并不适合，c++和JIT语言的编译器发展方向不是一个思路，对于c++ 前端慢也不是问题。
+
 * cpp编译器认为的快 = 编译后的程序运行快
 * JIT语言认为的快(例如python) = frontend+运行 总体快
 
@@ -29,24 +31,28 @@
 而Bazel像是从cmake进化来的，调用函数完成定义，把cmake的 单个函数单个作用 变成了 单个函数多个入参控制。
 
 # CGN
-受GN和bazel/buck启发，用 C++11 编写编译脚本(BUILD.cgn)，并由cgn.exe扫描目录并自动将每一个BUILD.cgn编译为独立dll，然后由cgn.exe依次dlopen后，自动解析target然后生成ninja脚本。
-之后使用`ninja -C xx ...`或`cgn build cell://folder:target`编译  
-* label: `@third_party//protobuf:protoc`
+受GN和bazel/buck启发，用 C++11 编写编译脚本(BUILD.cgn)，并由cgn.exe扫描目录并自动将每一个BUILD.cgn编译为独立dll，然后由cgn.exe依次dlopen后，自动解析target然后生成ninja脚本。 
+之后使用`cgn build @cell//folder:target`编译  
+**conceptions**  
+* factory label: `@third_party//protobuf:protoc`
+* script label: `@cgn.d//library/cxx.cgn.bundle`
+    * CGN支持3种script表述方式: 以.bundle结尾的文件夹, 以.rsp结尾的文件, 和以 .cc结尾的单脚本文件
+    * CGN利用类似ninja的 `/showIncludes` 处理 .h的引入 (TODO)
 * WorkingRoot: CWD where to run cgn.exe
 * cgn-out: CGN的输出位置 含build.ninja，compile_commands.json等
-* Target输出路径:    `cgn-out/obj/folder_/factoryname_1A2B3C`
-    * target-ninja: `cgn-out/obj/folder_/factoryname_1A2B3C/build.ninja`
+* Target输出路径:    `cgn-out/obj/<FOLDER-NAME>_/<FACTORY-NAME>_<ConfigID>`
+    * 例如 `cgn-out/obj/folder1_/factoryname_1A2B3C4D`
+    * target-ninja: `cgn-out/obj/folder1_/factoryname_1A2B3C4D/build.ninja`
     * entry:        `cgn-out/obj/main.ninja`
-    * $OUT in-ninja: `cgn-out/obj/folder_/factoryname_1A2B3C/hello.o`
-    * $IN in-ninja:  `folder/hello.cpp`
-* Configuration存储路径: `cgn-out/configurations/1A2B3C.cfg`
-* CGN-Script中间路径:  `cgn-out/analysis/folder/libSCRIPTFILENAME.cgn.so`
-    * cgn.so builder: `cgn-out/analysys/folder/BUILD.cgn.ninja`
-    * .rsp savepath:  `cgn-out/analysys/folder/SCRIPTFILENAME.rsp`
-    * scriptc:        `cgn-out/analysis/.cgn.ninja`
+    * $OUT in-ninja: `cgn-out/obj/folder1_/factoryname_1A2B3C4D/hello.o`
+    * $IN in-ninja:  `folder1/hello.cpp`
+* Configuration存储路径: `cgn-out/configurations/<ConfigID>.cfg`
+    * 例如 `cgn-out/configurations/1A2B3C4D.cfg`
+* CGN-Script中间路径:  `cgn-out/analysis/FOLDERNAME/libSCRIPTFILENAME.cgn.so`
+    * 例如 cgn-out/analysis/folder1/libBUILD.cgn.so 编译于 `folder1/BUILD.cgn.cc`
     * script-include: `cgn-out/cell_include`
-    * -DCGN_VAR_PREFIX: `FOLDER1_20_20__`
-    * -DCGN_ULABEL_PREFIX: `//folder:`
+    * -DCGN_VAR_PREFIX: `folder1_20_20`
+    * -DCGN_ULABEL_PREFIX: `//folder1:`
 * 所有有关路径的string 无论在ninja文件中还是任何地方 都和系统相关
     * windows使用backslash'\'，unix 使用 slash'/'
 * 所有label均使用slash'/'分割
@@ -57,39 +63,44 @@
 **Pros**
 * 受buck2启发，既然buck2仅是starlark解释器，那么c++语言就是天然的解释器，只要规定好脚本习惯，即可扩充其他支持的语言
 * 无需考虑语法解释器 和新的语言语法，c++大多数系统自带，同时也有语法提示
-* ninja做了依赖，文件检查，并行
+* ninja做了依赖，文件检查，并行编译
 
 **Cons**
 * 造轮子成本
 * 分布式编译协议 可引入分布式编译器
-* 编译链接速度
+* cgn-script 的c++编译链接速度令人发指
 
 **RoadMap**
 * cgn改为后台常驻模式，动态dlopen/dlclose，避免每次启动重新加载，中型工程约400个target对应400次dlopen，开销很大
 
-## PUBLIC-RULE
+## 拟支持的 interpreter 第一期
+**PUBLIC-RULE**  
+* `@cgn.d//library/shell.cgn.rsp`
 * filegroup, sh_binary
 
-## C, C++
+**C, C++**  
+* `@cgn.d//library/cxx.cgn.bundle`
 * cxx_executable / cxx_shared / cxx_static
 * clang ThinLTO
 * msvc incremental build
 
-## Protobuf, gRPC
+**Protobuf, gRPC**  
+* `@cgn.d//third_party/proto.cgn.cc`
 * proto_cxx / proto_py / proto_js / grpc_cxx
 
-## NodeJS
+**NodeJS**  
 * system npm/yarn required
 * node-modules inside CGN-WORKING-DIR
 
-## NASM
+**NASM**  
 * `@third_party//nasm`
 
 ## 从这里开始
 **BUILD**
 `ninja -C cgn.d` 编译输出到 cgn.d/build/cgn
 
-demo: `./cgn.d/build/cgn build //hello:demo`
+shdemo: `./cgn.d/build/cgn build //hello:demo`
+cppdemo: `./cgn.d/build/cgn build //hello:cpp`
 
 **对比 Chrome GN**
 * CGN 支持函数, dep返回值
@@ -100,12 +111,13 @@ demo: `./cgn.d/build/cgn build //hello:demo`
 * bzl把分析表达式当作lambda代入target声明
 * bzl在每个RULE未进入前, 不能立刻拿到结果, 而CGN可以 (实时结果)
 
-**cgn**
+**BUILD.cgn.cc example**
 ```cpp
+// 'mylib' is 'target factory'
 rust_library("mylib", x) {
-    x.srcs = ["lib1.rs"]
+    x.srcs = {"lib1.rs"};
     if (x.cfg["os"] == "win")
-        x.srcs.append("lib1_win.rs");
+        x.srcs += {"lib1_win.rs"};
 }
 ```
 
@@ -116,8 +128,22 @@ rust_library("mylib", x) {
 
 **analyze**
 * 所有 `.cgn.cc` / `.cgn.h` 文件均运行在analyze阶段
-* 有一入口程序cgn.exe (cgn.d/entry/cli.cpp) , 每个 `BUILD.cgn.cc` 会被cgn.exe 实时编译并 `dlopen(libBUILD.cgn.so)`, 然后运行其中的 *target factory function* 代码段, 该代码段指导 obj/target_dir/build.ninja 生成, 供后续 *build* 使用
+* 有一入口程序cgn.exe (cgn.d/entry/cli.cpp) , 每个 `BUILD.cgn.cc` 会被cgn.exe 实时编译并 `dlopen(libBUILD.cgn.so)`, 然后运行其中的 *target factory function* 代码段, 该代码段指导 `obj/target_dir/build.ninja` 生成, 供后续 *build* 使用
+* analyse时需指定 target_factory_label + configuration
+    * 通过cli运行时 configuration 默认为 DEFAULT
 
 **build**
-例如运行 `//hello:demo` 是shell-script (//cgn.d/library/shell.cgn.cc) 其configID为 `FFFF9B7C`
-相当于`ninja -f cgn-out/obj/main cgn-out/obj/hello_/demo_FFFF9B7C/demo.stamp`
+例如 运行 `//hello:demo` with `cfg["DEFAULT"]` 是 shell-script (//cgn.d/library/shell.cgn.cc) 其configID为 `FFFF9B7C`
+相当于`ninja -f cgn-out/obj/main.ninja cgn-out/obj/hello_/demo_FFFF9B7C/demo.stamp`
+
+**build argument**
+* `cgn build //some/label --target=target_str` 其中 target_str 是由逗号分隔的字符串, 该字符串由 `CGN_SETUP()` 解析至 `named_configs["DEFAULT"]` 从而指导各interpreter生成ninja代码
+* OneOf(gcc, msvc, llvm) : OPT, linux默认gcc, win默认msvc
+* OneOf(debug, release) : OPT, 默认release
+* OneOf(win, mac, linux), OneOf(x86, x86_64, arm64) : OPT, 默认host
+* OneOf(msvc_MD, msvc_MD) : OPT, 仅windows下自动填充, debug to MDd, release to MD
+* OneOf(CONSOLE, WINDOW) : OPT, 仅windows下自动填充 CONSOLE
+
+**named config**
+* DEFAULT: 应由 `cgn_setup()` 生成, 作为默认的编译参数
+* host_release: 建议由 `cgn_setup()` 生成, 通常在跨平台时编译本地toolchain

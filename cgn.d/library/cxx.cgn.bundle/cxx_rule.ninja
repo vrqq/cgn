@@ -1,0 +1,29 @@
+rule unix_stamp
+    command = touch ${out}
+    description = STAMP
+
+rule win_stamp
+    command = cmd /c type nul > "${out}"
+    description = STAMP
+
+rule gcc
+    command = ${cc} -MMD -MF ${out}.d ${cflags} -c ${in} -o ${out}
+    description = CXX ${out}
+    depfile = ${out}.d
+    deps = gcc
+
+rule msvc
+    command = cl.exe /nologo /showIncludes ${cflags} /c ${in} /Fo"${out}" /Fd"${out}.pdb"
+    description = CXX ${out}
+    deps = msvc
+
+rule crun
+    command = ${cmd}
+    description = ${desc}
+
+rule crun_rsp
+    command = ${exe} @${out}.rsp
+    description = ${desc}
+    rspfile = ${out}.rsp
+    rspfile_content = ${args}
+
