@@ -9,6 +9,8 @@
 
 namespace cgn {
 
+// All sections would not auto escape any string!
+// see also //proof/ninja/syntax/build.ninja
 class NinjaFile {
 public:
     struct Section {
@@ -89,6 +91,10 @@ public:
     static std::string parse_ninja_str(const std::string &in);
 
     static std::string escape_path(const std::string &in);
+    
+    static std::vector<std::string> escape_path(
+        const std::vector<std::string> &in
+    );
 
     // static std::string escape(const std::vector<std::string> &in);
 

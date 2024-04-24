@@ -1,0 +1,53 @@
+## Guide to class ninjaFile
+## class should not auto escape any string like inputs, outputs, ...
+##
+
+## test case
+## ninja variable can use in these cases
+## -------------------------------------
+rule stamp
+    command = echo "${in}" > ${out}
+
+filename1 = file.src
+
+build test1.stamp : stamp ${filename1}
+
+
+## the command below by ninja would auto convert to
+## [1/1] cp 'file"2.src' 'file"2".out'
+##
+## wrong usage: 
+## build file"2".out : cp file\"2.src
+##
+## $ ninja file\"2\".out
+## ninja: error: 'file\"2.src', needed by 'file"2".out', missing and no known rule to make it
+## ----------------------------------
+rule cp
+    command = cp $in $out
+
+build file"2".out : cp file"2.src
+
+build file3.out : cp file$ 3.txt
+
+
+## test case
+## file in rule command should interpret manually
+## ----------------------------------------------
+rule cp3
+    command = cp file\"2.src $out
+
+build cp3.out : cp3
+
+build cp4$$.out : cp3
+
+## test case
+## special char in variable
+## result: NO shell escape for variable
+rule cp9
+    command = cp ${var1} ${out}
+
+build cp9.out : cp9
+    var1 = file\"2.src
+
+## =====================
+## Result: filename in ${in} or ${out} would auto escape for current shell

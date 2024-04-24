@@ -17,25 +17,25 @@ std::string NinjaFile::BuildSection::to_string() {
         throw std::runtime_error{"NinjaFile: empty outputs or rule."};
     std::string rv = "build ";
     for (auto &it: outputs)
-        rv += escape_path(it) + " ";
+        rv += it + " ";
     if (implicit_outputs.size()) {
         rv += "|";
         for (auto &it: implicit_outputs)
-            rv += escape_path(it) + " ";
+            rv += it + " ";
     }
 
     rv += ": " + rule + " ";
     for (auto &it: inputs)
-        rv += escape_path(it) + " ";
+        rv += it + " ";
     if (implicit_inputs.size()) {
         rv += "|";
         for (auto &it: implicit_inputs)
-            rv += escape_path(it) + " ";
+            rv += it + " ";
     }
     if (order_only.size()) {
         rv += "||";
         for (auto &it: order_only)
-            rv += escape_path(it) + " ";
+            rv += it + " ";
     }
     return rv + varlist_to_string(variables);
 }
@@ -137,6 +137,14 @@ std::string NinjaFile::escape_path(const std::string &in)
         else
             out += ch;
     return out;
+}
+
+std::vector<std::string> NinjaFile::escape_path(const std::vector<std::string> &in)
+{
+    std::vector<std::string> rv;
+    for (auto &ss : in)
+        rv.push_back(ss);
+    return rv;
 }
 
 NinjaFile::NinjaFile(const std::string &filepath) : filepath(filepath) {}

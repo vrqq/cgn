@@ -123,4 +123,14 @@ struct PrebuiltContext {
 
 } //namespace cxx
 
-#define cxx_executable(name, x) CGN_RULE_DEFINE(cxx::CxxInterpreterIF<cxx::CxxExecutableContext>, name, x)
+#define cxx_executable(name, x) CGN_RULE_DEFINE( \
+    cxx::CxxInterpreterIF<cxx::CxxExecutableContext>, name, x)
+    
+#define cxx_shared(name, x) CGN_RULE_DEFINE( \
+    cxx::CxxInterpreterIF<cxx::CxxSharedContext>, name, x)
+
+#define cxx_static(name, x) CGN_RULE_DEFINE( \
+    cxx::CxxInterpreterIF<cxx::CxxStaticContext>, name, x)
+
+#define cxx_sources(name, x) CGN_RULE_DEFINE( \
+    cxx::CxxInterpreterIF<cxx::CxxSourcesContext>, name, x)

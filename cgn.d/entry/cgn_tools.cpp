@@ -313,6 +313,20 @@ int64_t Tools::stat(const std::string &path)
 
 } //Tools::stat()
 
+
+std::string Tools::rebase_label(
+    const std::string &p, std::string base
+) {
+    if (p.size() && p[0] == '@')
+        return p;
+    if (base.size() && base.back() == '/' && p.size() && p.front() == ':')
+        base.pop_back();
+    auto tmp = std::filesystem::proximate(
+        std::filesystem::path{base} / p
+    );
+    return "//" + tmp.string();
+}
+
 std::unordered_map<std::string, std::string> 
 Tools::read_kvfile(const std::string &fname)
 {

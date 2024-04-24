@@ -94,6 +94,11 @@ std::pair<std::string, char> file_check(const std::string& filename) {
     return {"", 0};
 }
 
+static std::string two_escape(const std::string &in) {
+    return cgn::NinjaFile::escape_path(cgn::CGN::shell_escape(in));
+}
+
+template<bool NeedEscape = false>
 std::string list2str(
     const std::vector<std::string> &in, const std::string prefix="",
     bool erase_dup = false
@@ -101,10 +106,13 @@ std::string list2str(
     std::unordered_set<std::string> visited;
     std::string rv;
     for (auto &it : in)
-        if (!erase_dup || visited.insert(it).second)
-            rv += prefix + it + " ";
+        if (!erase_dup || visited.insert(it).second){
+            std::string tmp = prefix + it;
+            rv += (NeedEscape? two_escape(tmp):tmp) + " ";
+        }
     return rv;
 }
+
 
 cgn::TargetInfos CxxInterpreter::msvc_interpret(
     CxxInterpreter::context_type &x, cgn::CGNTargetOpt opt
@@ -293,14 +301,14 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
     CxxInfo &arg = x;
     std::vector<std::string> cflags_cc{"-std=c++17"}, cflags_c{"-std=gnu17"};
 
-    std::string prefix = cgn::Tools::shell_escape(x.cfg["cxx_prefix"]);
+    std::string prefix = x.cfg["cxx_prefix"];
     std::string exe_cc, exe_cxx, exe_solink, exe_xlink, exe_ar;
     if (x.cfg["toolchain"] == "gcc") {
-        exe_cc  = prefix + "gcc";
-        exe_cxx = prefix + "g++";
-        exe_ar  = prefix + "gcc-ar";
-        exe_solink = prefix + "g++ -shared";
-        exe_xlink  = prefix + "g++";
+        exe_cc  = two_escape(prefix + "gcc");
+        exe_cxx = two_escape(prefix + "g++");
+        exe_ar  = two_escape(prefix + "gcc-ar");
+        exe_solink = two_escape(prefix + "g++") + " -shared";
+        exe_xlink  = two_escape(prefix + "g++");
 
         arg.cflags.insert(arg.cflags.end(), {
             "-I.",
@@ -309,6 +317,7 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
             "-Wl,--exclude-libs,ALL"
         });
         arg.ldflags += {
+            "-L.",
             "-Wl,--warn-common", "-Wl,-z,origin", 
             "-Wl,--export-dynamic",  // force export from executable
             // "-Wl,--warn-section-align", 
@@ -339,17 +348,18 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
             arg.cflags += {"--sysroot=" + cgn::Tools::shell_escape(x.cfg["cxx_sysroot"])};
     } //toolchain == "gcc"
     else if (x.cfg["toolchain"] == "llvm") {
-        exe_cc  = prefix + "clang";
-        exe_cxx = prefix + "clang++";
-        exe_ar  = prefix + "llvm-ar";
-        exe_solink = prefix + "clang++ -fuse-ld=lld -shared";
-        exe_xlink  = prefix + "clang++ -fuse-ld=lld";
+        exe_cc  = two_escape(prefix + "clang");
+        exe_cxx = two_escape(prefix + "clang++");
+        exe_ar  = two_escape(prefix + "llvm-ar");
+        exe_solink = two_escape(prefix + "clang++") + " -fuse-ld=lld -shared";
+        exe_xlink  = two_escape(prefix + "clang++") + " -fuse-ld=lld";
 
         arg.cflags += {
             "-fvisibility=hidden",
             "-fcolor-diagnostics", "-Wreturn-type", 
             "-I.", "-fPIC", "-pthread"};
         arg.ldflags += {
+            "-L.",
             "-Wl,--warn-common", "-Wl,--warn-backrefs",
             "-lpthread", "-lrt"
         };
@@ -406,17 +416,23 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
 
     //(2) args.define => .cflags
     //    arg.include_dirs => .cflags
+    // now inf.cflags and .ldflags can written to ninja file directly
     auto def_to_cflag = [](CxxInfo &inf) {
         for (auto &def : inf.defines)
-            inf.cflags += {"-D" + cgn::Tools::shell_escape(def)};
+            inf.cflags += {"-D" 
+                + cgn::NinjaFile::escape_path(cgn::Tools::shell_escape(def))};
         for (auto &dir : inf.include_dirs)
-            inf.cflags += {"-I" + cgn::Tools::shell_escape(dir)};
+            inf.cflags += {"-I"
+                + cgn::NinjaFile::escape_path(cgn::Tools::shell_escape(dir))};
     };
     def_to_cflag(x);
     def_to_cflag(x.pub);
     
     // build.ninja : source file => .o
+    // field.input and .output : need ninja escape, instead of shell esacpe
+    // arg.cflags : already escaped
     std::vector<std::string> obj_out;
+    std::vector<std::string> obj_out_ninja_esc;
     for (auto &file : x.srcs) {
         auto chk = file_check(file);
         std::string path_in  = opt.src_prefix + cgn::Tools::locale_path(file);
@@ -424,12 +440,13 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         if (chk.second == '+' || chk.second == 'c' || chk.second == 'a') { // .c .cpp .S
             auto *field = opt.ninja->append_build();
             field->rule = "gcc";
-            field->inputs  = {path_in};
-            field->outputs = {path_out};
+            field->inputs  = {cgn::NinjaFile::escape_path(path_in)};
+            field->outputs = {cgn::NinjaFile::escape_path(path_out)};
             field->variables["cc"] = (chk.second=='+'?exe_cxx:exe_cc);
             field->variables["cflags"] = list2str(arg.cflags) 
                 + list2str(chk.second=='+'? cflags_cc:cflags_c);
             obj_out.push_back(path_out);
+            obj_out_ninja_esc.push_back(field->outputs[0]);
         }
     }
 
@@ -442,12 +459,14 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
     // build.ninja : for cxx_sources() only
     // cxx_sources() cannot process any field of LinkAndRunInfo
     // so append the .obj file generated by itself then return
+    std::string escaped_ninja_stamp = cgn::NinjaFile::escape_path(
+                          opt.out_prefix + opt.BUILD_ENTRY);
     if (x.role == 'o') {
         // .build_stamp
         auto *stamp = opt.ninja->append_build();
         stamp->rule = "unix_stamp";
-        stamp->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
-        stamp->inputs  = obj_out;
+        stamp->outputs = {escaped_ninja_stamp};
+        stamp->inputs  = obj_out_ninja_esc;
 
         cgn::LinkAndRunInfo rvbr;
         rvbr.object_files  = x.dep_lr_self.object_files + obj_out;
@@ -463,18 +482,19 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
     //  deps.obj + self.srcs.o => rv[LRinfo].a
     //  deps.rt / deps.so / deps.a => rv[LRinfo]
     if (x.role == 'a') {
+        std::string outfile_esc = cgn::NinjaFile::escape_path(
+                                   opt.out_prefix + x.name + ".a");
         auto *field = opt.ninja->append_build();
-        field->rule = "crun_rsp";
-        field->inputs = x.dep_lr_self.object_files + obj_out;
-        field->outputs = {opt.out_prefix + x.name + ".a"};
+        field->rule = "gcc_ar";
+        field->inputs = cgn::NinjaFile::escape_path(x.dep_lr_self.object_files) 
+                      + obj_out_ninja_esc;
+        field->outputs = {outfile_esc};
         field->variables["exe"] = exe_ar;
-        field->variables["args"] = "rcs " + field->outputs[0] + list2str(field->inputs);
-        field->variables["desc"] = "AR " + field->outputs[0];
 
         auto *entry = opt.ninja->append_build();
         entry->rule = "phony";
         entry->inputs = field->outputs;
-        entry->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
+        entry->outputs = {escaped_ninja_stamp};
 
         cgn::LinkAndRunInfo rvbr;
         rvbr.runtime_files = x.dep_lr_self.runtime_files;
@@ -502,7 +522,7 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
             if (x.cfg["pkg_mode"] == "T") {
                 arg.ldflags += {
                     "-Wl,--enable-new-dtags", 
-                    "-Wl,-rpath=\\$ORIGIN"
+                    two_escape("-Wl,-rpath=$ORIGIN")
                 };
                 rvbr.runtime_files["lib" + x.name + ".so"] = tgt_out;
             }
@@ -511,7 +531,7 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
                 for (auto &so : x.dep_lr_self.shared_files + x.pub_so) {
                     auto path1    = cgn::Tools::parent_path(so);
                     auto path_rel = cgn::Tools::rebase_path(path1, opt.out_prefix);
-                    arg.ldflags += {"-Wl,--rpath=\\$ORIGIN/" + path_rel};
+                    arg.ldflags += {two_escape("-Wl,--rpath=$ORIGIN/" + path_rel)};
                 }
             }
         }
@@ -521,7 +541,7 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
 
         auto *phony = opt.ninja->append_build();
         phony->rule = "phony";
-        phony->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
+        phony->outputs = {escaped_ninja_stamp};
 
         //copy runtime when cxx_executable()
         if (x.role == 'x')
@@ -529,13 +549,11 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
                 auto &dst = one_entry.first;
                 auto &src = one_entry.second;
                 auto *field = opt.ninja->append_build();
-                //TODO: copy runtime by custom command
-                field->rule   = "crun";
+                //TODO: copy runtime by custom command (like symbolic-link)
+                field->rule   = "unix_cp";
                 field->inputs = {src};
-                phony->inputs += {src};
                 field->outputs = {opt.out_prefix + dst};
-                field->variables["cmd"] = "cp " + src + " " + field->outputs[0];
-                field->variables["desc"] = "COPY " + src + " => " + field->outputs[0];
+                phony->inputs += field->outputs;
             }
 
         //generate ninja section
@@ -547,17 +565,18 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         field->implicit_inputs = x.dep_lr_self.static_files 
                                + x.dep_lr_self.shared_files;
         field->outputs = {tgt_out};
-        phony->inputs += {tgt_out};
-        field->variables["exe"] = (x.role=='s'? exe_solink:exe_xlink);
+        phony->inputs += field->outputs;
+        field->variables["exe"] = opt.ninja->escape_path(
+                                    x.role=='s'? exe_solink:exe_xlink);
         field->variables["args"] = list2str(arg.ldflags) 
-            + "-o " + field->outputs[0]
-            + " -Wl,--whole-archive " + list2str(x.pub_a)
+            + "-o " + two_escape(field->outputs[0])
+            + " -Wl,--whole-archive " + list2str<true>(x.pub_a)
             + "-Wl,--no-whole-archive "
             + "-Wl,--start-group "
-            + list2str(field->inputs)
-            + list2str(x.dep_lr_self.static_files)
-            + list2str(x.dep_lr_self.shared_files, "-l:")
-            + list2str(x.pub_so, "-l:")
+            + list2str<true>(field->inputs)
+            + list2str<true>(x.dep_lr_self.static_files)
+            + list2str<true>(x.dep_lr_self.shared_files, "-l:")
+            + list2str<true>(x.pub_so, "-l:")
             + "-Wl,--end-group";
         field->variables["desc"] = "LINK " + tgt_out;
         
@@ -573,7 +592,8 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
 cgn::TargetInfos CxxContext::add_dep(
     const std::string &label, cgn::Configuration cfg, DepType flag
 ) {
-    auto rv = api.analyse_target(label, this->cfg);
+    auto rv = api.analyse_target(
+        api.rebase_label(label, opt.src_prefix), this->cfg);
     api.add_adep_edge(opt.adep, rv.adep);
     if (flag == DepType::_order_dep) {
         const cgn::DefaultInfo *inf = rv.infos.get<cgn::DefaultInfo>();

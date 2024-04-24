@@ -109,6 +109,8 @@ struct Tools {
 
     static bool is_win7_or_later();
 
+    std::string rebase_label(const std::string &p, std::string base);
+
 }; //struct Tools
 
 class CGN : public Tools {

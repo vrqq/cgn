@@ -284,9 +284,20 @@ CGNTarget CGNImpl::analyse_target(
     // labe2: cell_folder/project:nameA
     // => stem: cell_folder/project ('/' slash only)
     // => facty_name: nameA
-    std::string stem = labe2, facty_name;
-    if (auto fdc = stem.rfind(':'); fdc != stem.npos)
-        facty_name = stem.substr(fdc+1), stem.resize(fdc);
+    std::string stem, facty_name;
+    if (auto fdc = labe2.rfind(':'); fdc != labe2.npos)
+        facty_name = labe2.substr(fdc+1), labe2.resize(fdc);
+    for (size_t last=0; last<labe2.size();) {
+        auto fdbs = labe2.find('/', last);
+        if (fdbs == labe2.npos)
+            fdbs = labe2.size();
+        if (fdbs > last) {
+            if (stem.size())
+                stem.push_back('/');
+            stem += labe2.substr(last, fdbs - last);
+        }
+        last = fdbs + 1;
+    }
 
     std::filesystem::path escaped_mid, src_dir;
     std::string last_dir;
@@ -365,7 +376,7 @@ CGNTarget CGNImpl::analyse_target(
 
     //call interpreter()
     //  factory_entry(tgt) : xx_factory(xctx), xx_interpreter(xctx, tgt);
-    fn_loader(cfg, opt);
+    rv.infos = fn_loader(cfg, opt);
 
     // release ninja file handle to write build.ninja down to disk
     // then fstat() could get the right mtime to written down to fileDB
@@ -381,9 +392,10 @@ CGNTarget CGNImpl::analyse_target(
     }
     
     if (rv.infos.no_store)
-        return rv;
+        targets.erase(tgt_label);
     else
-        return targets.emplace(tgt_label, std::move(rv)).first->second;
+        targets[tgt_label] = rv;
+    return rv;
 } //CGNImpl::analyse()
 
 
@@ -443,7 +455,7 @@ std::string CGNImpl::_expand_cell(const std::string &ss) const
         throw std::runtime_error{"Wrong label: cell not found: " + cellname};
     }
     else
-        throw std::runtime_error{"Invalid label format."};
+        throw std::runtime_error{ss + " Invalid label format."};
 } //CGNImpl::_expand_cell()
 
 

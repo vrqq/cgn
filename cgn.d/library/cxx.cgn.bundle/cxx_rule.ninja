@@ -17,6 +17,14 @@ rule msvc
     description = CXX ${out}
     deps = msvc
 
+rule gcc_ar
+    command = ${exe} rcs ${out} ${in}
+    description = AR ${out}
+
+rule unix_cp
+    command = cp ${in} ${out}
+    description = COPY ${in} => ${out}
+
 rule crun
     command = ${cmd}
     description = ${desc}

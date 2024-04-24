@@ -1,0 +1,10 @@
+#include <cgn>
+
+cxx_shared("lib1", x) {
+    x.srcs = {"lib1\".cpp"};
+}
+
+cxx_executable("cpp1", x) {
+    x.srcs = {"main.cc"};
+    x.add_dep(":lib1", cxx::private_dep);
+}
