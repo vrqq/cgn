@@ -7,6 +7,10 @@
 #include "ninja_file.h"
 #include "debug.h"
 
+// header from ninja-build src
+#include "../ninjabuild/src/clparser.h"
+#include "../ninjabuild/src/depfile_parser.h"
+
 
 extern void cgn_setup(CGNInitSetup &x) __attribute__((weak));
 
@@ -129,9 +133,11 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
         std::filesystem::path fpath{labe2};
 
         //(re)generate GraphNode.files[]
-        std::vector<std::string> script_files = expand_scripts(fpath);
-        script_files.insert(script_files.begin(), s.sofile);
-        graph.set_node_files(s.adep, script_files);
+        // script_srcs: file in fetched bundle or .rsp
+        // script_all : script_srcs + header info hint by compiler
+        std::vector<std::string> script_srcs = expand_scripts(fpath);
+        std::unordered_set<std::string> script_all;
+        script_all.insert(script_srcs.begin(), script_srcs.end());
 
         //start build
         std::string def_var_prefix = mangle_var_prefix(labe2);
@@ -139,38 +145,94 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
         if (auto fd = labe2.rfind('/'); fd != labe2.npos)
             def_ulabel_prefix = "\"//" + labe2.substr(0, fd) + ":\"";
 
-        // .rsp file is temporary and not included in adep->files[]
-        // .so / .dll is in adep->files[] when first created.
-        std::filesystem::create_directories(analysis_path / fpath.parent_path());
-        std::ofstream frsp(s.sofile + ".rsp"); 
-        for (auto it : s.adep->files) {
-            auto ext = std::filesystem::path{*it->key_filepath}.extension();
-            if (ext == ".cc" || ext == ".cpp" || ext == ".c++" || ext == ".cxx")
-                frsp << *(it->key_filepath) << " ";
-        }
-
         bool is_msvc = script_cc.size() > 4 
                     && script_cc.substr(script_cc.size() - 5) == "cl.exe";
-        if (is_msvc)
-            frsp<<"/nologo /showIncludes "
-                "/DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
-                "/utf-8 /MD /link /DLL /OUT:" + s.sofile;
-        else
-            frsp<< "-MMD -MF " + s.sofile + ".d"
-                    " -fPIC --shared -fdiagnostics-color=always -g -glldb -std=c++11"
-                    " -I. -I " + Tools::shell_escape(cell_lnk_path.string()) + 
-                    " -DCGN_VAR_PREFIX=" + Tools::shell_escape(def_var_prefix) +
-                    " -DCGN_ULABEL_PREFIX=" + Tools::shell_escape(def_ulabel_prefix) + 
-                    " -o " + s.sofile;
-        frsp.close();
-        auto build_rv = raymii::Command::exec(
-            script_cc + " @" + s.sofile + ".rsp"
-        );
 
-        if (build_rv.exitstatus != 0)
-            throw std::runtime_error{build_rv.output};
+        // .rsp file is temporary and not included in adep->files[]
+        // .so / .dll is in adep->files[] when first created.
+        // Since GCC header detection can only analyse only for one sources
+        // at same time (output into .d files), so we have to compile each
+        // sources code separately and link them together.
+        std::filesystem::create_directories(analysis_path / fpath.parent_path());
+        CLParser clpar;
+        std::unordered_set<std::string> dfcoll;
+        std::string linker_in;
+        for (auto it : script_srcs) {
+            std::filesystem::path pt = it;
+            auto ext = pt.extension();
+            if (ext != ".cc" && ext != ".cpp" && ext != ".c++" && ext != ".cxx")
+                continue;
+            std::string rspname = s.sofile + "-" + pt.stem().string() + ".rsp";
+            std::string outname = s.sofile + "-" + pt.stem().string() + ".o";
+            std::string depname = s.sofile + "-" + pt.stem().string() + ".d";
+            linker_in += Tools::shell_escape(outname) + " ";
+            std::ofstream frsp(rspname); 
+
+            if (is_msvc)
+                frsp<< it <<" /nologo /showIncludes "
+                    "/DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
+                    "/utf-8 /MD /DLL /OUT:" + Tools::shell_escape(outname);
+            else
+                frsp<<"-c " << it << " -MMD -MF " + Tools::shell_escape(depname) +
+                        " -fPIC -fdiagnostics-color=always -g -glldb -std=c++11"
+                        " -I. -I " + Tools::shell_escape(cell_lnk_path.string()) + 
+                        " -DCGN_VAR_PREFIX=" + Tools::shell_escape(def_var_prefix) +
+                        " -DCGN_ULABEL_PREFIX=" + Tools::shell_escape(def_ulabel_prefix) + 
+                        " -o " + Tools::shell_escape(outname);
+            frsp.close();
+            auto build_rv = raymii::Command::exec(
+                script_cc + " @" + rspname
+            );
+            if (build_rv.exitstatus != 0)
+                throw std::runtime_error{build_rv.output};
+            
+            //header dep
+            std::string errmsg;
+            std::string dummy_arg;
+            if (is_msvc) {
+                if (!clpar.Parse(build_rv.output, "", &dummy_arg, &errmsg))
+                    throw std::runtime_error{errmsg};
+            }else {
+                std::ifstream fin(depname);
+                std::stringstream sss; sss<<fin.rdbuf();
+                std::string full_content = sss.str();
+
+                DepfileParser dfpar;
+                if (!dfpar.Parse(&full_content, &errmsg))
+                    throw std::runtime_error{errmsg};
+                for (auto ss : dfpar.ins_)
+                    dfcoll.insert(std::string{ss.begin(), ss.end()});
+            }
+        } //end for (file in script_srcs[])
+        
+        //add header dep before set_node_files
+        auto run_link = [&](std::string arg) {
+            std::ofstream frsp(s.sofile + ".rsp"); 
+            frsp << linker_in << arg;
+            frsp.close();
+            auto link_rv = raymii::Command::exec(script_cc + " @"+ s.sofile + ".rsp");
+            if (link_rv.exitstatus != 0)
+                throw std::runtime_error{link_rv.output};
+        };
+
+        std::vector<std::string> node_vals;
+        node_vals.push_back(s.sofile);
+        if (is_msvc) {
+            run_link("/nologo /utf-8 /MD /link /DLL /OUT:" + s.sofile);
+            clpar.includes_.insert(script_srcs.begin(), script_srcs.end());
+            node_vals.insert(node_vals.end(), clpar.includes_.begin(), 
+                             clpar.includes_.end());
+        }else {
+            run_link("-fPIC --shared -o " + s.sofile);
+            dfcoll.insert(script_srcs.begin(), script_srcs.end());
+            for (auto &filestr : dfcoll) {
+                node_vals.push_back(std::filesystem::proximate(filestr));
+            }
+            // node_vals.insert(node_vals.end(), dfcoll.begin(), dfcoll.end());
+        }
 
         //build successful, update graph and goto case 4
+        graph.set_node_files(s.adep, node_vals);
         graph.set_node_status_to_latest(s.adep);
     }
 

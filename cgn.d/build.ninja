@@ -11,6 +11,9 @@ rule cc
     depfile = $out.d
     command = clang++ -MMD -MF $out.d $cflags -c $in -o $out
 
+rule ar
+    command = ar rcs ${out} ${in}
+
 ## -Wl,--undefined=_Z9cgn_setupR12CGNInitSetup $
 ##
 rule link
@@ -20,6 +23,16 @@ rule link
               -Wl,--export-dynamic -fvisibility=default $
               -Wl,-rpath=$$ORIGIN -MMD -MF $out.d $cflags $in -o $out
 
+include ninja_port.ninja
+
+build $output/cgn_impl.o: cc entry/cgn_impl.cpp
+
+build $output/cgn_tools.o: cc entry/cgn_tools.cpp
+
+build $output/cgn.o: cc entry/cgn.cpp
+
+build $output/cli.o: cc entry/cli.cpp
+
 build $output/configuration.o : cc entry/configuration.cpp
 
 build $output/dl_helper.o: cc entry/dl_helper.cpp
@@ -28,13 +41,12 @@ build $output/graph.o: cc entry/graph.cpp
 
 build $output/ninja_file.o: cc entry/ninja_file.cpp
 
-build $output/cgn_impl.o: cc entry/cgn_impl.cpp
+build $output/provider.o: cc entry/provider.cpp
 
-build $output/cgn_tools.o: cc entry/cgn_tools.cpp
-
-build $output/cgn: link entry/cgn.cpp entry/cli.cpp entry/provider.cpp $
-                   build/cgn_impl.o build/cgn_tools.o build/configuration.o $
-                   build/ninja_file.o build/dl_helper.o build/graph.o 
+build $output/cgn: link $output/cgn.o $output/cgn_impl.o $output/cli.o $
+    $output/cgn_tools.o $output/configuration.o $output/dl_helper.o $
+    $output/graph.o $output/ninja_file.o $output/provider.o $
+    $ninjaout/ninja_port.a
 
 default $output/cgn
 

@@ -1,0 +1,23 @@
+## NINJA BUILD COMPONENTS
+## ======================
+
+ninjasrc = ninjabuild/src
+ninjaout = build/ninjabuild
+
+build ${ninjaout}/metrics.o : cc ${ninjasrc}/metrics.cc
+
+build ${ninjaout}/clparser.o : cc ${ninjasrc}/clparser.cc
+
+build ${ninjaout}/depfile_parser.o : cc ${ninjasrc}/depfile_parser.cc
+
+build ${ninjaout}/string_piece_util.o : cc ${ninjasrc}/string_piece_util.cc
+
+build ${ninjaout}/util.o : cc ${ninjasrc}/util.cc
+
+build ${ninjaout}/edit_distance.o : cc ${ninjasrc}/edit_distance.cc
+
+
+## collection
+
+build ${ninjaout}/ninja_port.a : ar ${ninjaout}/util.o ${ninjaout}/edit_distance.o $
+    ${ninjaout}/clparser.o ${ninjaout}/depfile_parser.o ${ninjaout}/metrics.o
