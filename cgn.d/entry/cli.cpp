@@ -79,6 +79,10 @@ int main(int argc, char **argv)
         api.init(args_kv);
         api.build(args[1], *api.query_config("DEFAULT"));
     }
+    if (args[0] == "run") {
+        if (args.size() != 2)
+            return show_helper(argv[0]);
+    }
     if (args[0] == "clean") {
         std::filesystem::path dir{args_kv["cgn-out"]};
         if (std::filesystem::exists(dir / ".cgn_out_root.stamp"))

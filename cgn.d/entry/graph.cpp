@@ -273,8 +273,8 @@ void Graph::db_load(const std::string &filename)
         uint32_t body_len   = (*title & ~(0b11UL<<30));
 
         if (block_type == DB_BIT_EMPTY) {// type empty field
+            // placeholder, db_recycle[] is still being developed.
             db_blocks.emplace_back();
-            // db_nxt_blkid++;
             pos += body_len;
         }
 
@@ -301,6 +301,9 @@ void Graph::db_load(const std::string &filename)
         }
         
         if (block_type == DB_BIT_NODE) { // type GraphNode
+            // placeholder, the GraphNode in db don't have blk_id
+            db_blocks.emplace_back();
+
             std::size_t aligned_size = sizeof(uint32_t) + sizeof(int32_t) 
                                      + body_len*sizeof(uint32_t);
             if (pos + aligned_size > buf.size())
@@ -313,10 +316,10 @@ void Graph::db_load(const std::string &filename)
             db_blocks[n.db_selfname_id = *name_id].as_nodename = &n;
 
             for (size_t i=0; i<body_len; i++) {
-                uint32_t rel_id = *(name_id + 1 + i);
-                n.lastdb_data.push_back(rel_id);
-                rel_id &= (1UL<<31) - 1;
-                if ((rel_id & (1UL<<31)) != 0) //as edge
+                uint32_t original = *(name_id + 1 + i);
+                n.lastdb_data.push_back(original);
+                uint32_t rel_id = original & ((1UL<<31) - 1);
+                if ((original & (1UL<<31)) != 0) //as edge
                     edges_with_blkid.push_back({rel_id, *name_id});
                 else //as file
                     n._file_blocks.push_back(db_blocks[rel_id].as_string);
@@ -363,12 +366,6 @@ void Graph::db_load(const std::string &filename)
 
 void Graph::db_flush_node()
 {
-    // two-step write back
-    // 1) calculate block number (edge number) and write block
-    // 2) write inbound edge table into block
-    std::vector<std::pair<GraphNode*, uint32_t>> tmp;
-    tmp.reserve(db_pending_write.size());
-
     // for each node, calculate the rel_blocks[] body and compare with
     // n->lastdb_data, write to file if not equal.
     // ** STEP1 **
@@ -383,7 +380,8 @@ void Graph::db_flush_node()
             }
         
         //skip if same with last data
-        std::sort(newdata.begin(), newdata.end());
+        if (newdata.size())
+            std::sort(++newdata.begin(), newdata.end());
         if (newdata == n->lastdb_data)
             continue;
 
@@ -402,9 +400,10 @@ void Graph::db_flush_node()
             uint32_t title = newdata.size() + DB_BIT_NODE;
             fwrite(&title, sizeof(title), 1, file_);
             fwrite(&(n->db_selfname_id), sizeof(uint32_t), 1, file_);
-            fwrite(newdata.data(), sizeof(uint32_t), newdata.size(), file_);
-            n->db_block_size = ftell(file_) - n->db_offset;
         }
+        fwrite(newdata.data(), sizeof(uint32_t), newdata.size(), file_);
+        n->db_block_size = ftell(file_) - n->db_offset;
+        n->lastdb_data = newdata;
         if (1) {
             auto *self_name = db_blocks[n->db_selfname_id].as_string->strkey;
             logout<<"Graph.fwrite(): off=" << n->db_offset 

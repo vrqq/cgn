@@ -20,8 +20,8 @@ sh_binary("demo", x) {
 //     x.args = {"hello-world"};
 // }
 
-cxx_executable("cpp", x) {
-    x.srcs = {"hellocc.cpp"};
+cxx_executable("cpp0", x) {
+    x.srcs = {"cpp0/hellocc.cpp"};
 }
 
 // expand the define below

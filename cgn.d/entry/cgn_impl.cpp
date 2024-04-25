@@ -200,8 +200,10 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
                 DepfileParser dfpar;
                 if (!dfpar.Parse(&full_content, &errmsg))
                     throw std::runtime_error{errmsg};
-                for (auto ss : dfpar.ins_)
-                    dfcoll.insert(std::string{ss.begin(), ss.end()});
+                for (auto ss : dfpar.ins_) {
+                    std::string str{ss.begin(), ss.end()};
+                    dfcoll.insert(std::filesystem::proximate(str));
+                }
             }
         } //end for (file in script_srcs[])
         
@@ -225,10 +227,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
         }else {
             run_link("-fPIC --shared -o " + s.sofile);
             dfcoll.insert(script_srcs.begin(), script_srcs.end());
-            for (auto &filestr : dfcoll) {
-                node_vals.push_back(std::filesystem::proximate(filestr));
-            }
-            // node_vals.insert(node_vals.end(), dfcoll.begin(), dfcoll.end());
+            node_vals.insert(node_vals.end(), dfcoll.begin(), dfcoll.end());
         }
 
         //build successful, update graph and goto case 4

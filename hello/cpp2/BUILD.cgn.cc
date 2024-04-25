@@ -1,6 +1,7 @@
 #include <cgn>
 
 cxx_static("p1_static", x) {
+    x.defines = {"PKG1_DLLEXPORT"};
     x.srcs = {"pkg1/subimpl.cpp"};
 }
 
@@ -13,8 +14,8 @@ cxx_shared("p1_shared", x) {
 cxx_shared("pkg1", x) {
     x.defines = {"PKG1_DLLEXPORT"};
     x.srcs = {"pkg1/subif.cpp"};
-    x.add_dep(":p1_shared", cxx::inherit);
-    // x.add_dep(":p1_static", cxx::inherit);
+    // x.add_dep(":p1_shared", cxx::inherit);
+    x.add_dep(":p1_static", cxx::inherit);
 }
 
 // entry

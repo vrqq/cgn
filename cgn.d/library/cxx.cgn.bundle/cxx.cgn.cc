@@ -33,12 +33,12 @@ StrSet &operator+=(StrSet &lhs, const StrSet &rhs) {
     return lhs;
 }
 
-template<typename T> StrList 
-operator+(const StrList &lhs, std::initializer_list<T> rhs) {
-    StrList rv{lhs};
-    rv.insert(rv.end(), rhs.begin(), rhs.end());
-    return rv;
-}
+// template<typename T> StrList 
+// operator+(const StrList &lhs, T&& rhs) {
+//     StrList rv{lhs};
+//     rv.insert(rv.end(), rhs.begin(), rhs.end());
+//     return rv;
+// }
 template<typename T> StrList&
 operator+=(StrList &lhs, std::initializer_list<T> rhs) {
     lhs.insert(lhs.end(), rhs.begin(), rhs.end());
@@ -482,13 +482,13 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
     //  deps.obj + self.srcs.o => rv[LRinfo].a
     //  deps.rt / deps.so / deps.a => rv[LRinfo]
     if (x.role == 'a') {
-        std::string outfile_esc = cgn::NinjaFile::escape_path(
-                                   opt.out_prefix + x.name + ".a");
+        std::string outfile = opt.out_prefix + x.name + ".a";
+        std::string outfile_njesc = cgn::NinjaFile::escape_path(outfile);
         auto *field = opt.ninja->append_build();
         field->rule = "gcc_ar";
         field->inputs = cgn::NinjaFile::escape_path(x.dep_lr_self.object_files) 
                       + obj_out_ninja_esc;
-        field->outputs = {outfile_esc};
+        field->outputs = {outfile_njesc};
         field->variables["exe"] = exe_ar;
 
         auto *entry = opt.ninja->append_build();
@@ -499,7 +499,7 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         cgn::LinkAndRunInfo rvbr;
         rvbr.runtime_files = x.dep_lr_self.runtime_files;
         rvbr.shared_files  = x.dep_lr_self.shared_files;
-        rvbr.static_files  = x.dep_lr_self.static_files + field->outputs;
+        rvbr.static_files  = StrList{outfile} + x.dep_lr_self.static_files;
 
         rv.set(rvbr);
         return rv;
@@ -512,10 +512,12 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
     if (x.role == 's' || x.role == 'x') {
         cgn::LinkAndRunInfo rvbr;
         std::string tgt_out;
+        std::string tgtout_njesc;
         if (x.role == 's')
             tgt_out = opt.out_prefix + "lib" + x.name + ".so";
         else
             tgt_out = opt.out_prefix + x.name;
+        tgtout_njesc = opt.ninja->escape_path(tgt_out);
 
         //prepare rpath argument
         if (x.cfg["os"] == "linux") {
@@ -551,8 +553,8 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
                 auto *field = opt.ninja->append_build();
                 //TODO: copy runtime by custom command (like symbolic-link)
                 field->rule   = "unix_cp";
-                field->inputs = {src};
-                field->outputs = {opt.out_prefix + dst};
+                field->inputs = {cgn::NinjaFile::escape_path(src)};
+                field->outputs = {cgn::NinjaFile::escape_path(opt.out_prefix + dst)};
                 phony->inputs += field->outputs;
             }
 
@@ -561,15 +563,18 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         // --whole-archive : {dep.static with whole}
         auto *field = opt.ninja->append_build();
         field->rule = "crun_rsp";
-        field->inputs = obj_out + x.dep_lr_self.object_files;
-        field->implicit_inputs = x.dep_lr_self.static_files 
-                               + x.dep_lr_self.shared_files;
-        field->outputs = {tgt_out};
+        field->inputs = obj_out_ninja_esc 
+                      + opt.ninja->escape_path(x.dep_lr_self.object_files);
+        field->implicit_inputs = opt.ninja->escape_path(x.dep_lr_self.static_files) 
+                               + opt.ninja->escape_path(x.dep_lr_self.shared_files)
+                               + opt.ninja->escape_path(x.pub_a)
+                               + opt.ninja->escape_path(x.pub_so);
+        field->outputs = {tgtout_njesc};
         phony->inputs += field->outputs;
         field->variables["exe"] = opt.ninja->escape_path(
                                     x.role=='s'? exe_solink:exe_xlink);
         field->variables["args"] = list2str(arg.ldflags) 
-            + "-o " + two_escape(field->outputs[0])
+            + "-o " + api.shell_escape(field->outputs[0])
             + " -Wl,--whole-archive " + list2str<true>(x.pub_a)
             + "-Wl,--no-whole-archive "
             + "-Wl,--start-group "
@@ -578,7 +583,7 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
             + list2str<true>(x.dep_lr_self.shared_files, "-l:")
             + list2str<true>(x.pub_so, "-l:")
             + "-Wl,--end-group";
-        field->variables["desc"] = "LINK " + tgt_out;
+        field->variables["desc"] = "LINK " + tgtout_njesc;
         
         rvbr.shared_files = x.pub_so + field->outputs;
 
