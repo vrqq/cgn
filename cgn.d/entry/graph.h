@@ -30,12 +30,12 @@ struct GraphEdge {
 class Graph {
 public:
     struct DBStringBlock { // block id and offset in DB
-        const std::string* key_filepath;
+        const std::string* strkey;
         uint32_t    db_id;      //block id in file
         std::size_t db_offset;  //block offset in file
 
         int64_t     mtime = 0;  //mtime for current path (only valid for filepath)
-        // GraphNode  *gnode = nullptr; //key_filepath as node title (only valid for GraphNode)
+        // GraphNode  *gnode = nullptr; //strkey as node title (only valid for GraphNode)
     };
 
     GraphNode *get_node(const std::string &name);
@@ -62,6 +62,8 @@ public:
 
     void clear_mtime_cache() { win_mtime_cache.clear(); }
 
+    void clear_file0_mtime_cache(GraphNode *p);
+
     // flush db modifications: node.files[] and node.inbound_edges[]
     void db_flush_node();
 
@@ -78,23 +80,25 @@ private:
     // call before each edge visited
     GraphEdgeID _iter_edge(GraphEdgeID &edge_id, bool loop_from_edge_start);
 
-    // (windows only) get files mtime by folder.
+    // (windows) get files mtime by folder.
     // * win_mtime_cache[folder] existed when all files in this folder cached 
     //   (no subfolder included)
     // * win_mtime_cache[filepath] = mtime
+    // (no windows) get file mtime directly then cache?
+    // * keep cache until this->clear_mtime_cache() called?
     std::unordered_map<std::string, int64_t> win_mtime_cache;
 
+    // void remove_mtime_cache(const std::filesystem::path &filepath);
     int64_t stat_and_cache(const std::filesystem::path &filepath);
 
     // DB index saved in 3 places:
     //  nodes[].dbfile_xx, db_strings[].dbfile_xx and db_recovery
     FILE* file_ = nullptr;
-    uint32_t db_nxt_blkid = 0;
 
     // all db blocks
     struct DBBlock {
-        DBStringBlock *as_string = nullptr;
-        GraphNode     *as_node   = nullptr;
+        DBStringBlock *as_string   = nullptr;
+        GraphNode     *as_nodename = nullptr;
     };
     std::vector<DBBlock> db_blocks;
 
@@ -102,9 +106,10 @@ private:
     std::unordered_map<std::string, DBStringBlock> db_strings;
 
     //empty block (unused currently)
-    //db_recovery[free block size] = offset in file
-    std::multimap<std::size_t, std::size_t> db_recovery;
+    //db_recycle[free block size] = offset in file
+    // std::multimap<std::size_t, std::size_t> db_recycle;
 
+    //The node updated in memory without written to fileDB.
     std::unordered_set<GraphNode*> db_pending_write;
 
     constexpr static std::size_t DB_VERSION_FIELD_SIZE = 1024;
@@ -162,10 +167,13 @@ private: friend class Graph;
     GraphEdgeID head = 0, rhead = 0;
     
     // block id and offset in DB
-    uint32_t    db_block_id = 0;
+    // uint32_t    db_block_id = 0;
     uint32_t    db_selfname_id = 0;
     std::size_t db_offset = 0;
     std::size_t db_block_size = 0;
+
+    // db data (already sorted before last save)
+    std::vector<uint32_t> lastdb_data;
 }; //struct GraphNode
 
 } // namespace cgn

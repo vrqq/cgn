@@ -6,8 +6,10 @@
 // 2) empty block
 //    <2 bits '10'> + <30 bits string_len BE> + "...any_content......"
 // 3) GraphNode with self_name(key), file_list[] and inbound_edge_list[]
-//    <2 bits '11'> + <30 bits num-of-blk BE> 
-//    + <4 bytes self_name_id> + {<4 bytes inner-file_id> / <edge-from-node_id> + ...}
+//    <2 bits '11'> + x:<30 bits num-of-relblocks BE> + <4 bytes self_name_id> 
+//    + x * <4 bytes inner-file_blkid / inbound-edge-of-node_selfname_id>
+//    inbound-edge blk_nameid : start with (0b1<<31)
+//    inner-file blkid : start with (0b0<<31)
 #include <filesystem>
 #include <cassert>
 #include <cstdio>
@@ -44,7 +46,7 @@ void Graph::test_status(GraphNode *p)
     bool is_stale = false;
     p->max_mtime = 0;
     for (std::size_t i=0; i<p->files.size() && !is_stale; i++) {
-        std::filesystem::path fp{*(p->files[i]->key_filepath)};
+        std::filesystem::path fp{*(p->files[i]->strkey)};
         
         //if file not existed.
         if (std::filesystem::exists(fp) == false) {
@@ -84,6 +86,9 @@ GraphNode *Graph::get_node(const std::string &name)
     GraphNode &node = nodes[name];
     node.db_selfname_id = db_fetch_string(name)->db_id;
     db_pending_write.insert(&node);
+    
+    //update db_blocks[]
+    db_blocks[node.db_selfname_id].as_nodename = &node;
 
     return &node;
 } //Graph::get_node()
@@ -117,16 +122,17 @@ void Graph::set_node_status_to_latest(GraphNode *p)
     // stat and write file mtime into db
     for (auto &ff : p->_file_blocks) {
         auto last_mtime = ff->mtime;
-        ff->mtime = stat_and_cache(*ff->key_filepath);
+        ff->mtime = stat_and_cache(*ff->strkey);
         fseek(file_, ff->db_offset + sizeof(uint32_t), SEEK_SET);
         fwrite(&(ff->mtime), sizeof(ff->mtime), 1, file_);
         if (1) {
-            logout<<"Graph.fwrite(): ["<<ff->db_id<<"] " + *ff->key_filepath
+            logout<<"Graph.fwrite(): ["<<ff->db_id<<"] " + *ff->strkey
                 <<"\n    * mtime "<<last_mtime <<" -> "<<ff->mtime<<"\n";
         }
     }
 
-    // check nodes from inbound edges
+    // check nodes from inbound edges. For example there has a edge U->V, 
+    // U must already Latest before set_node_status_to_latest(V)
     for (GraphEdgeID eid = _iter_edge(p->rhead, false); eid; 
          eid = _iter_edge(edges[eid].rnext, false))
             assert(edges[eid].from->status == GraphNode::Latest);
@@ -156,7 +162,7 @@ void Graph::set_node_files(GraphNode *p, std::vector<std::string> in)
     std::unordered_set<std::string> s1{in.begin(), in.end()};
     if (is_same) {
         for (auto blk : p->files)
-            if (s1.count(*blk->key_filepath) == 0) {
+            if (s1.count(*blk->strkey) == 0) {
                 is_same = false; break;
             }
     }
@@ -171,6 +177,22 @@ void Graph::set_node_files(GraphNode *p, std::vector<std::string> in)
 }
 
 
+void Graph::clear_file0_mtime_cache(GraphNode *p)
+{
+    assert(p->_file_blocks.size());
+    const std::string *key = p->_file_blocks[0]->strkey;
+    #ifdef _WIN32
+        std::filesystem::path fp{*key};
+        std::filesystem::path basedir = fp.has_parent_path()?fp.parent_path():".";
+        win_mtime_cache.erase(*key);
+        win_mtime_cache.erase(basedir);
+    #else
+        win_mtime_cache.erase(*key);
+    #endif
+}
+
+
+// void remove_mtime_cache(const std::filesystem::path &filepath)
 int64_t Graph::stat_and_cache(const std::filesystem::path &fp)
 {
 #ifdef _WIN32
@@ -180,8 +202,8 @@ int64_t Graph::stat_and_cache(const std::filesystem::path &fp)
     std::filesystem::path basedir = fp.has_parent_path()?fp.parent_path():".";
     if (win_mtime_cache.count(basedir) == 0) {
         auto tmap = Tools::win32_stat_folder(basedir);
-        win_mtime_cache.merge(tmap);
-        assert(tmap.empty());
+        for (auto &[path, mtime] : tmap)
+            win_mtime_cache.insert_or_assign(path, mtime);
         win_mtime_cache[basedir] = -1; //-1 meanless
     }
     
@@ -224,7 +246,6 @@ void Graph::db_load(const std::string &filename)
         db_blocks.clear();
         db_strings.clear();
         db_pending_write.clear();
-        db_nxt_blkid = 0;
 
         file_ = fopen(filename.c_str(), "wb+");
         fseek(file_, 0, SEEK_SET);
@@ -253,7 +274,7 @@ void Graph::db_load(const std::string &filename)
 
         if (block_type == DB_BIT_EMPTY) {// type empty field
             db_blocks.emplace_back();
-            db_nxt_blkid++;
+            // db_nxt_blkid++;
             pos += body_len;
         }
 
@@ -264,7 +285,7 @@ void Graph::db_load(const std::string &filename)
 
             DBStringBlock block;
             block.db_offset = pos;
-            block.db_id  = db_nxt_blkid++;
+            block.db_id  = db_blocks.size();
             block.mtime  = *(int64_t*)(buf.data() + pos + sizeof(uint32_t));
             std::string body{
                 buf.data() + pos + sizeof(uint32_t) + sizeof(int64_t),
@@ -272,10 +293,9 @@ void Graph::db_load(const std::string &filename)
             };
             
             auto [iter, nx] = db_strings.insert({body, std::move(block)});
-            iter->second.key_filepath = &(iter->first);
+            iter->second.strkey = &(iter->first);
 
-            db_blocks.resize(db_nxt_blkid);
-            db_blocks[iter->second.db_id].as_string = &(iter->second);
+            db_blocks.emplace_back().as_string = &(iter->second);
             
             pos += aligned_size;
         }
@@ -287,22 +307,20 @@ void Graph::db_load(const std::string &filename)
                 return fn_create_new(pos);
 
             uint32_t *name_id = (uint32_t*)(buf.data() + pos + sizeof(uint32_t));
-            GraphNode &n = nodes[*db_blocks[*name_id].as_string->key_filepath];
+            GraphNode &n = nodes[*db_blocks[*name_id].as_string->strkey];
             n.db_offset      = pos;
-            n.db_block_id    = db_nxt_blkid++;
             n.db_block_size  = aligned_size;
-            n.db_selfname_id = *name_id;
+            db_blocks[n.db_selfname_id = *name_id].as_nodename = &n;
 
             for (size_t i=0; i<body_len; i++) {
-                uint32_t *rel_blk_id = name_id + 1 + i;
-                if (db_blocks[*rel_blk_id].as_string)
-                    n._file_blocks.push_back(db_blocks[*rel_blk_id].as_string);
-                else
-                    edges_with_blkid.push_back({*rel_blk_id, n.db_block_id});
+                uint32_t rel_id = *(name_id + 1 + i);
+                n.lastdb_data.push_back(rel_id);
+                rel_id &= (1UL<<31) - 1;
+                if ((rel_id & (1UL<<31)) != 0) //as edge
+                    edges_with_blkid.push_back({rel_id, *name_id});
+                else //as file
+                    n._file_blocks.push_back(db_blocks[rel_id].as_string);
             }
-
-            db_blocks.resize(db_nxt_blkid+1);
-            db_blocks[n.db_block_id].as_node = &n;
 
             pos += aligned_size;
         }
@@ -310,8 +328,8 @@ void Graph::db_load(const std::string &filename)
     
     //add edges
     for (auto &[b1, b2]: edges_with_blkid) {
-        assert(db_blocks[b1].as_node && db_blocks[b2].as_node);
-        add_edge(db_blocks[b1].as_node, db_blocks[b2].as_node);
+        assert(db_blocks[b1].as_nodename && db_blocks[b2].as_nodename);
+        add_edge(db_blocks[b1].as_nodename, db_blocks[b2].as_nodename);
     }
     
     //debug
@@ -321,18 +339,18 @@ void Graph::db_load(const std::string &filename)
             if (db_blocks[i].as_string)
                 logout<<" "<<i<<"] mtime:"
                     <<db_blocks[i].as_string->mtime<<" "
-                    <<*db_blocks[i].as_string->key_filepath
+                    <<*db_blocks[i].as_string->strkey
                     <<std::endl;
-            if (db_blocks[i].as_node) {
-                auto &n = *db_blocks[i].as_node;
+            if (db_blocks[i].as_nodename) {
+                auto &n = *db_blocks[i].as_nodename;
                 logout<<" "<<i<<"] Node: "
-                    <<*db_blocks[n.db_selfname_id].as_string->key_filepath + "\n";
+                    <<*db_blocks[i].as_string->strkey + "\n";
                 for (auto fblk : n.files)
-                    logout<<"    | FILE: "<<*fblk->key_filepath<<" ("
+                    logout<<"    | FILE: "<<*fblk->strkey<<" ("
                           <<fblk->db_id<<")\n";
                 for (GraphEdgeID eid = n.rhead; eid; eid = edges[eid].rnext)
-                    logout<<"    | "<<edges[eid].from->db_block_id
-                        <<" -> "<<edges[eid].to->db_block_id<<"\n";
+                    logout<<"    | "<<edges[eid].from->db_selfname_id
+                        <<" -> "<<edges[eid].to->db_selfname_id<<"\n";
             }
         }
         logout<<"------ ------ ------ ------ ------ ------"<<std::endl;
@@ -351,92 +369,78 @@ void Graph::db_flush_node()
     std::vector<std::pair<GraphNode*, uint32_t>> tmp;
     tmp.reserve(db_pending_write.size());
 
+    // for each node, calculate the rel_blocks[] body and compare with
+    // n->lastdb_data, write to file if not equal.
     // ** STEP1 **
     for (GraphNode *n : db_pending_write) {
-        //remove existed one in db
-        if (n->db_offset) {
-            db_set_to_emptyblock(n->db_offset, n->db_block_size);
-            n->db_offset = 0;
-        }
-
-        //calculate block length
-        uint32_t node_cnt = n->files.size();
-        for (GraphEdgeID eid = _iter_edge(n->rhead, false); eid; 
-             eid = _iter_edge(edges[eid].rnext, false)) 
-                node_cnt++;
-
-        //write a new record (placeholder)
-        std::vector<uint32_t> placeholder(node_cnt, 0);
-        uint32_t title = (uint32_t)node_cnt + DB_BIT_NODE;
-        fseek(file_, 0, SEEK_END);
-        n->db_block_id = db_nxt_blkid++;
-        n->db_offset   = ftell(file_);
-        fwrite(&title, sizeof(title), 1, file_);
-        fwrite(&(n->db_selfname_id), sizeof(uint32_t), 1, file_);
-        fwrite(placeholder.data(), sizeof(uint32_t), placeholder.size(), file_);
-        n->db_block_size = ftell(file_) - n->db_offset;
-
-        //update db_blocks[]
-        db_blocks.resize(db_nxt_blkid);
-        db_blocks[n->db_block_id].as_node = n;
-
-        //for step2
-        tmp.push_back({n, node_cnt});
-    }
-
-
-    // ** STEP2 **
-    // All Nodes in db have valid block_id currently.
-    for (auto [n, len] : tmp) {
-        std::vector<uint32_t> data; data.reserve(len);
+        std::vector<uint32_t> newdata;
         for (auto f : n->files)
-            data.push_back(f->db_id);
-        for (GraphEdgeID eid = n->rhead; eid; eid = edges[eid].rnext)
-            data.push_back(edges[eid].from->db_block_id);
+            newdata.push_back(f->db_id);
+        for (GraphEdgeID eid = _iter_edge(n->rhead, false); eid; 
+             eid = _iter_edge(edges[eid].rnext, false)) {
+                uint32_t tmp = edges[eid].from->db_selfname_id;
+                newdata.push_back(tmp | (1UL<<31));
+            }
         
-        //write to db
-        // [title] + [self_name_id] + [node_id] + ...
-        fseek(file_, n->db_offset + 2*sizeof(uint32_t), SEEK_SET);
-        fwrite(data.data(), sizeof(uint32_t), data.size(), file_);
+        //skip if same with last data
+        std::sort(newdata.begin(), newdata.end());
+        if (newdata == n->lastdb_data)
+            continue;
 
+        //seek and write data into db
+        // 1) modify the previous block
+        //    off + <u32 title> + <u32 selfname> + <rel_blocks>...
+        // 2) write a new record
+        if (newdata.size() == n->lastdb_data.size())
+            fseek(file_, n->db_offset + 2*sizeof(uint32_t), SEEK_SET);
+        else {//TODO: use blk_recycle here
+            if (n->db_offset) //erase existed one in db
+                db_set_to_emptyblock(n->db_offset, n->db_block_size);
+
+            fseek(file_, 0, SEEK_END);
+            n->db_offset = ftell(file_);
+            uint32_t title = newdata.size() + DB_BIT_NODE;
+            fwrite(&title, sizeof(title), 1, file_);
+            fwrite(&(n->db_selfname_id), sizeof(uint32_t), 1, file_);
+            fwrite(newdata.data(), sizeof(uint32_t), newdata.size(), file_);
+            n->db_block_size = ftell(file_) - n->db_offset;
+        }
         if (1) {
-            auto *self_name = db_blocks[n->db_selfname_id].as_string->key_filepath;
-            logout<<"Graph.fwrite(): new_blk_id=" << n->db_block_id 
+            auto *self_name = db_blocks[n->db_selfname_id].as_string->strkey;
+            logout<<"Graph.fwrite(): off=" << n->db_offset 
                   << " " + *self_name + "\n";
-            for (auto blk_id : data) {
-                if (db_blocks[blk_id].as_string)
-                    logout<<"    * STR["<<blk_id<<"] "
-                        <<*db_blocks[blk_id].as_string->key_filepath<<"\n";
-                else if (db_blocks[blk_id].as_node)
+            for (auto oitem : newdata) {
+                uint32_t blk_id = (oitem & ~(1UL<<31));
+                if (oitem & (1UL<<31))
                     logout<<"    * Edge Node[blk "<<blk_id<<"] -> this\n";
                 else
-                    logout<<"    * ERROR REL_BLK_ID "<<blk_id<<"\n";
+                    logout<<"    * File["<<blk_id<<"] "
+                        <<*db_blocks[blk_id].as_string->strkey<<"\n";
             }
         }
-    }
+    } //end for(db_pending_write)
 } //Graph::db_flush_node()
 
 Graph::DBStringBlock *Graph::db_fetch_string(std::string name)
 {
     static const char fill0[4] = {0, 0, 0, 0};
-    if (auto fd = db_strings.find(name); fd != db_strings.end())
-        return &(fd->second);
-    auto iter = db_strings.insert({name, {}}).first;
+    auto [iter, nx] = db_strings.insert({name, {}});
+    if (!nx)
+        return &(iter->second);
     Graph::DBStringBlock &blk = iter->second;
 
     uint32_t title = name.size() + DB_BIT_STR;
     fseek(file_, 0, SEEK_END);
     blk.db_offset = ftell(file_);
-    blk.db_id     = db_nxt_blkid++;
-    blk.key_filepath = &(iter->first);
+    blk.db_id     = db_blocks.size();
+    blk.strkey    = &(iter->first);
     fwrite(&title,     sizeof(title), 1, file_);
     fwrite(&blk.mtime, sizeof(blk.mtime), 1, file_);
     fwrite(name.c_str(), name.size(), 1, file_);
     if (name.size() % 4 != 0)  //padding to int32_t (x4 bytes)
         fwrite(fill0, 4 - name.size()%4, 1, file_);
     
-    db_blocks.resize(db_nxt_blkid);
-    db_blocks[blk.db_id].as_string = &blk;
+    db_blocks.emplace_back().as_string = &blk;
     return &blk;
 }
 

@@ -233,6 +233,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
 
         //build successful, update graph and goto case 4
         graph.set_node_files(s.adep, node_vals);
+        graph.clear_file0_mtime_cache(s.adep);
         graph.set_node_status_to_latest(s.adep);
     }
 
@@ -383,6 +384,8 @@ CGNTarget CGNImpl::analyse_target(
     nj.reset(); 
 
     //update mtime in fileDB after interpreter returned successful.
+    // file[0] : usually 'libSCRIPT.cgn.so' or' build.ninja of target'
+    graph.clear_file0_mtime_cache(rv.adep);
     graph.set_node_status_to_latest(opt.adep);
 
     //special case:

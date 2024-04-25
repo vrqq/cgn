@@ -5,3 +5,4 @@
 
 //Include rules
 #include "cgn.d/library/shell.cgn.h"
+#include "cgn.d/library/cxx.cgn.bundle/cxx.cgn.h"
