@@ -1,0 +1,35 @@
+## part of build script
+## ====================
+
+output = $builddir
+
+build $output/cgn_impl.o: cc entry/cgn_impl.cpp
+
+build $output/cgn_tools.o: cc entry/cgn_tools.cpp
+
+build $output/cgn.o: cc entry/cgn.cpp
+
+build $output/cli.o: cc entry/cli.cpp
+
+build $output/configuration.o : cc entry/configuration.cpp
+
+build $output/dl_helper.o: cc entry/dl_helper.cpp
+
+build $output/graph.o: cc entry/graph.cpp
+
+build $output/ninja_file.o: cc entry/ninja_file.cpp
+
+build $output/provider.o: cc entry/provider.cpp
+
+entry_obj = 
+
+build $output/cgn: link $output/cgn.o $output/cgn_impl.o $output/cli.o $
+    $output/cgn_tools.o $output/configuration.o $output/dl_helper.o $
+    $output/graph.o $output/ninja_file.o $output/provider.o $
+    ${ninjaout}/ninja_port_unix.a
+
+build $output/cgn.exe: link $output/cgn.o $output/cgn_impl.o $output/cli.o $
+    $output/cgn_tools.o $output/configuration.o $output/dl_helper.o $
+    $output/graph.o $output/ninja_file.o $output/provider.o $
+    ${ninjaout}/ninja_port_win.a
+

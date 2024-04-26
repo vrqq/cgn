@@ -11,6 +11,7 @@
 //    inbound-edge blk_nameid : start with (0b1<<31)
 //    inner-file blkid : start with (0b0<<31)
 #include <filesystem>
+#include <sstream>
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -185,7 +186,7 @@ void Graph::clear_file0_mtime_cache(GraphNode *p)
         std::filesystem::path fp{*key};
         std::filesystem::path basedir = fp.has_parent_path()?fp.parent_path():".";
         win_mtime_cache.erase(*key);
-        win_mtime_cache.erase(basedir);
+        win_mtime_cache.erase(basedir.string());
     #else
         win_mtime_cache.erase(*key);
     #endif
@@ -200,11 +201,11 @@ int64_t Graph::stat_and_cache(const std::filesystem::path &fp)
     // if file in current folder not stated 
     // (no subfolder and its file included)
     std::filesystem::path basedir = fp.has_parent_path()?fp.parent_path():".";
-    if (win_mtime_cache.count(basedir) == 0) {
-        auto tmap = Tools::win32_stat_folder(basedir);
+    if (win_mtime_cache.count(basedir.string()) == 0) {
+        auto tmap = Tools::win32_stat_folder(basedir.string());
         for (auto &[path, mtime] : tmap)
             win_mtime_cache.insert_or_assign(path, mtime);
-        win_mtime_cache[basedir] = -1; //-1 meanless
+        win_mtime_cache[basedir.string()] = -1; //-1 meanless
     }
     
     auto fd = win_mtime_cache.find(fp.string());

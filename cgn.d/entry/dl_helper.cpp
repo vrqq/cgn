@@ -15,7 +15,7 @@
     
 namespace cgn {
     DLHelper::DLHelper(const std::string &file) {
-        m_ptr = LoadLibrary(file);
+        m_ptr = LoadLibrary(file.c_str());
     }
     DLHelper::~DLHelper() {
         FreeLibrary(m_ptr);

@@ -1,4 +1,5 @@
 #include <fstream>
+#include <sstream>
 #include <optional>
 #include <filesystem>
 #include <cassert>
@@ -11,8 +12,12 @@
 #include "../ninjabuild/src/clparser.h"
 #include "../ninjabuild/src/depfile_parser.h"
 
-
+#ifdef _WIN32
+// extern void __declspec(selectany) cgn_setup(CGNInitSetup &x);
+extern void cgn_setup(CGNInitSetup &x);
+#else
 extern void cgn_setup(CGNInitSetup &x) __attribute__((weak));
+#endif
 
 namespace cgn {
 
@@ -118,8 +123,8 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
     if (s.sofile.empty()) {
         std::filesystem::path fpath{labe2};
         #ifdef _WIN32
-            s.sofile = analysis_path / fpath.parent_path() 
-                        / (fpath.stem().string() + ".dll");
+            s.sofile = (analysis_path / fpath.parent_path() 
+                        / (fpath.stem().string() + ".dll")).string();
         #else
             s.sofile = analysis_path / fpath.parent_path() 
                         / ("lib" + fpath.stem().string() + ".so");
@@ -145,8 +150,14 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
         if (auto fd = labe2.rfind('/'); fd != labe2.npos)
             def_ulabel_prefix = "\"//" + labe2.substr(0, fd) + ":\"";
 
-        bool is_msvc = script_cc.size() > 4 
-                    && script_cc.substr(script_cc.size() - 5) == "cl.exe";
+        auto cc_end_with = [&](const std::string &want) {
+            if (script_cc.size() >= want.size())
+                return script_cc.substr(script_cc.size() - want.size()) == want;
+            return false;
+        };
+
+        bool is_msvc = cc_end_with("cl.exe");
+        bool is_clang = cc_end_with("clang") || cc_end_with("clang++");
 
         // .rsp file is temporary and not included in adep->files[]
         // .so / .dll is in adep->files[] when first created.
@@ -171,14 +182,19 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
             if (is_msvc)
                 frsp<< it <<" /nologo /showIncludes "
                     "/DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
-                    "/utf-8 /MD /DLL /OUT:" + Tools::shell_escape(outname);
-            else
+                    "/utf-8 /MD /OUT:" + Tools::shell_escape(outname);
+            else {
+                if (is_clang && scriptcc_debug_mode) //llvm debug (lldb)
+                    frsp<<"-g -glldb ";
+                if (!is_clang && scriptcc_debug_mode) //gcc debug
+                    frsp<<"-g ";
                 frsp<<"-c " << it << " -MMD -MF " + Tools::shell_escape(depname) +
-                        " -fPIC -fdiagnostics-color=always -g -glldb -std=c++11"
+                        " -fPIC -fdiagnostics-color=always -std=c++11"
                         " -I. -I " + Tools::shell_escape(cell_lnk_path.string()) + 
                         " -DCGN_VAR_PREFIX=" + Tools::shell_escape(def_var_prefix) +
                         " -DCGN_ULABEL_PREFIX=" + Tools::shell_escape(def_ulabel_prefix) + 
                         " -o " + Tools::shell_escape(outname);
+            }
             frsp.close();
             auto build_rv = raymii::Command::exec(
                 script_cc + " @" + rspname
@@ -202,7 +218,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
                     throw std::runtime_error{errmsg};
                 for (auto ss : dfpar.ins_) {
                     std::string str{ss.begin(), ss.end()};
-                    dfcoll.insert(std::filesystem::proximate(str));
+                    dfcoll.insert(std::filesystem::proximate(str).string());
                 }
             }
         } //end for (file in script_srcs[])
@@ -225,7 +241,10 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
             node_vals.insert(node_vals.end(), clpar.includes_.begin(), 
                              clpar.includes_.end());
         }else {
-            run_link("-fPIC --shared -o " + s.sofile);
+            if (is_clang) //llvm-linker is faster then gnu linker
+                run_link(" -fuse-ld=lld -fPIC --shared -o " + s.sofile);
+            else
+                run_link("-fPIC --shared -o " + s.sofile);
             dfcoll.insert(script_srcs.begin(), script_srcs.end());
             node_vals.insert(node_vals.end(), dfcoll.begin(), dfcoll.end());
         }
@@ -313,7 +332,8 @@ CGNTarget CGNImpl::analyse_target(
     }
     std::string factory_label = "//" + stem + ":" + facty_name;
     std::string tgt_label = factory_label + "#" + cfg_id;
-    std::string out_prefix = cgn_out / "obj" / escaped_mid / (facty_name + "_" + cfg_id);
+    auto out_prefix_path = cgn_out / "obj" / escaped_mid / (facty_name + "_" + cfg_id);
+    std::string out_prefix = out_prefix_path.string();
     out_prefix.push_back(std::filesystem::path::preferred_separator);
     
     if (adep_cycle_detection.insert(tgt_label).second == false)
@@ -464,7 +484,7 @@ std::string CGNImpl::_expand_cell(const std::string &ss) const
 void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
 {
     cgn_out = cmd_kvargs.at("cgn-out");
-    analysis_path = cgn_out / "analysis";
+    analysis_path = cgn_out / ("analysis_" + Tools::get_host_info().os);
     cell_lnk_path = cgn_out / "cell_include";
     obj_main_ninja = cgn_out / "obj" / "main.ninja";
 
@@ -475,7 +495,6 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
         std::filesystem::create_directories(cgn_out);
 
     std::filesystem::create_directories(analysis_path);
-    std::filesystem::create_directories(cell_lnk_path);
     std::filesystem::create_directories(cgn_out / "obj");
 
     std::ofstream stamp_file(cgn_out / ".cgn_out_root.stamp");
@@ -483,7 +502,7 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
 
     // scriptcc variable
     #ifdef _WIN32
-    script_cc = "cl.exe"
+    script_cc = "cl.exe";
     #else
     script_cc = "clang++";
     #endif
@@ -493,7 +512,8 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
     // if (cmd_kvargs.count("regeneration"))
     //     regen_all = true;
 
-    cfg_mgr = std::make_unique<ConfigurationManager>(cgn_out / "configurations");
+    cfg_mgr = std::make_unique<ConfigurationManager>(
+                (cgn_out / "configurations").string());
 
     //prepare obj-main-ninja (entry of all targets)
     constexpr std::string_view SUBNINJA{"subninja "};
@@ -508,22 +528,34 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
                 );
         
     // graph init (load previous one)
-    graph.db_load(cgn_out / ".cgn_deps");
+    graph.db_load((cgn_out / ".cgn_deps").string());
 
     //CGN cell init
     //load cell-path map from .cgn_init
     cells = Tools::read_kvfile(".cgn_init");
 
     //create folder symbolic link
-    std::filesystem::remove_all(cell_lnk_path);
-    std::filesystem::create_directory(cell_lnk_path);
-    for (auto [k, v] : cells) {
-        if (k == "CELL_SETUP")
-            continue;
-        std::filesystem::path out = cell_lnk_path / ("@" + k);
-        std::filesystem::create_directory_symlink(std::filesystem::absolute(v), out);
+    // TODO: permission denied when create_directory_symlink() on windows platform
+    GraphNode *init_node = graph.get_node(".cgn_init");
+    graph.test_status(init_node);
+    if (init_node->files.empty() || init_node->status != GraphNode::Latest) {
+        graph.set_node_files(init_node, {".cgn_init"});
+        std::filesystem::remove_all(cell_lnk_path);
+        std::filesystem::create_directory(cell_lnk_path);
+        for (auto [k, v] : cells) {
+            if (k == "CELL_SETUP")
+                continue;
+            std::filesystem::path out = cell_lnk_path / ("@" + k);
+            std::error_code ec;
+            std::filesystem::create_directory_symlink(std::filesystem::absolute(v), out, ec);
+            if (ec)
+                throw std::runtime_error{"error no symlink cell_include: " + v 
+                        + ", error_code=" + std::to_string(ec.value())};
+        }
+        graph.set_node_status_to_latest(init_node);
     }
 
+    //call cgn_setup()
     if (auto fd = cells.find("CELL_SETUP"); fd != cells.end()) {
         active_script(fd->second);
         cells.erase(fd);

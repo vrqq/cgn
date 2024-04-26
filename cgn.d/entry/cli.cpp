@@ -14,7 +14,7 @@ int show_helper(const char *arg0) {
              <<"     run     <target_label>\n"
              <<"     clean\n"
              <<"  Options:\n"
-             <<"     -C / --api.out + <dir_name>\n"
+             <<"     -C / --cgn-out + <dir_name>\n"
              <<"     -V / --verbose\n"
              <<"     --regeneration\n"
              <<std::endl;
@@ -29,16 +29,20 @@ int main(int argc, char **argv)
     for (int i=1; i<argc;) {
         std::string_view k{argv[i]};
         if (k[0] == '-') {
+            if (k.size() >= 2 && k[1] == '-')
+                k = k.substr(2);
+            else
+                k = k.substr(1);
             //try expand
-            if (k == "-C")
-                k = "--cgn-out";
-            else if (k == "-V")
-                k = "--verbose";
+            if (k == "C")
+                k = "cgn-out";
+            else if (k == "V")
+                k = "verbose";
 
             if (i+1 < argc && argv[i+1][0] != '-')
-                args_kv[k.substr(2).data()] = argv[i+1], i+=2;
+                args_kv[k.data()] = argv[i+1], i+=2;
             else
-                args_kv[k.substr(2).data()]= "", i++;
+                args_kv[k.data()]= "", i++;
         }
         else
             args.push_back(argv[i++]);

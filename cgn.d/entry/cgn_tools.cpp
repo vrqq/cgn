@@ -2,10 +2,11 @@
 #include <filesystem>
 #include <sstream>
 #include <fstream>
+#include <array>
 
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
+#include <cerrno>
+#include <cstdio>
+#include <cstring>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -47,7 +48,7 @@ static std::string GetLastErrorString() {
         return fallback_msg;
     }
 
-    string msg = msg_buf;
+    std::string msg = msg_buf;
     LocalFree(msg_buf);
     return msg;
 } //GetLastErrorString()
@@ -59,7 +60,7 @@ static int64_t TimeStampFromFileTime(const FILETIME& filetime) {
     uint64_t mtime = ((uint64_t)filetime.dwHighDateTime << 32) |
         ((uint64_t)filetime.dwLowDateTime);
     // 1600 epoch -> 2000 epoch (subtract 400 years).
-    return (TimeStamp)mtime - 12622770400LL * (1000000000LL / 100);
+    return (int64_t)mtime - 12622770400LL * (1000000000LL / 100);
 } //TimeStampFromFileTime()
 
 #endif //_WIN32
@@ -123,10 +124,22 @@ std::string Tools::shell_escape(
         = rv['\''] = rv['"'] = rv['~'] = rv['!'] = rv['\\'] = rv[' '] = 1;
         return rv;
     }();
+    constexpr static auto cmd_special = [](){
+        std::array<bool, 256> rv{0};
+        for (std::size_t i=0; i<rv.size(); i++)
+            rv[i] = 0;
+        rv[','] = rv['^'] = rv[';'] = rv['='] 
+        = rv['%'] = rv[' '] = rv['\t'] = 1;
+        return rv;
+    }();
 
     std::string rv;
     #ifdef _WIN32
-        #error "TODO!"
+        for (auto c: in)
+            if (cmd_special[c])
+                rv.append({'^', c});
+            else
+                rv.push_back(c);
     #else
         for (auto c: in)
             if (bash_special[c])
@@ -179,7 +192,7 @@ std::string Tools::locale_path(const std::string &in)
 std::string Tools::parent_path(const std::string &in)
 {
     auto p = std::filesystem::path{in}.parent_path();
-    return p.has_parent_path()? p.parent_path() : ".";
+    return p.has_parent_path()? p.parent_path().string() : ".";
 }
 
 bool Tools::win32_long_paths_enabled() 

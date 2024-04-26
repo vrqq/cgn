@@ -38,7 +38,7 @@ ConfigurationManager::ConfigurationManager(const std::string &storage_dir)
     //iterate and read cfg files.
     for (auto &ff : std::filesystem::directory_iterator{p})
         if (ff.is_regular_file() && ff.path().extension() == ".cfg") {
-            std::string name = ff.path().filename().stem();
+            std::string name = ff.path().filename().stem().string();
             Configuration cfg;
 
             std::ifstream fin(ff.path().string());
