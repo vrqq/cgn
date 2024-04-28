@@ -99,7 +99,7 @@ std::string CGNImpl::expand_filelabel_to_filepath(const std::string &in) const
 //        load and return;
 const CGNScript &CGNImpl::active_script(const std::string &label)
 {
-    logout<<"CGN::active_script("<< label <<")"<<std::endl;
+    logger.print("ActiveScript " + label);
     std::string labe2 = _expand_cell(label);
     std::string ulabel = "//" + labe2;
     
@@ -196,6 +196,8 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
                         " -o " + Tools::shell_escape(outname);
             }
             frsp.close();
+
+            logger.print("ScriptCC " + outname);
             auto build_rv = raymii::Command::exec(
                 script_cc + " @" + rspname
             );
@@ -228,6 +230,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
             std::ofstream frsp(s.sofile + ".rsp"); 
             frsp << linker_in << arg;
             frsp.close();
+            logger.print("ScriptCC " + s.sofile);
             auto link_rv = raymii::Command::exec(script_cc + " @"+ s.sofile + ".rsp");
             if (link_rv.exitstatus != 0)
                 throw std::runtime_error{link_rv.output};
@@ -296,7 +299,8 @@ CGNTarget CGNImpl::analyse_target(
 ) {
     std::string labe2 = _expand_cell(label);
     ConfigurationID cfg_id = cfg_mgr->commit(cfg);
-    logout<<"CGN::analyse_target("<< label <<", "<<cfg_id<<")"<<std::endl;
+    logger.print("Analyse " + label + " #" + cfg_id);
+    // logout<<"CGN::analyse_target("<< label <<", "<<cfg_id<<")"<<std::endl;
 
     //expand short label
     // factory_label: @cell//project:nameA
@@ -396,7 +400,13 @@ CGNTarget CGNImpl::analyse_target(
 
     //call interpreter()
     //  factory_entry(tgt) : xx_factory(xctx), xx_interpreter(xctx, tgt);
-    rv.infos = fn_loader(cfg, opt);
+    try {
+        rv.infos = fn_loader(cfg, opt);
+    }catch(std::runtime_error &e) {
+        rv.errmsg = e.what();
+        rv.infos.no_store = true;
+        return rv;  //string 'adep_test' also no changed
+    }
 
     // release ninja file handle to write build.ninja down to disk
     // then fstat() could get the right mtime to written down to fileDB
@@ -413,9 +423,7 @@ CGNTarget CGNImpl::analyse_target(
         *adep_test = out_prefix + CGNTargetOpt::BUILD_ENTRY;
     }
     
-    if (rv.infos.no_store)
-        targets.erase(tgt_label);
-    else
+    if (!rv.infos.no_store)
         targets[tgt_label] = rv;
     return rv;
 } //CGNImpl::analyse()
@@ -453,6 +461,7 @@ void CGNImpl::build_target(
     analyse_target(label, cfg, &ninja_target);
     if (ninja_target.empty())
         throw std::runtime_error{label + " target not found."};
+    logger.paragraph("");
     
     std::string cmd = "ninja -f " + obj_main_ninja.string() 
                     + " " + Tools::shell_escape(ninja_target);
@@ -500,6 +509,10 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
     std::ofstream stamp_file(cgn_out / ".cgn_out_root.stamp");
     stamp_file.close();
 
+    //init logger system
+    scriptcc_debug_mode = cmd_kvargs.count("verbose");
+    logger.printer.set_smart_terminal(!scriptcc_debug_mode);
+
     // scriptcc variable
     #ifdef _WIN32
     script_cc = "cl.exe";
@@ -511,7 +524,7 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
 
     // if (cmd_kvargs.count("regeneration"))
     //     regen_all = true;
-
+    logger.print("Init configuration manager");
     cfg_mgr = std::make_unique<ConfigurationManager>(
                 (cgn_out / "configurations").string());
 
@@ -528,6 +541,7 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
                 );
         
     // graph init (load previous one)
+    logger.print("Loading fileDB");
     graph.db_load((cgn_out / ".cgn_deps").string());
 
     //CGN cell init

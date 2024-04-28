@@ -26,3 +26,5 @@ rule link
 include ninja_port.ninja
 
 include cgn.d_entry.ninja
+
+default $output/cgn

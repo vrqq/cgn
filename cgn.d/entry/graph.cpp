@@ -126,9 +126,11 @@ void Graph::set_node_status_to_latest(GraphNode *p)
         ff->mtime = stat_and_cache(*ff->strkey);
         fseek(file_, ff->db_offset + sizeof(uint32_t), SEEK_SET);
         fwrite(&(ff->mtime), sizeof(ff->mtime), 1, file_);
-        if (1) {
-            logout<<"Graph.fwrite(): ["<<ff->db_id<<"] " + *ff->strkey
+        if (logger.verbose) {
+            std::stringstream ss;
+            ss<<"Graph.fwrite(): ["<<ff->db_id<<"] " + *ff->strkey
                 <<"\n    * mtime "<<last_mtime <<" -> "<<ff->mtime<<"\n";
+            logger.paragraph(ss.str());
         }
     }
 
@@ -337,27 +339,28 @@ void Graph::db_load(const std::string &filename)
     }
     
     //debug
-    if (1) {
-        logout<<"db_load(): "<< db_blocks.size() <<" Blocks loaded\n";
+    if (logger.verbose) {
+        std::stringstream ss;
+        ss<<"Graph.db_load(): "<< db_blocks.size() <<" Blocks loaded\n";
         for (size_t i=0; i<db_blocks.size(); i++) {
             if (db_blocks[i].as_string)
-                logout<<" "<<i<<"] mtime:"
+                ss<<" "<<i<<"] mtime:"
                     <<db_blocks[i].as_string->mtime<<" "
                     <<*db_blocks[i].as_string->strkey
                     <<std::endl;
             if (db_blocks[i].as_nodename) {
                 auto &n = *db_blocks[i].as_nodename;
-                logout<<" "<<i<<"] Node: "
+                ss<<" "<<i<<"] Node: "
                     <<*db_blocks[i].as_string->strkey + "\n";
                 for (auto fblk : n.files)
-                    logout<<"    | FILE: "<<*fblk->strkey<<" ("
+                    ss<<"    | FILE: "<<*fblk->strkey<<" ("
                           <<fblk->db_id<<")\n";
                 for (GraphEdgeID eid = n.rhead; eid; eid = edges[eid].rnext)
-                    logout<<"    | "<<edges[eid].from->db_selfname_id
+                    ss<<"    | "<<edges[eid].from->db_selfname_id
                         <<" -> "<<edges[eid].to->db_selfname_id<<"\n";
             }
         }
-        logout<<"------ ------ ------ ------ ------ ------"<<std::endl;
+        logger.paragraph(ss.str());
     }
 
     // close stream and open file by fopen()
@@ -405,18 +408,20 @@ void Graph::db_flush_node()
         fwrite(newdata.data(), sizeof(uint32_t), newdata.size(), file_);
         n->db_block_size = ftell(file_) - n->db_offset;
         n->lastdb_data = newdata;
-        if (1) {
+        if (logger.verbose) {
+            std::stringstream ss;
             auto *self_name = db_blocks[n->db_selfname_id].as_string->strkey;
-            logout<<"Graph.fwrite(): off=" << n->db_offset 
-                  << " " + *self_name + "\n";
+            ss<<"Graph.fwrite(): off=" << n->db_offset 
+              << " " + *self_name + "\n";
             for (auto oitem : newdata) {
                 uint32_t blk_id = (oitem & ~(1UL<<31));
                 if (oitem & (1UL<<31))
-                    logout<<"    * Edge Node[blk "<<blk_id<<"] -> this\n";
+                    ss<<"    * Edge Node[blk "<<blk_id<<"] -> this\n";
                 else
-                    logout<<"    * File["<<blk_id<<"] "
+                    ss<<"    * File["<<blk_id<<"] "
                         <<*db_blocks[blk_id].as_string->strkey<<"\n";
             }
+            logger.paragraph(ss.str());
         }
     } //end for(db_pending_write)
 } //Graph::db_flush_node()
@@ -446,9 +451,11 @@ Graph::DBStringBlock *Graph::db_fetch_string(std::string name)
 
 void Graph::db_set_to_emptyblock(std::size_t offset, uint32_t whole_block_size)
 {
-    if (1) {
-        logout<<"Graph.fwrite(): recycle OFFSET "<< offset
-              <<" -> "<<offset + whole_block_size<<std::endl;
+    if (logger.verbose) {
+        std::stringstream ss;
+        ss<<"Graph.fwrite(): recycle OFFSET "<< offset
+          <<" -> "<<offset + whole_block_size<<std::endl;
+        logger.paragraph(ss.str());
     }
     uint32_t title = whole_block_size | DB_BIT_EMPTY;
     fseek(file_, offset, SEEK_SET);

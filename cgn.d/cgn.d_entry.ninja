@@ -21,15 +21,17 @@ build $output/ninja_file.o: cc entry/ninja_file.cpp
 
 build $output/provider.o: cc entry/provider.cpp
 
-entry_obj = 
+build $output/dev_helper.o: cc entry/dev_helper.cpp
 
 build $output/cgn: link $output/cgn.o $output/cgn_impl.o $output/cli.o $
     $output/cgn_tools.o $output/configuration.o $output/dl_helper.o $
     $output/graph.o $output/ninja_file.o $output/provider.o $
+    $output/dev_helper.o $
     ${ninjaout}/ninja_port_unix.a
 
 build $output/cgn.exe: link $output/cgn.o $output/cgn_impl.o $output/cli.o $
     $output/cgn_tools.o $output/configuration.o $output/dl_helper.o $
     $output/graph.o $output/ninja_file.o $output/provider.o $
+    $output/dev_helper.o $
     ${ninjaout}/ninja_port_win.a
 

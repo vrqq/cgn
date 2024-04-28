@@ -21,6 +21,8 @@ int show_helper(const char *arg0) {
     return 1;
 }
 
+extern int dev_helper();
+
 int main(int argc, char **argv)
 {
     //parse input cmdline
@@ -75,7 +77,9 @@ int main(int argc, char **argv)
         if (args.size() != 2)
             return show_helper(argv[0]);
         api.init(args_kv);
-        api.analyse_target(args[1], *api.query_config("DEFAULT"));
+        auto rv = api.analyse_target(args[1], *api.query_config("DEFAULT"));
+        if (rv.infos.empty())
+            throw std::runtime_error{"analyse: " + args[1] + " not found."};
     }
     if (args[0] == "build") {
         if (args.size() != 2)
@@ -87,13 +91,20 @@ int main(int argc, char **argv)
         if (args.size() != 2)
             return show_helper(argv[0]);
     }
+    if (args[0] == "tool") {
+        if (args.size() != 2)
+            return show_helper(argv[0]);
+        if (args[1] == "dev")
+            return dev_helper();
+    }
     if (args[0] == "clean") {
+        std::cout<<"Cleaning..."<<std::endl;
         std::filesystem::path dir{args_kv["cgn-out"]};
         if (std::filesystem::exists(dir / ".cgn_out_root.stamp"))
             std::filesystem::remove_all(dir);
         else
             std::cerr<<dir.string()<<"\n"
-                     <<"Warning: it seems not a cgn-out folder"<<std::endl;
+                     <<"Warning: it seems not a cgn-out folder, do nothing."<<std::endl;
     }
 
     return 0;

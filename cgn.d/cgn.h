@@ -35,6 +35,8 @@ struct CGNScript
 
 class NinjaFile;
 struct CGNTargetOpt {
+    static std::string path_separator;
+
     // target BUILD_ENTRY
     //  某个target编译时会产生多个outputs 通过 ninja BUILD_STAMP 来编译整个target
     constexpr static const char BUILD_NINJA[] = "build.ninja",
@@ -67,6 +69,8 @@ struct CGNTarget
     GraphNode *adep = nullptr;
 
     TargetInfos infos;
+
+    std::string errmsg;
 };
 
 using CGNFactoryLoader = std::function<TargetInfos(Configuration cfg, CGNTargetOpt opt)>;
@@ -109,7 +113,7 @@ struct Tools {
 
     static bool is_win7_or_later();
 
-    std::string rebase_label(const std::string &p, std::string base);
+    std::string absolute_label(const std::string &p, std::string base);
 
 }; //struct Tools
 

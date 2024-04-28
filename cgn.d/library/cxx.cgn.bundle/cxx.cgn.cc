@@ -598,7 +598,7 @@ cgn::TargetInfos CxxContext::add_dep(
     const std::string &label, cgn::Configuration cfg, DepType flag
 ) {
     auto rv = api.analyse_target(
-        api.rebase_label(label, opt.src_prefix), this->cfg);
+        api.absolute_label(label, opt.src_prefix), this->cfg);
     api.add_adep_edge(opt.adep, rv.adep);
     if (flag == DepType::_order_dep) {
         const cgn::DefaultInfo *inf = rv.infos.get<cgn::DefaultInfo>();

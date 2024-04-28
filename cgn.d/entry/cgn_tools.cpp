@@ -327,7 +327,7 @@ int64_t Tools::stat(const std::string &path)
 } //Tools::stat()
 
 
-std::string Tools::rebase_label(
+std::string Tools::absolute_label(
     const std::string &p, std::string base
 ) {
     if (p.size() && p[0] == '@')

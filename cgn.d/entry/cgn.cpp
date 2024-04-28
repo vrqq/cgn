@@ -1,9 +1,13 @@
 #include "cgn_impl.h"
 #include "configuration.h"
+#include "debug.h"
 #include "../cgn.h"
 
 
 namespace cgn {
+
+//static variable
+std::string CGNTargetOpt::path_separator = {std::filesystem::path::preferred_separator};
 
 std::string CGN::get_filepath(const std::string &file_label) const
 {
@@ -12,7 +16,8 @@ std::string CGN::get_filepath(const std::string &file_label) const
 
 const CGNScript *CGN::active_script(const std::string &label)
 {
-    return &pimpl->active_script(label);
+    auto rv = &pimpl->active_script(label);
+    return rv;
 }
 
 void CGN::offline_script(const std::string &label)
@@ -23,10 +28,7 @@ void CGN::offline_script(const std::string &label)
 CGNTarget CGN::analyse_target(
     const std::string &label, const Configuration &cfg
 ) {
-    auto rv = pimpl->analyse_target(label, cfg);
-    if (rv.infos.empty())
-        throw std::runtime_error{"analyse: " + label + " not found."};
-    return rv;
+    return pimpl->analyse_target(label, cfg);
 }
 
 void CGN::build(const std::string &label, const Configuration &cfg)
