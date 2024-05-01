@@ -92,11 +92,25 @@ using CxxStaticContext  = CxxContextType<'a'>;
 using CxxSharedContext  = CxxContextType<'s'>;
 using CxxExecutableContext = CxxContextType<'x'>;
 
+struct CxxToolchainInfo
+{
+    std::string c_exe, cxx_exe;
+    
+};
+
 struct CxxInterpreter
 {
     using context_type = CxxContext;
-    constexpr static const char *script_label = "@cgn.d//library/cxx.cgn.bundle";
+
+    constexpr static cgn::ConstLabelGroup<1> preload_labels() {
+        return {"@cgn.d//library/cxx.cgn.bundle"};
+    }
+
+    // constexpr static const char *script_labels[] = {"@cgn.d//library/cxx.cgn.bundle"};
+    // constexpr static const char *script_label = "@cgn.d//library/cxx.cgn.bundle";
     constexpr static const char *rule_ninja   = "@cgn.d//library/cxx.cgn.bundle/cxx_rule.ninja";
+
+    static CxxToolchainInfo test_param(const cgn::Configuration &cfg);
 
     static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
     static cgn::TargetInfos msvc_interpret(

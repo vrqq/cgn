@@ -12,6 +12,15 @@ namespace cgn {
 // the value accept both the relavent path of working root and absolute path.
 using FileLayout = std::map<std::string, std::string>;
 
+// C++ 11 do not support std::array .
+template<size_t N> struct ConstLabelGroup {
+    using data_type = const char*;
+    data_type data[N];
+    constexpr static size_t size() { return N; }
+    const data_type *begin() const { return data; }
+    const data_type *end() const { return data + N; }
+};
+
 //vtable of target info
 struct TargetInfoV {
     void        (*merge_from)(void *ecx, void *rhs);

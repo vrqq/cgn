@@ -646,4 +646,20 @@ cgn::TargetInfos CxxContext::add_dep(
     return rv.infos;
 } //CxxContext::add_dep
 
+CxxToolchainInfo CxxInterpreter::test_param(const cgn::Configuration &cfg)
+{
+    CxxToolchainInfo rv;
+    std::string prefix = cfg["cxx_prefix"];
+    if (cfg["toolchain"] == "gcc") {
+        rv.c_exe = prefix + "gcc";
+        rv.cxx_exe = prefix + "g++";
+    }
+    if (cfg["toolchain"] == "llvm") {
+        rv.c_exe = prefix + "clang";
+        rv.cxx_exe = prefix + "clang++";
+    }
+
+    return rv;
+}
+
 } //namespace

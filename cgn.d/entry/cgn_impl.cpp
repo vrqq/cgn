@@ -198,9 +198,11 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
             frsp.close();
 
             logger.print("ScriptCC " + outname);
+            logger.printer.SetConsoleLocked(true);
             auto build_rv = raymii::Command::exec(
                 script_cc + " @" + rspname
             );
+            logger.printer.SetConsoleLocked(false);
             if (build_rv.exitstatus != 0)
                 throw std::runtime_error{build_rv.output};
             
@@ -458,7 +460,9 @@ void CGNImpl::build_target(
     const std::string &label, const Configuration &cfg
 ) {
     std::string ninja_target;
-    analyse_target(label, cfg, &ninja_target);
+    auto rv = analyse_target(label, cfg, &ninja_target);
+    if (rv.errmsg.size())
+        throw std::runtime_error{rv.errmsg};
     if (ninja_target.empty())
         throw std::runtime_error{label + " target not found."};
     logger.paragraph("");

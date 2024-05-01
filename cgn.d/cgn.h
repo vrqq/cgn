@@ -142,11 +142,11 @@ public:
         void(*factory)(typename Interpreter::context_type&)
     ) {
         auto loader = [this, factory](const Configuration &cfg, CGNTargetOpt opt) {
-            if (Interpreter::script_label) {
-                const CGNScript *s = active_script(Interpreter::script_label);
+            for (const char *label : Interpreter::preload_labels()) {
+                const CGNScript *s = active_script(label);
                 add_adep_edge(s->adep, opt.adep);
             }
-            active_script(Interpreter::script_label);
+
             typename Interpreter::context_type x{cfg, opt};
             factory(x);
             return Interpreter::interpret(x, opt);

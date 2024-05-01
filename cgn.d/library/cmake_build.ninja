@@ -1,0 +1,6 @@
+
+rule cmake_gen
+    command = ${cmake_exe} -G Ninja -S ${src_dir} -B ${build_dir} -D ${vars}
+
+rule cmake_build
+    command = ${cmake_exe} --build ${build_dir} --parallel
