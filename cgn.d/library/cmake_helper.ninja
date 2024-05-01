@@ -1,7 +1,0 @@
-
-rule run
-    command = ${cmd}
-    description = ${desc}
-
-rule cmake_deploy
-    command = ${cmake_exe} --build ${build_dir} && ${cmake_exe} --install ${build_dir}

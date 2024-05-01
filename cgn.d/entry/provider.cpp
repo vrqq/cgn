@@ -31,6 +31,15 @@ const BaseInfo::VTable LinkAndRunInfo::v = {
     }
 }; 
 
+void TargetInfos::merge_from(const TargetInfos &rhs)
+{
+    for (auto &[name, val] : rhs._data)
+        if (auto fd = _data.find(name); fd != _data.end())
+            fd->second->merge_from(val.get());
+        else
+            _data[name] = val;
+}
+
 std::string TargetInfos::to_string() const
 {
     return "TargetInfos[...]";

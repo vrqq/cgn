@@ -198,11 +198,11 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
             frsp.close();
 
             logger.print("ScriptCC " + outname);
-            logger.printer.SetConsoleLocked(true);
+            // logger.printer.SetConsoleLocked(true);
             auto build_rv = raymii::Command::exec(
                 script_cc + " @" + rspname
             );
-            logger.printer.SetConsoleLocked(false);
+            // logger.printer.SetConsoleLocked(false);
             if (build_rv.exitstatus != 0)
                 throw std::runtime_error{build_rv.output};
             
@@ -465,10 +465,11 @@ void CGNImpl::build_target(
         throw std::runtime_error{rv.errmsg};
     if (ninja_target.empty())
         throw std::runtime_error{label + " target not found."};
-    logger.paragraph("");
+    logger.print(label + " analysed");
     
     std::string cmd = "ninja -f " + obj_main_ninja.string() 
                     + " " + Tools::shell_escape(ninja_target);
+    logger.paragraph(cmd + "\n");
     system(cmd.c_str());
 }
 
@@ -515,6 +516,7 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
 
     //init logger system
     scriptcc_debug_mode = cmd_kvargs.count("verbose");
+    logger.verbose = scriptcc_debug_mode;
     logger.printer.set_smart_terminal(!scriptcc_debug_mode);
 
     // scriptcc variable

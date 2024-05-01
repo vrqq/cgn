@@ -1,12 +1,11 @@
-#include "@cgn.d/library/shell.cgn.h"
+#include "@cgn.d/library/general.cgn.bundle/general.cgn.h"
 #include "@cgn.d/library/cxx.cgn.bundle/cxx.cgn.h"
 
 // #pragma message "VALUE: " STR(CGN_VAR_PREFIX)
 // #pragma message "VALUE: " CGN_ULABEL_PREFIX
 
 sh_binary("demo", x) {
-    x.main = "echo";
-    x.args = {"hello-world"};
+    x.cmd_build = {"echo", "hello-world"};
 }
 
 // expand the define below

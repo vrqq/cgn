@@ -88,7 +88,7 @@ class TargetInfos
 public:
     using list_type = std::unordered_map<std::string, std::shared_ptr<BaseInfo>>;
 
-    template<typename T> void set(T &rhs) { 
+    template<typename T> void set(const T &rhs) { 
         _data[T::name()] = std::shared_ptr<T>(new T(rhs));
     }
     template<typename T> T *get(bool create_if_nx = false) {
@@ -104,7 +104,8 @@ public:
 
     bool empty() const { return _data.empty(); }
 
-    // void merge_from(const TargetInfos &rhs);
+    void merge_from(const TargetInfos &rhs);
+
     std::string to_string() const;
 
     bool no_store = false;

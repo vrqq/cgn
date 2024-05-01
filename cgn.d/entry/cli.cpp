@@ -22,6 +22,7 @@ int show_helper(const char *arg0) {
 }
 
 extern int dev_helper();
+extern int wincp(std::string src, std::string dst);
 
 int main(int argc, char **argv)
 {
@@ -92,10 +93,12 @@ int main(int argc, char **argv)
             return show_helper(argv[0]);
     }
     if (args[0] == "tool") {
-        if (args.size() != 2)
-            return show_helper(argv[0]);
-        if (args[1] == "dev")
+        if (args.size() == 2 && args[1] == "dev")
             return dev_helper();
+        if (args.size() == 4 && args[1] == "wincp")
+            return wincp(args[2], args[3]);
+        else
+            return show_helper(argv[0]);
     }
     if (args[0] == "clean") {
         std::cout<<"Cleaning..."<<std::endl;

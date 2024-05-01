@@ -353,10 +353,10 @@ void Graph::db_load(const std::string &filename)
                 ss<<" "<<i<<"] Node: "
                     <<*db_blocks[i].as_string->strkey + "\n";
                 for (auto fblk : n.files)
-                    ss<<"    | FILE: "<<*fblk->strkey<<" ("
+                    ss<<"     | FILE: "<<*fblk->strkey<<" ("
                           <<fblk->db_id<<")\n";
                 for (GraphEdgeID eid = n.rhead; eid; eid = edges[eid].rnext)
-                    ss<<"    | "<<edges[eid].from->db_selfname_id
+                    ss<<"     | "<<edges[eid].from->db_selfname_id
                         <<" -> "<<edges[eid].to->db_selfname_id<<"\n";
             }
         }
