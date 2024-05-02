@@ -5,6 +5,6 @@ alias("cpp2alias", x) {
 }
 
 group("gp1", x) {
-    x.add(":cpp2alias");
-    x.add("../cmake:zlib");
+    x.add_dep(":cpp2alias");
+    x.add_dep("../cmake:zlib");
 }

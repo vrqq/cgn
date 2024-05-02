@@ -7,20 +7,6 @@ static std::string two_escape(const std::string &in) {
 
 // Shell binary
 // ------------
-
-cgn::TargetInfos ShellBinary::Context::add_dep(
-    const std::string label, cgn::Configuration cfg
-) {
-    auto rv = api.analyse_target(
-        api.absolute_label(label, opt.src_prefix), this->cfg);
-    const cgn::DefaultInfo *inf = rv.infos.get<cgn::DefaultInfo>();
-    ninja_target_dep.push_back(inf->build_entry_name);
-    merged_info.merge_from(rv.infos);
-    api.add_adep_edge(rv.adep, opt.adep);
-    return rv.infos;
-}
-
-
 cgn::TargetInfos ShellBinary::interpret(context_type &x, cgn::CGNTargetOpt opt)
 {
     // if user cmd_analysis existed
@@ -46,8 +32,11 @@ cgn::TargetInfos ShellBinary::interpret(context_type &x, cgn::CGNTargetOpt opt)
     field->rule = "exec";
     field->implicit_inputs = {x.inputs.begin(), x.inputs.end()};
     if (x.outputs.size()) {
-        field->outputs = x.outputs;
-        
+        for (auto &file : x.outputs) {
+            file = api.locale_path(opt.src_prefix + file);
+            field->outputs.push_back(opt.ninja->escape_path(file));
+        }
+
         auto *entry    = opt.ninja->append_build();
         entry->rule    = "phony";
         entry->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
@@ -62,8 +51,7 @@ cgn::TargetInfos ShellBinary::interpret(context_type &x, cgn::CGNTargetOpt opt)
 
     cgn::TargetInfos rv;
     cgn::DefaultInfo *oinf = rv.get<cgn::DefaultInfo>(true);
-    oinf->target_label = opt.factory_ulabel;
-    oinf->build_entry_name = field->outputs[0];
+    oinf->outputs.insert(x.outputs.begin(), x.outputs.end());
     return rv;
 } //ShellBinary::interpret()
 
@@ -102,18 +90,6 @@ cgn::TargetInfos GroupInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
 
     return x.merged_info;
 } //GroupInterpreter::interpret
-
-cgn::TargetInfos GroupInterpreter::GroupContext::add(
-    const std::string label, cgn::Configuration cfg
-) {
-    auto rv = api.analyse_target(
-        api.absolute_label(label, opt.src_prefix), this->cfg);
-    const cgn::DefaultInfo *inf = rv.infos.get<cgn::DefaultInfo>();
-    ninja_target_dep.push_back(inf->build_entry_name);
-    merged_info.merge_from(rv.infos);
-    api.add_adep_edge(rv.adep, opt.adep);
-    return rv.infos;
-}
 
 
 // LinkAndRuntimeFiles

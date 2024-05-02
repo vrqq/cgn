@@ -5,13 +5,13 @@
 
 #include "../../cgn.h"
 #include "../../rule_marco.h"
+#include "../../provider_dep.h"
 
 //Generate a ninja target which run command in shell
 struct ShellBinary
 {
-    struct Context {
+    struct Context : cgn::TargetInfoDep<true> {
         const std::string name;
-        const cgn::Configuration cfg;
 
         //cwd: current working directory
         //mnemonic: 'DESCRIPTION' field in ninja file
@@ -26,15 +26,8 @@ struct ShellBinary
         //${in} and ${out} in build.ninja of current target
         std::vector<std::string> inputs, outputs;
 
-        cgn::TargetInfos add_dep(const std::string label, cgn::Configuration cfg);
-
         Context(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt) 
-        : name(opt.factory_name), cfg(cfg), opt(opt) {}
-
-    private:
-        const cgn::CGNTargetOpt  opt;  //self opt
-        std::vector<std::string> ninja_target_dep;
-        cgn::TargetInfos         merged_info;
+        : cgn::TargetInfoDep<true>(cfg, opt), name(opt.factory_name) {}
     };
 
     using context_type = Context;
@@ -103,23 +96,13 @@ struct AliasInterpreter
 
 struct GroupInterpreter
 {
-    struct GroupContext {
+    struct GroupContext : cgn::TargetInfoDep<true> {
         const std::string name;
 
-        cgn::TargetInfos add(const std::string label) {
-            return add(label, cfg);
-        }
-
-        cgn::TargetInfos add(const std::string label, cgn::Configuration cfg);
-
         GroupContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
-        : name(opt.factory_ulabel), cfg(cfg), opt(opt) {}
+        : cgn::TargetInfoDep<true>(cfg, opt), name(opt.factory_ulabel) {}
 
-    private: friend class GroupInterpreter;
-        const cgn::Configuration cfg;
-        const cgn::CGNTargetOpt  opt;  //self opt
-        std::vector<std::string> ninja_target_dep;
-        cgn::TargetInfos         merged_info;
+        friend class GroupInterpreter;
     };
     using context_type = GroupContext;
     

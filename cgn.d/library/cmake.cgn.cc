@@ -20,12 +20,7 @@ static std::string two_escape(const std::string &in) {
 }
 
 CMakeContext::CMakeContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
-: name(opt.factory_name), opt(opt), cfg(cfg) {
-    // add cxx interpreter script dep on current target
-    // we would call function in this bundle later.
-    // constexpr static const char *cxx_interpreter = "@cgn.d//library/cxx.cgn.bundle";
-    // auto *cxxscript = api.active_script(cxx_interpreter);
-    // api.add_adep_edge(cxxscript->adep, opt.adep);
+: cgn::TargetInfoDep<true>(cfg, opt), name(opt.factory_name) {
     auto cinfo = cxx::CxxInterpreter::test_param(cfg);
 
     std::string install_prefix = opt.out_prefix + "install";
@@ -71,25 +66,6 @@ CMakeContext::CMakeContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
     }
 } //CMakeContext
 
-cgn::TargetInfos CMakeContext::add_dep(const std::string label)
-{
-    return add_dep(label, this->cfg);
-}
-
-cgn::TargetInfos CMakeContext::add_dep(
-    const std::string label, cgn::Configuration cfg
-) {
-    auto rv = api.analyse_target(
-        api.absolute_label(label, opt.src_prefix), this->cfg);
-    const cgn::DefaultInfo *inf = rv.infos.get<cgn::DefaultInfo>();
-    ninja_target_dep.push_back(inf->build_entry_name);
-
-    // since we have been consted the opt.cfg, here we can use opt.adep
-    // directly and it would not changed in interpreter.
-    api.add_adep_edge(rv.adep, opt.adep);
-    return rv.infos;
-}
-
 cgn::TargetInfos CMakeInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
 {
     // value check
@@ -104,9 +80,7 @@ cgn::TargetInfos CMakeInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
     std::vector<std::string> cmake_out_njesc;
 
     // prepare return value
-    cgn::TargetInfos rv;
-    auto *dinfo = rv.get<cgn::DefaultInfo>(true);
-    dinfo->target_label = opt.out_prefix + opt.BUILD_ENTRY;
+    cgn::TargetInfos &rv = x.merged_info;
 
     auto *lrinfo = rv.get<cgn::LinkAndRunInfo>(true);
     std::unordered_set<std::string> dllstem;

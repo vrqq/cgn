@@ -1,4 +1,7 @@
 cgn-out
 .vscode
 .backup
+.ninja_deps
+.ninja_log
 cgn.d/build
+cgn.d/build_msvcrel.ninja

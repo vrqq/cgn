@@ -1,4 +1,5 @@
-#include "../provider.h"
+#include "../cgn.h"
+#include "../provider_dep.h"
 
 namespace cgn {
 
@@ -45,4 +46,36 @@ std::string TargetInfos::to_string() const
     return "TargetInfos[...]";
 }
 
+// TargetInfoDep
+// -------------
+
+template<bool ConstCfg>
+TargetInfoDep<ConstCfg>::TargetInfoDep(const Configuration &cfg, CGNTargetOpt opt) 
+: cfg(cfg), TargetInfoDepData(opt) {
+    auto *def = merged_info.get<DefaultInfo>(true);
+    def->target_label = opt.factory_ulabel;
+    def->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
 }
+
+template<bool ConstCfg>
+TargetInfos TargetInfoDep<ConstCfg>::add_dep(
+    const std::string &label, Configuration cfg
+) {
+    auto rv = api.analyse_target(
+        api.absolute_label(label, opt.src_prefix), this->cfg);
+    ninja_target_dep.push_back(rv.infos. template get<DefaultInfo>()->build_entry_name);
+    merged_info.merge_from(rv.infos);
+    
+    // here we can use opt.adep directly and the output dir is fixed 
+    // even if it would changed in interpreter.
+    api.add_adep_edge(rv.adep, opt.adep);
+    return rv.infos;
+}
+
+template TargetInfoDep<true>::TargetInfoDep(const Configuration &cfg, CGNTargetOpt opt);
+template TargetInfoDep<false>::TargetInfoDep(const Configuration &cfg, CGNTargetOpt opt);
+
+template TargetInfos TargetInfoDep<true>::add_dep(const std::string &label, Configuration cfg);
+template TargetInfos TargetInfoDep<false>::add_dep(const std::string &label, Configuration cfg);
+
+} //namespace cgn
