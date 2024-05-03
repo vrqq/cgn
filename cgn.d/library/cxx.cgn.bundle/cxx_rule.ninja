@@ -18,7 +18,7 @@ rule msvc
     deps = msvc
 
 rule gcc_ar
-    command = ${exe} rcs ${out} ${in}
+    command = rm ${out} && ${exe} rcs ${out} ${in}
     description = AR ${out}
 
 rule unix_cp

@@ -63,7 +63,7 @@ struct CxxContext : CxxInfo
         const std::string &label, cgn::Configuration cfg, DepType flag
     );
     cgn::TargetInfos add_dep(const std::string &label, DepType flag) {
-        return add_dep(label, cfg, flag);
+        return add_dep(label, this->cfg, flag);
     }
 
     void set_runtime(const std::string &rout, const std::string &src);

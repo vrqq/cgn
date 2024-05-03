@@ -18,8 +18,8 @@ cxx_static("zstd", x) {
         x.defines += {"ZSTD_HEAPMODE=0"};
     
     x.srcs = {ZSTD_ROOT + "/lib/common/*.c", ZSTD_ROOT + "/lib/compress/*.c", 
-              ZSTD_ROOT + "/lib/decompress/*.c", ZSTD_ROOT + "/lib/dictBuilder/*.c", 
-              ZSTD_ROOT + "/lib/legacy/*.c"};
+              ZSTD_ROOT + "/lib/decompress/*.c", ZSTD_ROOT + "/lib/decompress/*.S", 
+              ZSTD_ROOT + "/lib/dictBuilder/*.c", ZSTD_ROOT + "/lib/legacy/*.c"};
               
     x.pub.include_dirs = {
         ZSTD_ROOT + "/lib",

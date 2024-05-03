@@ -612,11 +612,11 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
 }
 
 cgn::TargetInfos CxxContext::add_dep(
-    const std::string &label, cgn::Configuration cfg, DepType flag
+    const std::string &label, cgn::Configuration new_cfg, DepType flag
 ) {
     auto rv = api.analyse_target(
-        api.absolute_label(label, opt.src_prefix), this->cfg);
-    api.add_adep_edge(opt.adep, rv.adep);
+        api.absolute_label(label, opt.src_prefix), new_cfg);
+    api.add_adep_edge(rv.adep, opt.adep);
     if (flag == DepType::_order_dep) {
         const cgn::DefaultInfo *inf = rv.infos.get<cgn::DefaultInfo>();
         phony_order_only.push_back(inf->build_entry_name);
@@ -632,9 +632,9 @@ cgn::TargetInfos CxxContext::add_dep(
         to->include_dirs += rcxx->include_dirs;
     };
     if (flag == DepType::_inherit)
-        write_arg(&dep_cxx_self);
-    else
         write_arg(&dep_cxx_pub);
+    else
+        write_arg(&dep_cxx_self);
 
     // process LinkAndRunInfo from dep
     auto *rbr = rv.infos.get<cgn::LinkAndRunInfo>();

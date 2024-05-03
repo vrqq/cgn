@@ -344,6 +344,7 @@ CGNTarget CGNImpl::analyse_target(
     
     if (adep_cycle_detection.insert(tgt_label).second == false)
         throw std::runtime_error{"analyse: cycle-dependency " + tgt_label};
+    auto adep_pop = [&](){ adep_cycle_detection.erase(tgt_label); };
 
     //special case:
     //  check the stat of target ninja file
@@ -354,6 +355,7 @@ CGNTarget CGNImpl::analyse_target(
             graph.test_status(node);
             if (node->status == GraphNode::Latest) {
                 *adep_test = out_prefix + CGNTargetOpt::BUILD_ENTRY;
+                adep_pop();
                 return {};
             }
         }
@@ -362,7 +364,7 @@ CGNTarget CGNImpl::analyse_target(
     if (auto fd = targets.find(tgt_label); fd != targets.end()) {
         // case 1: cache found and Latest, return directly
         if (fd->second.adep->status == GraphNode::Latest)
-            return fd->second;
+            return adep_pop(), fd->second;
         
         // case 2: delete current and goto case 3
         targets.erase(fd);
@@ -385,8 +387,8 @@ CGNTarget CGNImpl::analyse_target(
     cgn::CGNFactoryLoader fn_loader;
     if (auto fd = factories.find(factory_label); fd != factories.end())
         fn_loader = fd->second;
-    else
-        return {}; //return immediately if factory not found
+    else  //return immediately if factory not found
+        return adep_pop(), cgn::CGNTarget{};
 
     rv.adep = opt.adep = graph.get_node(opt.out_prefix);
     graph.remove_inbound_edges(opt.adep);
@@ -407,7 +409,7 @@ CGNTarget CGNImpl::analyse_target(
     }catch(std::runtime_error &e) {
         rv.errmsg = e.what();
         rv.infos.no_store = true;
-        return rv;  //string 'adep_test' also no changed
+        return adep_pop(), rv;  //string 'adep_test' also no changed
     }
 
     // release ninja file handle to write build.ninja down to disk
@@ -427,7 +429,7 @@ CGNTarget CGNImpl::analyse_target(
     
     if (!rv.infos.no_store)
         targets[tgt_label] = rv;
-    return rv;
+    return adep_pop(), rv;
 } //CGNImpl::analyse()
 
 
