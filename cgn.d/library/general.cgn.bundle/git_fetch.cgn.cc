@@ -15,7 +15,7 @@ cgn::TargetInfos GitFetcher::interpret(context_type &x, cgn::CGNTargetOpt opt)
     std::string dest_dir = opt.src_prefix 
                          + api.rebase_path(x.dest_dir, opt.src_prefix);
     if (x.using_depot_tool.size()) {
-        auto tool = api.analyse_target(x.using_depot_tool, *api.query_config("HOST"));
+        auto tool = api.analyse_target(x.using_depot_tool, *api.query_config("host_release"));
         auto *def = tool.infos.get<cgn::DefaultInfo>();
         std::string stamp = opt.out_prefix + opt.BUILD_ENTRY;
         std::string cmd = two_escape(def->outputs[0]) 

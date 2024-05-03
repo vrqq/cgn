@@ -97,7 +97,7 @@ struct Tools {
 
     static HostInfo get_host_info();
 
-    static std::vector<std::string> file_glob(const std::string &dir);
+    static std::vector<std::string> file_glob(const std::string &dir, const std::string &base = ".");
 
     static std::string rebase_path(const std::string &p, const std::string &base);
 

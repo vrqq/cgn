@@ -282,9 +282,20 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
     // NOW: x.dep_cxx_self and x.dep_cxx_pub are invalid
 
     //preprocess file_glob(*)
+    // if the source file is not at the same/sub folder of BUILD.cgn.cc
+    // using absolutely path to locate.
     std::vector<std::string> real_srcs;
-    for (auto &ss : x.srcs)
-        real_srcs += api.file_glob(opt.src_prefix + ss);
+    for (auto &ss : x.srcs) {
+        auto p1 = api.file_glob(opt.src_prefix + ss, opt.src_prefix);
+        if (p1.size() > 2 && p1[0] == p1[1] && p1[1] == ".") { // start with ..
+            real_srcs.clear();
+            break;
+        }
+        real_srcs += p1;
+    }
+    if (real_srcs.empty()) // using abspath to present x.srcs
+        for (auto &ss : x.srcs)
+            real_srcs += api.file_glob(opt.src_prefix + ss, "");
     std::swap(x.srcs, real_srcs);
 
     static std::string rule_path = api.get_filepath(rule_ninja);
@@ -439,8 +450,9 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
     // arg.cflags : already escaped
     std::vector<std::string> obj_out;
     std::vector<std::string> obj_out_ninja_esc;
-    for (auto &path_in : x.srcs) {
-        auto chk = file_check(path_in);
+    for (auto &ss : x.srcs) {
+        auto chk = file_check(ss);
+        std::string path_in  = opt.src_prefix + ss;
         std::string path_out = opt.out_prefix + cgn::Tools::locale_path(chk.first) + ".o";
         if (chk.second == '+' || chk.second == 'c' || chk.second == 'a') { // .c .cpp .S
             auto *field = opt.ninja->append_build();

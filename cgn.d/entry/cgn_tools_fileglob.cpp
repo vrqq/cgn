@@ -70,32 +70,38 @@ bool match(std::string section_name, std::string_view want)
 }
 
 void recursive(std::vector<std::string> &out, std::filesystem::path dir, 
-               std::string_view want_tail)
+               std::string_view want_tail, const std::string &base_path)
 {
     assert(std::filesystem::is_directory(dir));
 
     for (auto ff : std::filesystem::directory_iterator(dir)) {
         if (ff.is_directory())
-            recursive(out, ff, want_tail);
+            recursive(out, ff, want_tail, base_path);
         if (ff.is_regular_file()) {
             std::string name = ff.path().filename().string();
             if (name.size() > want_tail.size()) {
                 auto off = name.size() - want_tail.size();
                 std::string_view now{name.c_str() + off, want_tail.size()};
                 if (now == want_tail)
-                    out.push_back(std::filesystem::absolute(ff).string());
+                    out.push_back(base_path.empty()? 
+                        std::filesystem::absolute(ff).string() :
+                        std::filesystem::proximate(ff, base_path).string()
+                    );
             }
         }
     }
 }
 
 void work(std::vector<std::string> &out, std::filesystem::path prefix, 
-        std::string_view tail
+          std::string_view tail, const std::string &base_path
 ) {
     if (!std::filesystem::exists(prefix))
         return ;
     if (tail.empty() && std::filesystem::is_regular_file(prefix)) {
-        out.push_back(std::filesystem::absolute(prefix).string());
+        out.push_back(base_path.empty()?
+            std::filesystem::absolute(prefix).string() : 
+            std::filesystem::proximate(prefix, base_path).string()
+        );
         return ;
     }
     if (!std::filesystem::is_directory(prefix))
@@ -113,7 +119,7 @@ void work(std::vector<std::string> &out, std::filesystem::path prefix,
 
     //special case: expend all file recursively inside this path
     if (auto fd = tail.find("**"); want_type == FILE && fd != tail.npos)
-        return recursive(out, prefix, tail.substr(2));
+        return recursive(out, prefix, tail.substr(2), base_path);
 
     for (auto subf : std::filesystem::directory_iterator(prefix)) {
         if (subf.is_symlink()) //skip all symlink (include invalid symlink)
@@ -122,12 +128,15 @@ void work(std::vector<std::string> &out, std::filesystem::path prefix,
             std::string dir_name = subf.path().filename().string();
             // std::cout<<"[DBG-DIRNAME] "<<subf<<" "<<dir_name<<std::endl;
             if (match(dir_name, want_word))
-                work(out, subf, next_arg2);
+                work(out, subf, next_arg2, base_path);
         }
         if (subf.is_regular_file() && want_type == FILE) {
             std::string file_name = subf.path().filename().string();
             if (match(file_name, want_word))
-                out.push_back(std::filesystem::absolute(subf).string());
+                out.push_back(base_path.empty()?
+                    std::filesystem::absolute(subf).string() : 
+                    std::filesystem::proximate(subf, base_path).string()
+                );
         }
     }
 } //work()
@@ -136,7 +145,7 @@ void work(std::vector<std::string> &out, std::filesystem::path prefix,
 
 namespace cgn {
 
-std::vector<std::string> Tools::file_glob(const std::string &dir)
+std::vector<std::string> Tools::file_glob(const std::string &dir, const std::string &base)
 {
     std::string s_raw = dir;
     //convert to unix path-delimiter '/'
@@ -156,7 +165,7 @@ std::vector<std::string> Tools::file_glob(const std::string &dir)
             };
     }
     if (auto fd = ss.rfind("**"); fd != ss.npos) {
-        if (ss[fd-1] != SEP)
+        if (fd > 0 && ss[fd-1] != SEP)
             throw std::runtime_error{
                 "** must be the prefix of last part."
             };
@@ -165,10 +174,10 @@ std::vector<std::string> Tools::file_glob(const std::string &dir)
     std::vector<std::string> rv;
     if (auto fd = ss.find('*'); fd != ss.npos) {
         auto fd2 = ss.rfind(SEP, fd);
-        work(rv, ss.substr(0, fd2), ss.substr(fd2+1));
+        work(rv, ss.substr(0, fd2), ss.substr(fd2+1), base);
     }
     else
-        work(rv, ss, "");
+        work(rv, ss, "", base);
     
     return rv;
 } //file_glob()
