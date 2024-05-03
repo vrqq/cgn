@@ -1,3 +1,4 @@
+#pragma once
 #include <vector>
 #include <unordered_set>
 #include "../../cgn.h"
@@ -35,7 +36,7 @@ struct CxxInfo : cgn::BaseInfo {
         cflags,        // compiler specific cflags, shell-escaped required
                        // e.g.: "-Idir\\ 1"
         ldflags;       // flags when linking, shell-escaped required
-                       // e.g.："-Wl,--rpath=\\$ORIGIN"
+                       // e.g.："-Wl,--rpath=\\$ORIGIN", "/L:ws2_32.lib"
                        
     static const char *name() { return "CxxInfo"; }
     CxxInfo() : BaseInfo{&v} {}
@@ -106,10 +107,6 @@ struct CxxInterpreter
         return {"@cgn.d//library/cxx.cgn.bundle"};
     }
 
-    // constexpr static const char *script_labels[] = {"@cgn.d//library/cxx.cgn.bundle"};
-    // constexpr static const char *script_label = "@cgn.d//library/cxx.cgn.bundle";
-    constexpr static const char *rule_ninja   = "@cgn.d//library/cxx.cgn.bundle/cxx_rule.ninja";
-
     static CxxToolchainInfo test_param(const cgn::Configuration &cfg);
 
     static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
@@ -127,12 +124,29 @@ struct CxxInterpreterIF : public CxxInterpreter {
 // -----------------------------
 
 struct PrebuiltContext {
+    const std::string name;
+
     CxxInfo pub;
+
+    // perferred dll storage dir for windows or pkg mode for all os.
+    std::string runtime_dir;
 
     //windows shared lib: both .dll and .libs
     //windows static lib: .libs
     //linux shared/static lib: .so / .a / .o
-    std::vector<std::string> libs;
+    std::vector<std::string> files;
+
+    PrebuiltContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
+    : name(opt.factory_name) {}
+};
+
+struct CxxPrebuiltInterpreter {
+    using context_type = PrebuiltContext;
+
+    constexpr static cgn::ConstLabelGroup<1> preload_labels() {
+        return {"@cgn.d//library/cxx.cgn.bundle"};
+    }
+    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 };
 
 } //namespace cxx

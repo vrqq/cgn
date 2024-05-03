@@ -2,7 +2,9 @@
 
 //Include global cgn API
 #include "cgn.d/cgn.h"
+#include "cgn.d/std_operator.hpp"
 
 //Include rules
 #include "cgn.d/library/general.cgn.bundle/general.cgn.h"
 #include "cgn.d/library/cxx.cgn.bundle/cxx.cgn.h"
+#include "cgn.d/library/cmake.cgn.h"

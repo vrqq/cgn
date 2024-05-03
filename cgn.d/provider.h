@@ -56,7 +56,7 @@ struct DefaultInfo : BaseInfo
     std::string build_entry_name;
 
     //The files/folders relavent to WorkingRoot
-    std::unordered_set<std::string> outputs;
+    std::vector<std::string> outputs;
 
     //The CGN script label in dependency tree (.cgn.cc or .cgn.rsp)
     // std::unordered_set<std::string> dep_scripts;

@@ -51,7 +51,7 @@ cgn::TargetInfos ShellBinary::interpret(context_type &x, cgn::CGNTargetOpt opt)
 
     cgn::TargetInfos rv;
     cgn::DefaultInfo *oinf = rv.get<cgn::DefaultInfo>(true);
-    oinf->outputs.insert(x.outputs.begin(), x.outputs.end());
+    oinf->outputs.insert(oinf->outputs.end(), x.outputs.begin(), x.outputs.end());
     return rv;
 } //ShellBinary::interpret()
 
@@ -66,7 +66,7 @@ cgn::TargetInfos AliasInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
 
     auto *field = opt.ninja->append_build();
     field->rule = "phony";
-    field->inputs = {definfo->target_label};
+    field->inputs = {definfo->build_entry_name};
     field->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
 
     definfo->target_label = opt.factory_ulabel;

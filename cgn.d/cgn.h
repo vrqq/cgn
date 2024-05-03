@@ -33,6 +33,8 @@ struct CGNScript
     // const std::vector<std::string> &files();
 };
 
+// TODO: separate CGNTargetOpt to CGNTargetOpt1 for Context and CGNTargetOpt2 
+//       for Interpreter (add .out_prefix .ninja field)
 class NinjaFile;
 struct CGNTargetOpt {
     static std::string path_separator;
@@ -94,6 +96,8 @@ struct Tools {
     );
 
     static HostInfo get_host_info();
+
+    static std::vector<std::string> file_glob(const std::string &dir);
 
     static std::string rebase_path(const std::string &p, const std::string &base);
 

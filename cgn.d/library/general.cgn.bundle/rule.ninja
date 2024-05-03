@@ -1,0 +1,4 @@
+
+rule run
+    command = ${cmd}
+    description = ${desc}

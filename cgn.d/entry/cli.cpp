@@ -97,6 +97,11 @@ int main(int argc, char **argv)
             return dev_helper();
         if (args.size() == 4 && args[1] == "wincp")
             return wincp(args[2], args[3]);
+        if (args.size() == 3 && args[1] == "fileglob") {
+            auto ls = api.file_glob(args[2]);
+            for (auto &ss : ls)
+                std::cout<<ss<<"\n";
+        }
         else
             return show_helper(argv[0]);
     }

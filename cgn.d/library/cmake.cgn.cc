@@ -69,7 +69,7 @@ CMakeContext::CMakeContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
 cgn::TargetInfos CMakeInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
 {
     // value check
-    if (x.output.empty())
+    if (x.outputs.empty())
         throw std::runtime_error{opt.factory_ulabel + " output field must be assigned"};
 
     // dir for cmake
@@ -85,13 +85,13 @@ cgn::TargetInfos CMakeInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
     auto *lrinfo = rv.get<cgn::LinkAndRunInfo>(true);
     std::unordered_set<std::string> dllstem;
     std::vector<std::pair<std::string,std::string>> dotlib;
-    for (auto &file : x.output) {
+    for (auto &file : x.outputs) {
         auto fd1   = file.rfind('/');
         auto fddot = file.rfind('.');
         fd1 = (fd1 == file.npos? 0: fd1+1);
         if (fddot == file.npos || fddot < fd1)
             continue; //invalid file
-        std::string fullp = build_dir + "/install/" + file;
+        std::string fullp = install_dir + "/" + file;
         std::string stem = file.substr(fd1, fddot-fd1);
         std::string ext  = file.substr(fddot);
         if (ext == ".so")

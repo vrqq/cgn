@@ -247,9 +247,9 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
                              clpar.includes_.end());
         }else {
             if (is_clang) //llvm-linker is faster then gnu linker
-                run_link(" -fuse-ld=lld -fPIC --shared -o " + s.sofile);
+                run_link(" -g -fuse-ld=lld -fPIC --shared -o " + s.sofile);
             else
-                run_link("-fPIC --shared -o " + s.sofile);
+                run_link(" -g -fPIC --shared -o " + s.sofile);
             dfcoll.insert(script_srcs.begin(), script_srcs.end());
             node_vals.insert(node_vals.end(), dfcoll.begin(), dfcoll.end());
         }
@@ -497,8 +497,17 @@ std::string CGNImpl::_expand_cell(const std::string &ss) const
 
 void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
 {
+    //init logger system
+    // (always true, current in development)
+    // scriptcc_debug_mode = cmd_kvargs.count("scriptcc_debug");
+    scriptcc_debug_mode = true;
+    logger.verbose = cmd_kvargs.count("verbose");
+    logger.printer.set_smart_terminal(!logger.verbose);
+
+    //init path
+    std::string dsuffix = (scriptcc_debug_mode? "d":"");
     cgn_out = cmd_kvargs.at("cgn-out");
-    analysis_path = cgn_out / ("analysis_" + Tools::get_host_info().os);
+    analysis_path = cgn_out / ("analysis_" + Tools::get_host_info().os + dsuffix);
     cell_lnk_path = cgn_out / "cell_include";
     obj_main_ninja = cgn_out / "obj" / "main.ninja";
 
@@ -513,11 +522,6 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
 
     std::ofstream stamp_file(cgn_out / ".cgn_out_root.stamp");
     stamp_file.close();
-
-    //init logger system
-    scriptcc_debug_mode = cmd_kvargs.count("verbose");
-    logger.verbose = scriptcc_debug_mode;
-    logger.printer.set_smart_terminal(!scriptcc_debug_mode);
 
     // scriptcc variable
     #ifdef _WIN32

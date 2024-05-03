@@ -7,7 +7,7 @@ const BaseInfo::VTable DefaultInfo::v = {
     [](void *ecx, const void *rhs) {
         auto *self = (DefaultInfo *)ecx;
         auto *rr   = (const DefaultInfo *)(rhs);
-        self->outputs.insert(rr->outputs.begin(), rr->outputs.end());
+        self->outputs.insert(self->outputs.end(), rr->outputs.begin(), rr->outputs.end());
     },
     [](const void *ecx) -> std::string { 
         return "DefaultInfo{...}";

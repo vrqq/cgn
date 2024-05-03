@@ -38,7 +38,7 @@ struct CMakeContext : cgn::TargetInfoDep<true> {
 
     std::unordered_map<std::string, std::string> vars;
 
-    std::vector<std::string> output;
+    std::vector<std::string> outputs;
 
     // the CxxInfo and LinkAndRunInfo return value would be filled from 
     // CMAKE_INSTALL_BINDIR, CMAKE_INSTALL_LIBDIR and CMAKE_INSTALL_INCLUDEDIR,

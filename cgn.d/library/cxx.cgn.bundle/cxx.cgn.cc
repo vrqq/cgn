@@ -268,6 +268,8 @@ cgn::TargetInfos CxxInterpreter::msvc_interpret(
 
 cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
 {
+    constexpr const char *rule_ninja = "@cgn.d//library/cxx.cgn.bundle/cxx_rule.ninja";
+
     // merge variable and convert file path to relpath-of-working-dir
     // add cflags, ldflags from current target
     ((CxxInfo*)&x)->merge_from(&x.dep_cxx_self);
@@ -277,9 +279,13 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         dir = opt.src_prefix + cgn::Tools::locale_path(dir);
     for (std::string &dir : x.pub.include_dirs)
         dir = opt.src_prefix + cgn::Tools::locale_path(dir);
-    // for (std::string &ss : x.srcs)
-    //     ss = opt.src_prefix + cgn::Tools::locale_path(ss);
     // NOW: x.dep_cxx_self and x.dep_cxx_pub are invalid
+
+    //preprocess file_glob(*)
+    std::vector<std::string> real_srcs;
+    for (auto &ss : x.srcs)
+        real_srcs += api.file_glob(opt.src_prefix + ss);
+    std::swap(x.srcs, real_srcs);
 
     static std::string rule_path = api.get_filepath(rule_ninja);
     opt.ninja->append_include(rule_path);
@@ -433,9 +439,8 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
     // arg.cflags : already escaped
     std::vector<std::string> obj_out;
     std::vector<std::string> obj_out_ninja_esc;
-    for (auto &file : x.srcs) {
-        auto chk = file_check(file);
-        std::string path_in  = opt.src_prefix + cgn::Tools::locale_path(file);
+    for (auto &path_in : x.srcs) {
+        auto chk = file_check(path_in);
         std::string path_out = opt.out_prefix + cgn::Tools::locale_path(chk.first) + ".o";
         if (chk.second == '+' || chk.second == 'c' || chk.second == 'a') { // .c .cpp .S
             auto *field = opt.ninja->append_build();
@@ -453,7 +458,7 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
     // init CxxInfo for return value
     cgn::TargetInfos rv;
     rv.set(x.pub); // rv[CxxInfo] = x.pub
-
+    rv.get<cgn::DefaultInfo>()->target_label = opt.factory_ulabel;
     rv.get<cgn::DefaultInfo>()->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
 
     // build.ninja : for cxx_sources() only
@@ -658,6 +663,55 @@ CxxToolchainInfo CxxInterpreter::test_param(const cgn::Configuration &cfg)
         rv.c_exe = prefix + "clang";
         rv.cxx_exe = prefix + "clang++";
     }
+
+    return rv;
+}
+
+// CxxPrebuiltInterpreter
+// ----------------------
+
+cgn::TargetInfos CxxPrebuiltInterpreter::interpret(
+    context_type &x, cgn::CGNTargetOpt opt
+) {
+    cgn::TargetInfos rv;
+    auto *def = rv.get<cgn::DefaultInfo>(true);
+    def->target_label = opt.factory_ulabel;
+    def->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
+
+    std::string dllbase = opt.out_prefix;
+    if (x.runtime_dir.size())
+        dllbase += x.runtime_dir + opt.path_separator;
+
+    auto *lrinfo = rv.get<cgn::LinkAndRunInfo>(true);
+    std::unordered_set<std::string> dllstem;
+    std::vector<std::pair<std::string,std::string>> dotlib;
+    for (auto file : x.files) {
+        auto fd1   = file.rfind('/');
+        auto fddot = file.rfind('.');
+        fd1 = (fd1 == file.npos? 0: fd1+1);
+        if (fddot == file.npos || fddot < fd1)
+            continue;
+        std::string fullp = api.locale_path(opt.out_prefix + file);
+        std::string stem = file.substr(fd1, fddot-fd1);
+        std::string ext  = file.substr(fddot);
+        if (ext == ".so")
+            lrinfo->shared_files.push_back(fullp);
+        else if (ext == ".a")
+            lrinfo->static_files.push_back(fullp);
+        else if (ext == ".dll") {
+            lrinfo->runtime_files[stem + ".dll"] = fullp;
+            dllstem.insert(stem);
+        }
+        else if (ext == ".lib")
+            dotlib.push_back({stem, fullp});
+        else
+            continue;
+    }
+    for (auto item : dotlib)
+        if (dllstem.count(item.first) != 0)
+            lrinfo->shared_files.push_back(item.second);
+        else
+            lrinfo->static_files.push_back(item.second);
 
     return rv;
 }

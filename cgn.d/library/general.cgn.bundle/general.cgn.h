@@ -3,6 +3,10 @@
 #include <vector>
 #include <unordered_map>
 
+// exported zone
+#include "git_fetch.cgn.h"
+// end exported zone
+
 #include "../../cgn.h"
 #include "../../rule_marco.h"
 #include "../../provider_dep.h"
