@@ -77,6 +77,15 @@ cgn::TargetInfos AliasInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
 
 // Target Group
 // ------------
+std::vector<cgn::TargetInfos> GroupInterpreter::GroupContext::add_deps(
+    std::initializer_list<std::string> labels, const cgn::Configuration &cfg
+) {
+    std::vector<cgn::TargetInfos> rv;
+    for (auto it :labels)
+        rv.push_back(add_dep(it, cfg));
+    return rv;
+}
+
 cgn::TargetInfos GroupInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
 {
     auto *field = opt.ninja->append_build();

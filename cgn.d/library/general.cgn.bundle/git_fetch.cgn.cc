@@ -27,11 +27,12 @@ cgn::TargetInfos GitFetcher::interpret(context_type &x, cgn::CGNTargetOpt opt)
         field->rule = "run";
     }
     else {
+        std::string touchfile = api.locale_path(x.dest_dir + opt.BUILD_ENTRY);
         #ifdef _WIN32
-        std::string suffix = "cmd /c \"type nul >" + opt.BUILD_ENTRY + "\""
+        std::string suffix = "cmd /c \"type nul >" + touchfile + "\""
                            + " 1 > nul";
         #else
-        std::string suffix = "touch " + std::string{opt.BUILD_ENTRY}
+        std::string suffix = "touch " + touchfile
                            + " 1> /dev/null 2>&1";
         #endif
         std::string cmd = "mkdir -p " + two_escape(dest_dir)

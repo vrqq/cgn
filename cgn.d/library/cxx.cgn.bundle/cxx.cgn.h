@@ -125,6 +125,7 @@ struct CxxInterpreterIF : public CxxInterpreter {
 
 struct PrebuiltContext {
     const std::string name;
+    const cgn::Configuration cfg;
 
     CxxInfo pub;
 
@@ -137,7 +138,7 @@ struct PrebuiltContext {
     std::vector<std::string> files;
 
     PrebuiltContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
-    : name(opt.factory_name) {}
+    : name(opt.factory_name), cfg(cfg) {}
 };
 
 struct CxxPrebuiltInterpreter {
@@ -162,3 +163,6 @@ struct CxxPrebuiltInterpreter {
 
 #define cxx_sources(name, x) CGN_RULE_DEFINE( \
     cxx::CxxInterpreterIF<cxx::CxxSourcesContext>, name, x)
+
+#define cxx_prebuilt(name, x) CGN_RULE_DEFINE( \
+    cxx::CxxPrebuiltInterpreter, name, x)

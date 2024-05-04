@@ -5,7 +5,8 @@ builddir = build
 
 
 cflags = -I. -g -std=c++17 -fsanitize=address -fcolor-diagnostics $
-         -fshow-column -fshow-source-location -fcaret-diagnostics
+         -fshow-column -fshow-source-location -fcaret-diagnostics $
+         -fstandalone-debug -fno-limit-debug-info
 
 rule cc
     deps    = gcc

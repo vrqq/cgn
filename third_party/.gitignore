@@ -1,3 +1,7 @@
 */src
 */repo
-*/.stamp
+*/download
+*/deploy
+*/*.stamp
+
+## Private repos below

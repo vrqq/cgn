@@ -388,7 +388,7 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
             arg.defines += {"_DEBUG"};
             arg.cflags += {"-g", "-Wall", "-Wextra", "-Wno-unused-parameter",
                 "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls",
-                "-ftemplate-backtrace-limit=0",
+                "-ftemplate-backtrace-limit=0", "-fno-limit-debug-info",
                 "-fstandalone-debug", "-fdebug-macro", "-glldb", //"-march=native",
                 "-fcoverage-mapping", "-fprofile-instr-generate", "-ftime-trace"
                 // "-flto=thin"

@@ -2,7 +2,10 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <list>
 #include <filesystem>
+#include <thread>
+#include <atomic>
 #include "../cgn.h"
 
 cgn::CGN api;
@@ -12,6 +15,7 @@ int show_helper(const char *arg0) {
              <<"     analyse <target_label>\n"
              <<"     build   <target_label>\n"
              <<"     run     <target_label>\n"
+             <<"     preload\n"
              <<"     clean\n"
              <<"  Options:\n"
              <<"     -C / --cgn-out + <dir_name>\n"
@@ -19,6 +23,57 @@ int show_helper(const char *arg0) {
              <<"     --regeneration\n"
              <<std::endl;
     return 1;
+}
+
+// scan all files end with .cgn.cc, .cgn.rsp, or folder with .cgn.bundle
+// and call api.active_script() in parallel
+int cgn_preload_all()
+{
+    using std::filesystem::is_directory;
+    using std::filesystem::is_regular_file;
+
+    std::vector<std::string> cgn_scripts;
+    std::vector<std::filesystem::path> stack;
+    stack.push_back(".");
+    for (auto p : std::filesystem::directory_iterator(stack.back())) {
+        auto end_with = [&](std::string want) {
+            std::string s = p.path().filename().string();
+            if (s.size() > want.size())
+                return s.substr(s.size() - want.size()) == want;
+            return false;
+        };
+        if (is_regular_file(p) && (end_with(".cgn.cc") || end_with(".cgn.rsp")))
+            cgn_scripts.push_back(p.path().string());
+        if (is_directory(p) && end_with(".cgn.bundle"))
+            cgn_scripts.push_back(p.path().string());
+    }
+
+    std::size_t ncpu = std::thread::hardware_concurrency();
+    if (ncpu > cgn_scripts.size())
+        ncpu = cgn_scripts.size();
+    std::cout<<"Scan complete, "<< cgn_scripts.size() <<" scripts found, "
+             <<"loading in "<<ncpu<<" threads parallelly.";
+    size_t n_jobs_base = cgn_scripts.size() / ncpu;
+
+    std::atomic<std::size_t> error_count{0};
+    std::list<std::thread> thread_pools;
+    for (std::size_t i=0; i<cgn_scripts.size(); ) {
+        size_t njobs = n_jobs_base + (i < cgn_scripts.size()%ncpu ? 1:0);
+        thread_pools.emplace_back([&](std::size_t off, std::size_t count) {
+            try {
+                for (std::size_t j=0; j<count; j++)
+                    api.active_script(cgn_scripts[off+j]);
+            } catch(std::runtime_error &e) {
+                error_count.fetch_add(std::memory_order::memory_order_relaxed);
+            }
+        }, i, njobs);
+        i += njobs;
+    }
+    std::cout<<"Waiting for thread finished..."<<std::endl;
+    for (auto &th : thread_pools)
+        th.join();
+    std::cout<<"All thread done, "<<error_count.load()<<" errors occured. "<<std::endl;
+    return error_count.load();
 }
 
 extern int dev_helper();
@@ -92,6 +147,8 @@ int main(int argc, char **argv)
         if (args.size() != 2)
             return show_helper(argv[0]);
     }
+    if (args[0] == "preload")
+        return cgn_preload_all();
     if (args[0] == "tool") {
         if (args.size() == 2 && args[1] == "dev")
             return dev_helper();

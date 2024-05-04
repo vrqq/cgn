@@ -103,6 +103,15 @@ struct GroupInterpreter
     struct GroupContext : cgn::TargetInfoDep<true> {
         const std::string name;
 
+        std::vector<cgn::TargetInfos> add_deps(
+            std::initializer_list<std::string> labels
+        ) { return add_deps(labels, this->cfg); }
+
+        std::vector<cgn::TargetInfos> add_deps(
+            std::initializer_list<std::string> labels,
+            const cgn::Configuration &cfg
+        );
+
         GroupContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
         : cgn::TargetInfoDep<true>(cfg, opt), name(opt.factory_ulabel) {}
 

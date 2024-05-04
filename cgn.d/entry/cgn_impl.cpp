@@ -185,7 +185,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
                     "/utf-8 /MD /OUT:" + Tools::shell_escape(outname);
             else {
                 if (is_clang && scriptcc_debug_mode) //llvm debug (lldb)
-                    frsp<<"-g -glldb ";
+                    frsp<<"-g -glldb -fstandalone-debug -fno-limit-debug-info ";
                 if (!is_clang && scriptcc_debug_mode) //gcc debug
                     frsp<<"-g ";
                 frsp<<"-c " << it << " -MMD -MF " + Tools::shell_escape(depname) +
@@ -499,6 +499,8 @@ std::string CGNImpl::_expand_cell(const std::string &ss) const
 
 void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
 {
+    this->cmd_kvargs = cmd_kvargs;
+
     //init logger system
     // (always true, current in development)
     // scriptcc_debug_mode = cmd_kvargs.count("scriptcc_debug");

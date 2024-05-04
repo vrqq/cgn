@@ -32,8 +32,8 @@ template<typename ...U> std::string get_one_of(
 cgn::Configuration gene_config(const std::string argstr)
 {
     std::unordered_set<std::string> argls;
-    for (std::size_t i=0, j=0; j<argstr.size(); i = j+1) {
-        while (j<argstr.size() && (argstr[j]!=' ' || argstr[j]!=','))
+    for (std::size_t i=0, j=0; j<argstr.size(); i = ++j) {
+        while (j<argstr.size() && argstr[j] != ' ' && argstr[j] != ',')
             j++;
         if (i < j)
             argls.insert(argstr.substr(i, j-i));
