@@ -120,6 +120,11 @@ struct CxxInterpreterIF : public CxxInterpreter {
     using context_type = TypeContext;
 };
 
+using CxxSharedInterpreter  = cxx::CxxInterpreterIF<cxx::CxxSharedContext>;
+using CxxStaticInterpreter  = cxx::CxxInterpreterIF<cxx::CxxStaticContext>;
+using CxxSourcesInterpreter = cxx::CxxInterpreterIF<cxx::CxxSourcesContext>;
+using CxxExecutableInterpreter = cxx::CxxInterpreterIF<cxx::CxxExecutableContext>;
+
 // Section: prebulit cxx library
 // -----------------------------
 

@@ -143,7 +143,7 @@ public:
 
     template<typename Interpreter> std::shared_ptr<void> bind_target_factory(
         const std::string &label_prefix, const std::string &name, 
-        void(*factory)(typename Interpreter::context_type&)
+        std::function<void(typename Interpreter::context_type&)> factory
     ) {
         auto loader = [this, factory](const Configuration &cfg, CGNTargetOpt opt) {
             for (const char *label : Interpreter::preload_labels()) {

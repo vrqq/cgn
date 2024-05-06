@@ -4,6 +4,10 @@
 #include "cgn.d/cgn.h"
 #include "cgn.d/std_operator.hpp"
 
+//Include marco
+#include "cgn.d/rule_marco.h"
+#include "cgn.d/provider_dep.h"
+
 //Include rules
 #include "cgn.d/library/general.cgn.bundle/general.cgn.h"
 #include "cgn.d/library/cxx.cgn.bundle/cxx.cgn.h"
