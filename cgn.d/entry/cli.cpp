@@ -82,6 +82,9 @@ extern int wincp(std::string src, std::string dst);
 int main(int argc, char **argv)
 {
     //parse input cmdline
+    std::unordered_set<std::string> single_options{
+        "scriptcc_debug", "verbose"
+    };
     std::vector<std::string> args;
     std::unordered_map<std::string, std::string> args_kv;
     for (int i=1; i<argc;) {
@@ -97,10 +100,12 @@ int main(int argc, char **argv)
             else if (k == "V")
                 k = "verbose";
 
-            if (i+1 < argc && argv[i+1][0] != '-')
+            if (single_options.count(k.data()))
+                args_kv[k.data()]= "", i++;
+            else if(i+1 < argc)
                 args_kv[k.data()] = argv[i+1], i+=2;
             else
-                args_kv[k.data()]= "", i++;
+                return show_helper(argv[0]);
         }
         else
             args.push_back(argv[i++]);

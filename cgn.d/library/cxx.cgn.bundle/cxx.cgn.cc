@@ -616,6 +616,8 @@ cgn::TargetInfos CxxContext::add_dep(
 ) {
     auto rv = api.analyse_target(
         api.absolute_label(label, opt.src_prefix), new_cfg);
+    if (rv.infos.empty())
+        throw std::runtime_error{"Factory not found: " + label};
     api.add_adep_edge(rv.adep, opt.adep);
     if (flag == DepType::_order_dep) {
         const cgn::DefaultInfo *inf = rv.infos.get<cgn::DefaultInfo>();

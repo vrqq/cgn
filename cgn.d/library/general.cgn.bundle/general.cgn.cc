@@ -95,7 +95,7 @@ cgn::TargetInfos GroupInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
 
     auto *def = x.merged_info.get<cgn::DefaultInfo>(true);
     def->target_label = opt.factory_ulabel;
-    def->build_entry_name = opt.out_prefix + opt.src_prefix;
+    def->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
 
     return x.merged_info;
 } //GroupInterpreter::interpret

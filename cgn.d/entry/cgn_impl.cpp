@@ -99,9 +99,11 @@ std::string CGNImpl::expand_filelabel_to_filepath(const std::string &in) const
 //        load and return;
 const CGNScript &CGNImpl::active_script(const std::string &label)
 {
-    logger.print("ActiveScript " + label);
+    logger.print(logger.color("ActiveScript ") + label);
     std::string labe2 = _expand_cell(label);
     std::string ulabel = "//" + labe2;
+    if (std::string_view{labe2.data(), 3} == "../")
+        throw std::runtime_error{"Invalid label " + label};
     
     CGNScript s; //the next value of scripts[label]
 
@@ -197,7 +199,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
             }
             frsp.close();
 
-            logger.print("ScriptCC " + outname);
+            logger.print(logger.color("ScriptCC ") + outname);
             // logger.printer.SetConsoleLocked(true);
             auto build_rv = raymii::Command::exec(
                 script_cc + " @" + rspname
@@ -221,8 +223,10 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
                 if (!dfpar.Parse(&full_content, &errmsg))
                     throw std::runtime_error{errmsg};
                 for (auto ss : dfpar.ins_) {
-                    std::string str{ss.begin(), ss.end()};
-                    dfcoll.insert(std::filesystem::proximate(str).string());
+                    std::filesystem::path p(ss.begin(), ss.end());
+                    if (auto e = p.extension(); 
+                        e==".h" || e==".hxx" || e==".hpp" || e==".hh")
+                            dfcoll.insert(p.lexically_normal().string());
                 }
             }
         } //end for (file in script_srcs[])
@@ -232,7 +236,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
             std::ofstream frsp(s.sofile + ".rsp"); 
             frsp << linker_in << arg;
             frsp.close();
-            logger.print("ScriptCC " + s.sofile);
+            logger.print(logger.color("ScriptCC ") + s.sofile);
             auto link_rv = raymii::Command::exec(script_cc + " @"+ s.sofile + ".rsp");
             if (link_rv.exitstatus != 0)
                 throw std::runtime_error{link_rv.output};
@@ -255,6 +259,16 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
         }
 
         //build successful, update graph and goto case 4
+        if (logger.verbose) {
+            std::string content;
+            for (auto it: node_vals){
+                if (!content.empty())
+                    content += ", ";
+                content += it;
+            }
+            logger.paragraph("CGNScript "
+                + ulabel +" rebuilt with files[]: " + content + "\n");
+        }
         graph.set_node_files(s.adep, node_vals);
         graph.clear_file0_mtime_cache(s.adep);
         graph.set_node_status_to_latest(s.adep);
@@ -301,7 +315,7 @@ CGNTarget CGNImpl::analyse_target(
 ) {
     std::string labe2 = _expand_cell(label);
     ConfigurationID cfg_id = cfg_mgr->commit(cfg);
-    logger.print("Analyse " + label + " #" + cfg_id);
+    logger.print(logger.color("Analyse ") + label + " #" + cfg_id);
     // logout<<"CGN::analyse_target("<< label <<", "<<cfg_id<<")"<<std::endl;
 
     //expand short label
@@ -467,10 +481,13 @@ void CGNImpl::build_target(
         throw std::runtime_error{rv.errmsg};
     if (ninja_target.empty())
         throw std::runtime_error{label + " target not found."};
-    logger.print(label + " analysed");
+    logger.print(logger.color(label + " analysed", logger.GREEN));
+    graph.db_flush_node();
     
     std::string cmd = "ninja -f " + obj_main_ninja.string() 
                     + " " + Tools::shell_escape(ninja_target);
+    if (scriptcc_debug_mode)
+        cmd += " --verbose";
     logger.paragraph(cmd + "\n");
     system(cmd.c_str());
 }
@@ -503,8 +520,8 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
 
     //init logger system
     // (always true, current in development)
-    // scriptcc_debug_mode = cmd_kvargs.count("scriptcc_debug");
-    scriptcc_debug_mode = true;
+    scriptcc_debug_mode = cmd_kvargs.count("scriptcc_debug");
+    // scriptcc_debug_mode = true;
     logger.verbose = cmd_kvargs.count("verbose");
     logger.printer.set_smart_terminal(!logger.verbose);
 
@@ -556,7 +573,7 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
         
     // graph init (load previous one)
     logger.print("Loading fileDB");
-    graph.db_load((cgn_out / ".cgn_deps").string());
+    graph.db_load((analysis_path / ".cgn_deps").string());
 
     //CGN cell init
     //load cell-path map from .cgn_init

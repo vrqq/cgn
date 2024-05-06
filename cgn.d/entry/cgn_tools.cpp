@@ -4,6 +4,7 @@
 #include <fstream>
 #include <array>
 
+#include <cassert>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -330,14 +331,13 @@ int64_t Tools::stat(const std::string &path)
 std::string Tools::absolute_label(
     const std::string &p, std::string base
 ) {
-    if (p.size() && p[0] == '@')
+    assert(p.size() || base.size());
+    if (p.size() && (p[0] == '@' || p[0] == '/'))
         return p;
-    if (base.size() && base.back() == '/' && p.size() && p.front() == ':')
-        base.pop_back();
-    auto tmp = std::filesystem::proximate(
-        std::filesystem::path{base} / p
-    );
-    return "//" + tmp.string();
+    auto rv = (std::filesystem::path{base} / p).lexically_normal();
+    if (auto ss = rv.filename().string(); ss[0] == ':')
+        return "//" + rv.parent_path().string() + ss;
+    return "//" + rv.string();
 }
 
 std::unordered_map<std::string, std::string> 
