@@ -7,6 +7,14 @@
     * clang ThinLTO
     * TODO: msvc incremental build
 
+**.add_dep()**
+* `cxx::private_dep` 仅对自己有效
+* `cxx::inherit` 对自己和有效 且public
+
+**(CxxInfo)this 和 this.pub**
+* `(CxxInfo)this` 仅对自己有效 不对外public
+* `this.pub` 仅对外有效 不对自己生效
+
 ## interpreter 接受的 config
 见 cgn.d/README.md
 

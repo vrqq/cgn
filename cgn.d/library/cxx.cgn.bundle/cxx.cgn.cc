@@ -51,6 +51,13 @@ operator+=(StrSet &lhs, std::initializer_list<T> rhs) {
 }
 //end vector_set_calculator
 
+// CxxInterpreter
+// The compiler arguments order 
+//   for .o output
+//      g++ <Interpreter cflags> <target cflags> -c <source_file> -o <output_file>
+//   for ELF output
+//      g++ -shared <Interpreter ldflags> <target ldflags> ...
+// ------------- -------------
 namespace cxx {
 
 // struct CxxInfo
@@ -239,7 +246,7 @@ cgn::TargetInfos CxxInterpreter::msvc_interpret(
             inf.cflags += {"/I" + cgn::Tools::shell_escape(dir)};
     };
     def_to_cflag(x);
-    def_to_cflag(x.pub);
+    // def_to_cflag(x.pub); //x.pub don't need to modify anymore.
 
     // build.ninja : source file => .o
     std::vector<std::string> obj_out;
@@ -272,14 +279,30 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
 
     // merge variable and convert file path to relpath-of-working-dir
     // add cflags, ldflags from current target
-    ((CxxInfo*)&x)->merge_from(&x.dep_cxx_self);
-    ((CxxInfo*)&x)->merge_from(&x.dep_cxx_pub);
-    x.pub.merge_from(&x.dep_cxx_pub);
     for (std::string &dir : x.include_dirs)
         dir = opt.src_prefix + cgn::Tools::locale_path(dir);
     for (std::string &dir : x.pub.include_dirs)
         dir = opt.src_prefix + cgn::Tools::locale_path(dir);
+    ((CxxInfo*)&x)->merge_from(&x.dep_cxx_self);
+    ((CxxInfo*)&x)->merge_from(&x.dep_cxx_pub);
+    x.pub.merge_from(&x.dep_cxx_pub);
     // NOW: x.dep_cxx_self and x.dep_cxx_pub are invalid
+    // The variable below to guide the compile process:
+    //   (CxxInfo)x, (str[])x.pub_a, (str[])x.pub_so, (str[])x.phone_order_only
+    // The variable exposed only and do not affect to current target:
+    //   (CxxInfo)x.pub
+    if (x.srcs.size()) {
+        // remove duplicate include_dir and define
+        // The ldflags cannot be modified since there's a lot of switcher like
+        // --start-group --end-group
+        std::unordered_set<std::string> def1, inc1;
+        for (auto &it : x.include_dirs)
+            if (def1.insert(it).second == false)
+                it = "";
+        for (auto &it : x.defines)
+            if (def1.insert(it).second == false)
+                it = "";
+    }
 
     //preprocess file_glob(*)
     // if the source file is not at the same/sub folder of BUILD.cgn.cc
@@ -327,13 +350,14 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         exe_solink = two_escape(prefix + "g++") + " -shared";
         exe_xlink  = two_escape(prefix + "g++");
 
-        arg.cflags.insert(arg.cflags.end(), {
+        std::vector<std::string> cflags_1st, ldflags_1st;
+        cflags_1st += {
             "-I.",
             "-fdiagnostics-color=always",
             "-fvisibility=hidden",
             "-Wl,--exclude-libs,ALL"
-        });
-        arg.ldflags += {
+        };
+        ldflags_1st += {
             "-L.",
             "-Wl,--warn-common", "-Wl,-z,origin", 
             "-Wl,--export-dynamic",  // force export from executable
@@ -343,26 +367,28 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
 
         //["os"]
         if (x.cfg["os"] == "linux") {
-            arg.cflags  += {"-fPIC","-pthread"};
-            arg.ldflags += {"-ldl", "-lrt", "-lpthread"};
+            cflags_1st  += {"-fPIC","-pthread"};
+            ldflags_1st += {"-ldl", "-lrt", "-lpthread"};
         }
 
         //["optimization"]
         if (x.cfg["optimization"] == "debug") {
             arg.defines.push_back("_DEBUG");
-            arg.cflags.insert(arg.cflags.end(), {
+            cflags_1st += {
                 "-Og", "-g", "-Wall", "-ggdb", "-O0",
                 "-fno-eliminate-unused-debug-symbols", 
-                "-fno-eliminate-unused-debug-types"});
+                "-fno-eliminate-unused-debug-types"};
             cflags_cc.push_back("-ftemplate-backtrace-limit=0");
         }
         if (x.cfg["optimization"] == "release")
-            arg.cflags.insert(arg.cflags.end(), {
-                "-O2", "-flto", "-fwhole-program"});
+            cflags_1st += {"-O2", "-flto", "-fwhole-program"};
         
         //["cxx_sysroot"]
         if (x.cfg["cxx_sysroot"] != "")
-            arg.cflags += {"--sysroot=" + cgn::Tools::shell_escape(x.cfg["cxx_sysroot"])};
+            cflags_1st += {"--sysroot=" + cgn::Tools::shell_escape(x.cfg["cxx_sysroot"])};
+        
+        arg.cflags.insert(arg.cflags.begin(), cflags_1st.begin(), cflags_1st.end());
+        arg.ldflags.insert(arg.ldflags.begin(), ldflags_1st.begin(), ldflags_1st.end());
     } //toolchain == "gcc"
     else if (x.cfg["toolchain"] == "llvm") {
         exe_cc  = two_escape(prefix + "clang");
@@ -371,11 +397,13 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         exe_solink = two_escape(prefix + "clang++") + " -fuse-ld=lld -shared";
         exe_xlink  = two_escape(prefix + "clang++") + " -fuse-ld=lld";
 
-        arg.cflags += {
+        std::vector<std::string> cflags_1st, ldflags_1st;
+
+        cflags_1st += {
             "-fvisibility=hidden",
             "-fcolor-diagnostics", "-Wreturn-type", 
             "-I.", "-fPIC", "-pthread"};
-        arg.ldflags += {
+        ldflags_1st += {
             "-L.",
             "-Wl,--warn-common", "-Wl,--warn-backrefs",
             "-lpthread", "-lrt"
@@ -386,7 +414,7 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         //["optimization"]
         if (x.cfg["optimization"] == "debug") {
             arg.defines += {"_DEBUG"};
-            arg.cflags += {"-g", "-Wall", "-Wextra", "-Wno-unused-parameter",
+            cflags_1st += {"-g", "-Wall", "-Wextra", "-Wno-unused-parameter",
                 "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls",
                 "-ftemplate-backtrace-limit=0", "-fno-limit-debug-info",
                 "-fstandalone-debug", "-fdebug-macro", "-glldb", //"-march=native",
@@ -395,8 +423,8 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
             };
         }
         if (x.cfg["optimization"] == "release") {
-            arg.cflags += {"-O3", "-flto"};
-            arg.ldflags += {
+            cflags_1st += {"-O3", "-flto"};
+            ldflags_1st += {
                 "-flto", "-Wl,--exclude-libs=ALL", "-Wl,--discard-all",
                 // "-Wl,--thinlto-jobs=0", 
                 // "-Wl,--thinlto-cache-dir=./thinlto_cache", 
@@ -406,11 +434,11 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
 
         //["llvm_stl"]
         if (x.cfg["llvm_stl"] == "libc++")
-            arg.cflags += {"-stdlib=libc++"};
+            cflags_1st += {"-stdlib=libc++"};
 
         //["cxx_sysroot"]
         if (x.cfg["cxx_sysroot"] != "")
-            arg.cflags += {"--sysroot=" + cgn::Tools::shell_escape(x.cfg["cxx_sysroot"])};
+            cflags_1st += {"--sysroot=" + cgn::Tools::shell_escape(x.cfg["cxx_sysroot"])};
 
         //llvm cross compile argument
         auto host = api.get_host_info();
@@ -420,8 +448,11 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
                 cpu = "amd64";
             if (cpu == "arm64")
                 cpu = "aarch64";
-            arg.cflags += {"--target=" + cpu + "-pc-" + (std::string)x.cfg["os"]};
+            cflags_1st += {"--target=" + cpu + "-pc-" + (std::string)x.cfg["os"]};
         }
+
+        arg.cflags.insert(arg.cflags.begin(), cflags_1st.begin(), cflags_1st.end());
+        arg.ldflags.insert(arg.ldflags.begin(), ldflags_1st.begin(), ldflags_1st.end());
     } //toolchain == "llvm"
     else {
         throw std::runtime_error{
@@ -436,18 +467,22 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
     // now inf.cflags and .ldflags can written to ninja file directly
     auto def_to_cflag = [](CxxInfo &inf) {
         for (auto &def : inf.defines)
-            inf.cflags += {"-D" 
-                + cgn::NinjaFile::escape_path(cgn::Tools::shell_escape(def))};
+            if (def.size())
+                inf.cflags += {"-D" 
+                    + cgn::NinjaFile::escape_path(cgn::Tools::shell_escape(def))};
         for (auto &dir : inf.include_dirs)
-            inf.cflags += {"-I"
-                + cgn::NinjaFile::escape_path(cgn::Tools::shell_escape(dir))};
+            if (dir.size())
+                inf.cflags += {"-I"
+                    + cgn::NinjaFile::escape_path(cgn::Tools::shell_escape(dir))};
     };
     def_to_cflag(x);
-    def_to_cflag(x.pub);
+    // def_to_cflag(x.pub); //keep x.pub asis to expose
     
     // build.ninja : source file => .o
     // field.input and .output : need ninja escape, instead of shell esacpe
     // arg.cflags : already escaped
+    // the order of arg.cflags and arg.ldflags should be:
+    //   (cxx.cgn.cc)interpreter + target dependency public + target self
     std::vector<std::string> obj_out;
     std::vector<std::string> obj_out_ninja_esc;
     for (auto &ss : x.srcs) {
@@ -460,8 +495,8 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
             field->inputs  = {cgn::NinjaFile::escape_path(path_in)};
             field->outputs = {cgn::NinjaFile::escape_path(path_out)};
             field->variables["cc"] = (chk.second=='+'?exe_cxx:exe_cc);
-            field->variables["cflags"] = list2str(arg.cflags) 
-                + list2str(chk.second=='+'? cflags_cc:cflags_c);
+            field->variables["cflags"] = 
+                list2str(chk.second=='+'? cflags_cc:cflags_c) + list2str(arg.cflags);
             obj_out.push_back(path_out);
             obj_out_ninja_esc.push_back(field->outputs[0]);
         }
@@ -692,11 +727,18 @@ cgn::TargetInfos CxxPrebuiltInterpreter::interpret(
     def->target_label = opt.factory_ulabel;
     def->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
 
+    // TargetInfos[CxxInfo]
+    for (auto &it : x.pub.include_dirs)
+        it = api.locale_path(opt.src_prefix + it);
+    rv.set(x.pub);
+
     std::string dllbase = opt.out_prefix;
-    if (x.runtime_dir.size())
+    if (x.runtime_dir.size() && (x.cfg["pkg_mode"] == "T" || x.cfg["os"] == "win"))
         dllbase += x.runtime_dir + opt.path_separator;
 
+    // TargetInfos[LinkAndRunInfo]
     auto *lrinfo = rv.get<cgn::LinkAndRunInfo>(true);
+    bool have_sofile = false;
     std::unordered_set<std::string> dllstem;
     std::vector<std::pair<std::string,std::string>> dotlib;
     for (auto file : x.files) {
@@ -719,7 +761,7 @@ cgn::TargetInfos CxxPrebuiltInterpreter::interpret(
         else if (ext == ".lib")
             dotlib.push_back({stem, fullp});
         else
-            continue;
+            lrinfo->runtime_files[file] = fullp;
     }
     for (auto item : dotlib)
         if (dllstem.count(item.first) != 0)

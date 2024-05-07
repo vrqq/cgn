@@ -411,10 +411,6 @@ CGNTarget CGNImpl::analyse_target(
 
     std::unique_ptr<NinjaFile> nj = std::make_unique<NinjaFile>(ninja_path);
     opt.ninja = nj.get();
-    if (main_subninja.insert(ninja_path).second) {
-        std::ofstream fout(obj_main_ninja, std::ios::app);
-        fout<<"subninja "<<NinjaFile::escape_path(ninja_path)<<"\n";
-    }
 
     //call interpreter()
     //  factory_entry(tgt) : xx_factory(xctx), xx_interpreter(xctx, tgt);
@@ -424,6 +420,12 @@ CGNTarget CGNImpl::analyse_target(
         rv.errmsg = e.what();
         rv.infos.no_store = true;
         return adep_pop(), rv;  //string 'adep_test' also no changed
+    }
+
+    // insert into main_subninja if interpreter successed.
+    if (main_subninja.insert(ninja_path).second) {
+        std::ofstream fout(obj_main_ninja, std::ios::app);
+        fout<<"subninja "<<NinjaFile::escape_path(ninja_path)<<"\n";
     }
 
     // release ninja file handle to write build.ninja down to disk
