@@ -93,6 +93,7 @@ cxx_executable("protoc", x) {
 
 cxx_static("libprotobuf-lite", x) {
     x.include_dirs = {"repo/src", "repo"};
+    x.pub.include_dirs = {"repo/src"};
     x.cflags = COPTS(x.cfg);
     x.srcs = add_prefix(libprotobuf_lite_srcs, "repo");
     x.add_dep(":utf8_validity", cxx::inherit);
@@ -101,6 +102,7 @@ cxx_static("libprotobuf-lite", x) {
 
 cxx_static("libprotobuf", x) {
     x.include_dirs = {"repo/src", "repo"};
+    x.pub.include_dirs = {"repo/src"};
     x.cflags = COPTS(x.cfg);
     x.srcs = add_prefix(libprotobuf_srcs, "repo");
     x.add_dep(":utf8_validity", cxx::inherit);

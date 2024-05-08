@@ -307,18 +307,18 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
     //preprocess file_glob(*)
     // if the source file is not at the same/sub folder of BUILD.cgn.cc
     // using absolutely path to locate.
+    // BUG HERE: file_glob(*) cannot found file newly added (in ninja cache)
+    //     TODO: target with file_glob() would re-analyse each time.
     std::vector<std::string> real_srcs;
     for (auto &ss : x.srcs) {
-        auto p1 = api.file_glob(opt.src_prefix + ss, opt.src_prefix);
-        if (p1.size() > 2 && p1[0] == p1[1] && p1[1] == ".") { // start with ..
-            real_srcs.clear();
-            break;
-        }
-        real_srcs += p1;
+        if (ss.find('*') == ss.npos) //if not file_glob
+            real_srcs += {ss};
+        else
+            real_srcs += api.file_glob(opt.src_prefix + ss, opt.src_prefix);
     }
-    if (real_srcs.empty()) // using abspath to present x.srcs
-        for (auto &ss : x.srcs)
-            real_srcs += api.file_glob(opt.src_prefix + ss, "");
+    // for (auto &ss : real_srcs)
+    //     if (ss[0] == '.' && ss[1] == '.')  // using abspath to present x.srcs
+    //         ss = api.rebase_path(ss, "");
     std::swap(x.srcs, real_srcs);
 
     static std::string rule_path = api.get_filepath(rule_ninja);
@@ -505,8 +505,9 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
     // init CxxInfo for return value
     cgn::TargetInfos rv;
     rv.set(x.pub); // rv[CxxInfo] = x.pub
-    rv.get<cgn::DefaultInfo>()->target_label = opt.factory_ulabel;
-    rv.get<cgn::DefaultInfo>()->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
+    cgn::DefaultInfo *rvdef = rv.get<cgn::DefaultInfo>(true);
+    rvdef->target_label = opt.factory_ulabel;
+    rvdef->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
 
     // build.ninja : for cxx_sources() only
     // cxx_sources() cannot process any field of LinkAndRunInfo
@@ -638,8 +639,9 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         field->variables["desc"] = "LINK " + tgtout_njesc;
         
         rvbr.shared_files = x.pub_so + field->outputs;
-
         rv.set(rvbr);
+
+        rvdef->outputs = {tgt_out};
         return rv;
     } // if (role=='s' or 'x')
 

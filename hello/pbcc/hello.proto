@@ -1,0 +1,9 @@
+syntax = "proto3";
+import "google/protobuf/any.proto";
+
+package ns1;
+
+message MsgA
+{
+    string text = 1;
+}

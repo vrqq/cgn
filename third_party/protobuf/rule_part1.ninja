@@ -1,0 +1,4 @@
+
+rule input_as_exec
+    command = ${in} ${args}
+    description = ${desc}

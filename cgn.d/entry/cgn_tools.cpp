@@ -187,7 +187,7 @@ std::string Tools::rebase_path(const std::string &p, const std::string &base)
 
 std::string Tools::locale_path(const std::string &in)
 {
-    return std::filesystem::path{in}.make_preferred().string();
+    return std::filesystem::path{in}.lexically_normal().make_preferred().string();
 }
 
 std::string Tools::parent_path(const std::string &in)
