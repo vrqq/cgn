@@ -12,3 +12,4 @@
 #include "cgn.d/library/general.cgn.bundle/general.cgn.h"
 #include "cgn.d/library/cxx.cgn.bundle/cxx.cgn.h"
 #include "cgn.d/library/cmake.cgn.h"
+#include "third_party/protobuf/proto.cgn.h"

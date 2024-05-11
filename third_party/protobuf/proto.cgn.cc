@@ -8,11 +8,13 @@ static std::string two_escape(const std::string &in) {
 cgn::TargetInfos ProtobufInterpreter::interpret(
     context_type &x, cgn::CGNTargetOpt opt
 ) {
+    if (x.srcs.empty() || x.lang == x.UNDEFINED)
+        throw std::runtime_error{opt.factory_ulabel + "empty src or lang"};
     cgn::CGNTarget protoc = api.analyse_target(x.protoc, 
                         *api.query_config("host_release"));
     auto *pbcout = protoc.infos.get<cgn::DefaultInfo>();
     if (!pbcout || pbcout->outputs.empty())
-        throw std::runtime_error{"protoc not found: " + x.protoc};
+        throw std::runtime_error{opt.factory_ulabel +" protoc not found: " + x.protoc};
     
     // args at {'protoc' }
     std::string pbcexe = pbcout->outputs[0];
@@ -67,7 +69,12 @@ cgn::TargetInfos ProtobufInterpreter::interpret(
 
     cxx::CxxSourcesContext ctx(x.cfg, opt);
     ctx.srcs = src_for_cxxtarget;
-    ctx.pub.include_dirs = {api.rebase_path(x.lang_src_outdir, opt.src_prefix)};
+    ctx.include_dirs = ctx.pub.include_dirs 
+                     = {api.rebase_path(x.lang_src_outdir, opt.src_prefix)};
     ctx.add_dep("@third_party//protobuf:libprotobuf", cxx::inherit);
-    return cxx::CxxInterpreter::interpret(ctx, opt);
+    auto rv = cxx::CxxInterpreter::interpret(ctx, opt);
+
+    rv.get<cgn::DefaultInfo>()->enforce_keep_order = true;
+    
+    return rv;
 }

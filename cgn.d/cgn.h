@@ -40,7 +40,9 @@ struct CGNTargetOpt {
     static std::string path_separator;
 
     // target BUILD_ENTRY
-    //  某个target编译时会产生多个outputs 通过 ninja BUILD_STAMP 来编译整个target
+    // In the build.ninja file, a ‘target’ might be associated with an extensive 
+    // number of files. To address this, we’ve established a single, consolidated 
+    // entry point called ‘BUILD_ENTRY’ to initiate the compilation of the entire target.
     constexpr static const char BUILD_NINJA[] = "build.ninja",
                                 BUILD_ENTRY[] = ".stamp";
 
@@ -49,11 +51,11 @@ struct CGNTargetOpt {
     std::string factory_ulabel;
     std::string factory_name;
 
-    // a rel path which trailing with '/' or '\' (system-path-separator)
+    // a relative path that trailing with '/' or '\' (system-path-separator)
     // like "cgn-out/obj/project1_/hello_FFFF1234/"
     std::string out_prefix;
 
-    // a rel path which trailing with '/' or '\' (system-path-separator)
+    // a relative path that trailing with '/' or '\' (system-path-separator)
     // like 'project1/'
     std::string src_prefix;
     
@@ -61,13 +63,16 @@ struct CGNTargetOpt {
     // "out_prefix + BUILD_ENTRY" is entry
     NinjaFile *ninja;
 
+    // 'The-dependency-handle' in analysis phase.
     GraphNode *adep;
 };
 
 struct CGNTarget
 {
+    // The solib responsible for generating the current target.
     const CGNScript *cgn_script = nullptr;
 
+    // 'The-dependency-handle' in analysis phase.
     GraphNode *adep = nullptr;
 
     TargetInfos infos;

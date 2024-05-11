@@ -11,8 +11,9 @@ struct ProtobufContext {
 
     // 'c':cxx  'r':rust  'p':python  'j':java
     enum Lang {
+        UNDEFINED,
         Cxx, Rust, Python, Java
-    }lang;
+    }lang = UNDEFINED;
     
     std::vector<std::string> srcs;
 

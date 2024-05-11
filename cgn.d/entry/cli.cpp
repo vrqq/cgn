@@ -15,6 +15,7 @@ int show_helper(const char *arg0) {
              <<"     analyse <target_label>\n"
              <<"     build   <target_label>\n"
              <<"     run     <target_label>\n"
+             <<"     query   <target_label> <config name>\n"
              <<"     preload\n"
              <<"     clean\n"
              <<"  Options:\n"
@@ -151,6 +152,23 @@ int main(int argc, char **argv)
     if (args[0] == "run") {
         if (args.size() != 2)
             return show_helper(argv[0]);
+    }
+    if (args[0] == "query") {
+        if (args.size() < 2)
+            return show_helper(argv[0]);
+        std::string cfg_name = "DEFAULT";
+        if (args.size() >= 3)
+            cfg_name = args[2];
+
+        api.init(args_kv);
+        auto *cfg = api.query_config(cfg_name);
+        if (cfg == nullptr) {
+            std::cerr<<"Configuration "<<cfg_name<<" not found."<<std::endl;
+            return 1;
+        }
+        auto rv = api.analyse_target(args[1], *cfg);
+        std::cout<<"\n--- Query Result ---\n"<<rv.infos.to_string()<<std::endl;
+        return 0;
     }
     if (args[0] == "preload")
         return cgn_preload_all();

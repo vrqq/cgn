@@ -1,20 +1,51 @@
 #include "../cgn.h"
 #include "../provider_dep.h"
 
+namespace {
+
+template<typename Type1> std::string print1(const Type1 &ls, const std::string &indent)
+{
+    using Type = std::decay_t<decltype(ls)>;
+    std::string ss;
+    auto iter = ls.begin();
+    for (size_t i=0; i<ls.size() && i<5; i++, iter++) {
+        if (!ss.empty())
+            ss += "\n" + indent;
+        if constexpr(std::is_same_v<std::vector<std::string>, Type>)
+            ss += *iter + ", ";
+        else
+            ss += iter->first + ": " + iter->second + ", ";
+    }
+    ss += "(" + std::to_string(ls.size()) + " elements)";
+    return ss;
+};
+
+}
+
 namespace cgn {
 
 const BaseInfo::VTable DefaultInfo::v = {
+    []() -> std::shared_ptr<BaseInfo> { 
+        return std::make_shared<DefaultInfo>();
+    },
     [](void *ecx, const void *rhs) {
         auto *self = (DefaultInfo *)ecx;
         auto *rr   = (const DefaultInfo *)(rhs);
         self->outputs.insert(self->outputs.end(), rr->outputs.begin(), rr->outputs.end());
     },
     [](const void *ecx) -> std::string { 
-        return "DefaultInfo{...}";
+        auto *self = (DefaultInfo *)ecx;
+        return std::string{"{\n"}
+            + "  label: " + self->target_label + "\n"
+            + " output: " + print1(self->outputs, "         ") + "\n"
+            + "}";
     }
 }; 
 
 const BaseInfo::VTable LinkAndRunInfo::v = {
+    []() -> std::shared_ptr<BaseInfo> { 
+        return std::make_shared<LinkAndRunInfo>();
+    },
     [](void *ecx, const void *rhs) {
         auto *self = (LinkAndRunInfo *)ecx;
         auto *rr   = (const LinkAndRunInfo *)(rhs);
@@ -28,7 +59,14 @@ const BaseInfo::VTable LinkAndRunInfo::v = {
             rr->runtime_files.begin(), rr->runtime_files.end());
     },
     [](const void *ecx) -> std::string { 
-        return "LinkAndRunInfo{...}";
+        const LinkAndRunInfo *self = (const LinkAndRunInfo *)ecx;
+        
+        return std::string{"{\n"}
+            + "    obj: " + print1(self->object_files, "         ") + "\n"
+            + "    dll: " + print1(self->shared_files, "         ") + "\n"
+            + "      a: " + print1(self->static_files, "         ") + "\n"
+            + "     rt: " + print1(self->runtime_files, "         ") + "\n"
+            + "}";
     }
 }; 
 
@@ -37,13 +75,31 @@ void TargetInfos::merge_from(const TargetInfos &rhs)
     for (auto &[name, val] : rhs._data)
         if (auto fd = _data.find(name); fd != _data.end())
             fd->second->merge_from(val.get());
-        else
-            _data[name] = val;
+        else {
+            auto &ref = _data[name] = val->allocate();
+            ref->merge_from(val.get());
+        }
 }
+
+
+void TargetInfos::merge_entry(
+    const std::string &name, const std::shared_ptr<BaseInfo> &rhs
+) {
+    if (auto fd = _data.find(name); fd != _data.end())
+        fd->second->merge_from(rhs.get());
+    else {
+        auto &ref = _data[name] = rhs->allocate();
+        ref->merge_from(rhs.get());
+    }
+}
+
 
 std::string TargetInfos::to_string() const
 {
-    return "TargetInfos[...]";
+    std::string rv;
+    for (auto &[name, inf] : _data)
+        rv += "[" + name + "] " + inf->to_string() + "\n";
+    return rv;
 }
 
 // TargetInfoDep

@@ -6,7 +6,7 @@ builddir = build
 
 cflags = -I. -g -std=c++17 -fsanitize=address -fcolor-diagnostics $
          -fshow-column -fshow-source-location -fcaret-diagnostics $
-         -fstandalone-debug -fno-limit-debug-info
+         -fstandalone-debug -fno-limit-debug-info -fsanitize=address
 
 rule cc
     deps    = gcc
@@ -22,7 +22,7 @@ rule link
     deps    = gcc
     depfile = $out.d
     command = clang++ -fuse-ld=lld -Wl,--warn-unresolved-symbols $
-              -Wl,--export-dynamic -fvisibility=default $
+              -Wl,--export-dynamic -fvisibility=default -fsanitize=address $
               -Wl,-rpath=$$ORIGIN -MMD -MF $out.d $cflags $in -o $out
 
 include ninja_port.ninja

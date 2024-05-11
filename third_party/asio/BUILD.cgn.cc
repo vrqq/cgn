@@ -6,19 +6,20 @@ git("asio.git", x) {
 }
 
 cxx_static("without_ssl", x) {
-    const static std::string base = "src";
+    const static std::string base = "src/asio";
 
     x.include_dirs = x.pub.include_dirs = {base + "/include"};
-    x.pub.defines = {"ASIO_STANDALONE", "ASIO_SEPARATE_COMPILATION"};
+    x.defines = x.pub.defines = {
+        "ASIO_STANDALONE", "ASIO_SEPARATE_COMPILATION"};
 
     x.srcs = {base + "/src/asio.cpp"};
 }
 
 cxx_static("asio", x) {
-    const static std::string base = "src";
+    const static std::string base = "src/asio";
 
     x.include_dirs = x.pub.include_dirs = {base + "/include"};
-    x.pub.defines = {"ASIO_STANDALONE", "ASIO_SEPARATE_COMPILATION"};
+    x.defines = x.pub.defines = {"ASIO_STANDALONE", "ASIO_SEPARATE_COMPILATION"};
 
     x.srcs = {base + "/src/asio_ssl.cpp"};
     x.add_dep("@third_party//openssl", cxx::private_dep);

@@ -182,7 +182,8 @@ HostInfo Tools::get_host_info()
 
 std::string Tools::rebase_path(const std::string &p, const std::string &base)
 {
-    return std::filesystem::proximate(p, base).string();
+    // return std::filesystem::proximate(p, base).string();
+    return std::filesystem::path(p).lexically_proximate(base).string();
 }
 
 std::string Tools::locale_path(const std::string &in)

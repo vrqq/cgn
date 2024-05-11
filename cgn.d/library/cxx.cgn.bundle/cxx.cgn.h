@@ -1,3 +1,22 @@
+// cflags, ldflags: the last would cover the previous one
+// include_dirs: search from left to right
+//
+// Order of cxx compiler arguments
+//   LinkAndRunInfo:
+//      link.exe <ldflags_interpreter> <ldflags_deps> <ldflags_current>
+//   CxxInfo:
+//      gcc.exe <cflags_interpreter> <cflags_deps> <cflags_current>
+//              <incdir_current> <incdir_deps> <incdir_interpreter>
+//              <defines_any_order>
+//
+// ReturnValue[LinkAndRunInfo]
+//   <current_target> + <deps>
+// ReturnValue[CxxInfo]
+//   .cflags  : <deps> <this.pub>
+//   .ldflags : <deps> <this.pub>
+//   .include_dirs : <this.pub> <deps>
+//   .defines : any order
+//
 #pragma once
 #include <vector>
 #include <unordered_set>
@@ -27,12 +46,12 @@ constexpr static DepType private_dep = DepType::_private_dep;
 constexpr static DepType inherit     = DepType::_inherit;
 
 struct CxxInfo : cgn::BaseInfo {
-    std::vector<std::string>  //(PENDING: unordered_set also accepted)
+    std::unordered_set<std::string>  //(PENDING: unordered_set also accepted)
+        defines;       // c++ define (no escape)
+    std::vector<std::string>
         include_dirs,  // dirs (no escape, '/' separate)
                        // as TargetInfos: relavent to working-root
-                       // as UserTargetFactory define: relavent to current BUILD.cgn.cc
-        defines;       // c++ define (no escape)
-    std::vector<std::string> 
+                       // as UserTargetFactory define: relavent to current BUILD.cgn.cc 
         cflags,        // compiler specific cflags, shell-escaped required
                        // e.g.: "-Idir\\ 1"
         ldflags;       // flags when linking, shell-escaped required
@@ -51,9 +70,12 @@ struct CxxContext : CxxInfo
     const char role;
     const std::string name;
 
-    std::vector<std::string> srcs; //only c, cpp source file included, no header required.
+    // only c, cpp source file included, no header required.
+    std::vector<std::string> srcs; 
 
-    CxxInfo pub;  //the cxx build argument apply on 
+    // the cxx build argument apply on target who depended on current one,
+    // but not apply on current target.
+    CxxInfo pub;
 
     cgn::Configuration cfg;
 
@@ -74,14 +96,21 @@ protected:
 private: friend struct CxxInterpreter; // field for interpreter
     const cgn::CGNTargetOpt opt;  //self opt
 
-    cgn::LinkAndRunInfo dep_lr_self;
-    cxx::CxxInfo dep_cxx_self, dep_cxx_pub;
+    // collection from deps, as the part of interpreter return value.
+    // also with [CxxInfo] and [DefaultInfo] field inherit from deps.
+    cgn::TargetInfos _pub_infos_fromdep;
 
-    // path of xxx.a xxx.so, public part from dep_lr_self, as the value of 
-    // current target return, only used when this.role == .so/.exe
-    std::vector<std::string> pub_a, pub_so;
+    // collection from deps, only apply on current target.
+    cxx::CxxInfo        _cxx_to_self;
+    cgn::LinkAndRunInfo _lnr_to_self;
 
-    std::vector<std::string> phony_order_only;  // ninja target name
+    // [only valid when this == CxxShared]
+    // path of xxx.a, param to /WHOLEARCHIVE
+    std::vector<std::string> _wholearchive_a;
+
+    // target name in build.ninja when cxx::order_dep
+    //   build current_cxx : ... || <phony_order_only...>
+    std::vector<std::string> phony_order_only;
 };
 
 template <char ROLE> struct CxxContextType : CxxContext {

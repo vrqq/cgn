@@ -115,4 +115,5 @@ cxx_sources("utf8_validity", x) {
         "repo/third_party/utf8_range/utf8_range.c",
         "repo/third_party/utf8_range/utf8_validity.cc",
     };
+    x.add_dep("@third_party//abseil-cpp", cxx::inherit);
 }

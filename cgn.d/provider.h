@@ -23,19 +23,25 @@ template<size_t N> struct ConstLabelGroup {
 };
 
 //vtable of target info
-struct TargetInfoV {
-    void        (*merge_from)(void *ecx, void *rhs);
-    std::string (*to_string)(void *ecx);
-};
+// struct TargetInfoV {
+//     std::shared_ptr<BaseInfo> (*allocate)();
+//     void        (*merge_from)(void *ecx, void *rhs);
+//     std::string (*to_string)(void *ecx);
+// };
 
 //Base class
 struct BaseInfo {
     struct VTable {
+        std::shared_ptr<BaseInfo> (*allocate)();
         void        (*merge_from)(void *ecx, const void *rhs);
         std::string (*to_string)(const void *ecx);
     };
 
     BaseInfo(const VTable *vtable) : vtable(vtable) {};
+
+    std::shared_ptr<BaseInfo> allocate() {
+        return vtable->allocate();
+    }
 
     void merge_from(const BaseInfo *rhs) {
         return vtable->merge_from(this, rhs);
@@ -57,6 +63,14 @@ struct DefaultInfo : BaseInfo
 
     //The files/folders relavent to WorkingRoot
     std::vector<std::string> outputs;
+
+    // Inform the interpreter that the dependency must be compiled prior to the 
+    // interpreter itself. Typically, the Ninja build system would calculate 
+    // the order relies on files. However,there are instances where the target 
+    // order hasn't represented as a file. Therefore, we need to set this flag 
+    // to true to ensure the build system enforces the order.
+    // See also: @third_party//protobuf/proto.cgn.cc
+    bool enforce_keep_order = false;
 
     //The CGN script label in dependency tree (.cgn.cc or .cgn.rsp)
     // std::unordered_set<std::string> dep_scripts;
@@ -102,10 +116,13 @@ public:
     }
 
     const list_type &data() const { return _data; }
+    list_type &data() { return _data; }
 
     bool empty() const { return _data.empty(); }
 
     void merge_from(const TargetInfos &rhs);
+
+    void merge_entry(const std::string &name, const std::shared_ptr<BaseInfo> &rhs);
 
     std::string to_string() const;
 

@@ -2,7 +2,7 @@
 
 cmake("zlib", x) {
     x.sources_dir = "zlib";
-    x.output = {"lib/libz.so", "lib/libz.a"};
+    x.outputs = {"lib/libz.so", "lib/libz.a"};
     cgn::Configuration cfg;
     cgn::CGNTargetOpt opt;
     // CMakeContext aaa{cfg, opt};

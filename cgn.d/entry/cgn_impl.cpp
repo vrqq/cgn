@@ -187,7 +187,8 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
                     "/utf-8 /MD /OUT:" + Tools::shell_escape(outname);
             else {
                 if (is_clang && scriptcc_debug_mode) //llvm debug (lldb)
-                    frsp<<"-g -glldb -fstandalone-debug -fno-limit-debug-info ";
+                    frsp<<"-g -glldb -fstandalone-debug -fno-limit-debug-info "
+                          "-fsanitize=address ";
                 if (!is_clang && scriptcc_debug_mode) //gcc debug
                     frsp<<"-g ";
                 frsp<<"-c " << it << " -MMD -MF " + Tools::shell_escape(depname) +
