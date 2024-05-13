@@ -21,6 +21,7 @@
 #include <vector>
 #include <unordered_set>
 #include "../../cgn.h"
+#include "../../provider_dep.h"
 #include "../../rule_marco.h"
 
 namespace cxx {
@@ -169,9 +170,8 @@ using CxxExecutableInterpreter = cxx::CxxInterpreterIF<cxx::CxxExecutableContext
 // Section: prebulit cxx library
 // -----------------------------
 
-struct PrebuiltContext {
+struct PrebuiltContext : public cgn::TargetInfoDep<true> {
     const std::string name;
-    const cgn::Configuration cfg;
 
     CxxInfo pub;
 
@@ -183,8 +183,10 @@ struct PrebuiltContext {
     //linux shared/static lib: .so / .a / .o
     std::vector<std::string> files;
 
+    friend class CxxPrebuiltInterpreter;
     PrebuiltContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
-    : name(opt.factory_name), cfg(cfg) {}
+    : cgn::TargetInfoDep<true>(cfg, opt), name(opt.factory_name) {}
+
 };
 
 struct CxxPrebuiltInterpreter {

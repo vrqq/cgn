@@ -42,13 +42,14 @@ cgn::TargetInfos GitFetcher::interpret(context_type &x, cgn::CGNTargetOpt opt)
                         + " && cd .. && " + suffix;
         field->variables["cmd"] = cmd;
         field->variables["desc"] = "GIT FETCH " + x.repo;
-        field->outputs = {opt.ninja->escape_path(opt.src_prefix + opt.BUILD_ENTRY)};
+        // field->outputs = {opt.ninja->escape_path(opt.src_prefix + opt.BUILD_ENTRY)};
+        field->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
         field->rule = "run";
 
-        auto *entry = opt.ninja->append_build();
-        entry->rule = "phony";
-        entry->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
-        entry->inputs  = {opt.src_prefix + opt.BUILD_ENTRY};
+        // auto *entry = opt.ninja->append_build();
+        // entry->rule = "phony";
+        // entry->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
+        // entry->inputs  = {opt.src_prefix + opt.BUILD_ENTRY};
     }
 
     cgn::TargetInfos rv;

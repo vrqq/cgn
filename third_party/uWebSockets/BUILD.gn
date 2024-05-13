@@ -1,0 +1,60 @@
+
+_base_src = "//third_party/_real/uWebSockets/master"
+
+#
+#--------------------------
+config("uwebsockets_export") {
+    include_dirs = ["uWebSockets-20.8.0/include"]
+    
+    defines = [
+        "WITH_LIBUV=1",
+        "WITH_OPENSSL=1",
+        "WITH_ASIO=1",
+    ]
+}
+source_set("uWebSockets") {
+    _base_src = "uWebSockets-20.8.0/"
+    configs  -= ["//gn_build/config:extra_check"]
+    public_configs = [":uwebsockets_export"]
+
+    sources = [
+        "$_base_src/include/uwebsockets/App.h",
+        "$_base_src/include/uwebsockets/AsyncSocket.h",
+        "$_base_src/include/uwebsockets/AsyncSocketData.h",
+        "$_base_src/include/uwebsockets/BloomFilter.h",
+        "$_base_src/include/uwebsockets/HttpContext.h",
+        "$_base_src/include/uwebsockets/HttpContextData.h",
+        "$_base_src/include/uwebsockets/HttpParser.h",
+        "$_base_src/include/uwebsockets/HttpResponse.h",
+        "$_base_src/include/uwebsockets/HttpResponseData.h",
+        "$_base_src/include/uwebsockets/HttpRouter.h",
+        "$_base_src/include/uwebsockets/Loop.h",
+        "$_base_src/include/uwebsockets/LoopData.h",
+        "$_base_src/include/uwebsockets/MessageParser.h",
+        "$_base_src/include/uwebsockets/MoveOnlyFunction.h",
+        "$_base_src/include/uwebsockets/Multipart.h",
+        "$_base_src/include/uwebsockets/PerMessageDeflate.h",
+        "$_base_src/include/uwebsockets/ProxyParser.h",
+        "$_base_src/include/uwebsockets/QueryParser.h",
+        "$_base_src/include/uwebsockets/TopicTree.h",
+        "$_base_src/include/uwebsockets/Utilities.h",
+        "$_base_src/include/uwebsockets/WebSocket.h",
+        "$_base_src/include/uwebsockets/WebSocketContext.h",
+        "$_base_src/include/uwebsockets/WebSocketContextData.h",
+        "$_base_src/include/uwebsockets/WebSocketData.h",
+        "$_base_src/include/uwebsockets/WebSocketExtensions.h",
+        "$_base_src/include/uwebsockets/WebSocketHandshake.h",
+        "$_base_src/include/uwebsockets/WebSocketProtocol.h",
+    ]
+
+    if (is_win) {
+        cflags = ["/wd4996"]
+    }
+
+    public_deps = [
+        "//third_party/uSockets",
+        "//third_party/openssl",
+        "//third_party/zlib"
+    ]
+}
+

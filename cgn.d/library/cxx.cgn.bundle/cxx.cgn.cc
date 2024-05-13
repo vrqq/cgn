@@ -780,10 +780,7 @@ CxxToolchainInfo CxxInterpreter::test_param(const cgn::Configuration &cfg)
 cgn::TargetInfos CxxPrebuiltInterpreter::interpret(
     context_type &x, cgn::CGNTargetOpt opt
 ) {
-    cgn::TargetInfos rv;
-    auto *def = rv.get<cgn::DefaultInfo>(true);
-    def->target_label = opt.factory_ulabel;
-    def->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
+    cgn::TargetInfos &rv = x.merged_info;
 
     // TargetInfos[CxxInfo]
     for (auto &it : x.pub.include_dirs)
@@ -826,6 +823,11 @@ cgn::TargetInfos CxxPrebuiltInterpreter::interpret(
             lrinfo->shared_files.push_back(item.second);
         else
             lrinfo->static_files.push_back(item.second);
+
+    auto *entry = opt.ninja->append_build();
+    entry->rule = "phony";
+    entry->order_only = x.ninja_target_dep;
+    entry->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
 
     return rv;
 }
