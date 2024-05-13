@@ -802,7 +802,7 @@ cgn::TargetInfos CxxPrebuiltInterpreter::interpret(
         fd1 = (fd1 == file.npos? 0: fd1+1);
         if (fddot == file.npos || fddot < fd1)
             continue;
-        std::string fullp = api.locale_path(opt.out_prefix + file);
+        std::string fullp = api.locale_path(opt.src_prefix + file);
         std::string stem = file.substr(fd1, fddot-fd1);
         std::string ext  = file.substr(fddot);
         if (ext == ".so")

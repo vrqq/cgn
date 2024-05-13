@@ -21,6 +21,6 @@ cxx_static("asio", x) {
     x.include_dirs = x.pub.include_dirs = {base + "/include"};
     x.defines = x.pub.defines = {"ASIO_STANDALONE", "ASIO_SEPARATE_COMPILATION"};
 
-    x.srcs = {base + "/src/asio_ssl.cpp"};
+    x.srcs = {base + "/src/asio.cpp", base + "/src/asio_ssl.cpp"};
     x.add_dep("@third_party//openssl", cxx::private_dep);
 }
