@@ -84,28 +84,38 @@ operator+=(StrSet &lhs, std::initializer_list<T> &&rhs) {
 }
 //end vector_set_calculator
 
+
 // CxxInterpreter
 // ------------- -------------
 namespace cxx {
 
-
-const cgn::BaseInfo::VTable CxxInfo::v = {
-    []() -> std::shared_ptr<cgn::BaseInfo> {
-        return std::make_shared<CxxInfo>();
-    },
-    [](void *ecx, const void *rhs) {
-        if (rhs == nullptr)
-            return ;
-        CxxInfo *self = (CxxInfo*)ecx, *r = (CxxInfo*)rhs;
-        self->include_dirs += r->include_dirs;
-        self->defines += r->defines;
-        self->ldflags += r->ldflags;
-        self->cflags  += r->cflags;
-    }, 
-    [](const void *ecx) -> std::string { 
-        return "CxxInfo{...}";
-    }
-};
+const cgn::BaseInfo::VTable &CxxInfo::_glb_cxx_vtable()
+{
+    const static cgn::BaseInfo::VTable v = {
+        []() -> std::shared_ptr<cgn::BaseInfo> {
+            return std::make_shared<CxxInfo>();
+        },
+        [](void *ecx, const void *rhs) {
+            if (rhs == nullptr)
+                return ;
+            CxxInfo *self = (CxxInfo*)ecx, *r = (CxxInfo*)rhs;
+            self->include_dirs += r->include_dirs;
+            self->defines += r->defines;
+            self->ldflags += r->ldflags;
+            self->cflags  += r->cflags;
+        }, 
+        [](const void *ecx) -> std::string { 
+            auto *self = (CxxInfo *)ecx;
+            return std::string{"{\n"}
+                + "  cflags: [..]size=" + std::to_string(self->cflags.size()) + "\n"
+                + " ldflags: [..]size=" + std::to_string(self->ldflags.size()) + "\n"
+                + " incdirs: [..]size=" + std::to_string(self->include_dirs.size()) + "\n"
+                + " defines: [..]size=" + std::to_string(self->defines.size()) + "\n"
+                + "}";
+        }
+    };
+    return v;
+} //CxxInfo::_glb_cxx_vtable()
 
 // @return {stem, type}:
 //      type: '\0' to skip, '+' for cpp, 'c' for c and asm
@@ -694,10 +704,11 @@ cgn::TargetInfos CxxContext::add_dep(
         return {};
     api.add_adep_edge(rhs.adep, opt.adep);
     auto *r_def = rhs.infos.get<cgn::DefaultInfo>();
-    if (flag == cxx::order_dep || r_def->enforce_keep_order) {
+    if ((flag & cxx::order_dep) || r_def->enforce_keep_order) {
         const cgn::DefaultInfo *inf = rhs.infos.get<cgn::DefaultInfo>();
         phony_order_only.push_back(inf->build_entry_name);
-        return rhs.infos;
+        if (flag == cxx::order_dep)
+            return rhs.infos;
     }
 
     // call merge() for unused field
@@ -709,7 +720,7 @@ cgn::TargetInfos CxxContext::add_dep(
     //   cxx::inherit : append to interpreter_rv[CxxInfo] as is, 
     //                  and also apply on current target.
     //   cxx::private : save to _cxx_to_self to use for current target only.
-    if (flag == cxx::inherit)
+    if ((flag & cxx::inherit))
         _pub_infos_fromdep.get<CxxInfo>(true)->merge_from(rhs.infos.get<CxxInfo>());
     _cxx_to_self.merge_from(rhs.infos.get<CxxInfo>());
 
@@ -723,7 +734,8 @@ cgn::TargetInfos CxxContext::add_dep(
     if (role == 'o')
         _pub_infos_fromdep.get<cgn::LinkAndRunInfo>(true)->merge_from(r_lnr);
     if (role == 'a') {
-        _lnr_to_self.object_files += std::move(r_lnr->object_files);
+        if (flag & pack_obj)
+            _lnr_to_self.object_files += std::move(r_lnr->object_files);
         _pub_infos_fromdep.get<cgn::LinkAndRunInfo>(true)->merge_from(r_lnr);
     }
     
@@ -733,7 +745,7 @@ cgn::TargetInfos CxxContext::add_dep(
     //   r_lnk.so link to current one
     //   r_lnk.rt processed later in interpreter
     if (role == 's' || role == 'x') {
-        if (flag == cxx::inherit) {
+        if ((flag & cxx::inherit)) {
             _wholearchive_a += std::move(r_lnr->static_files);  //move and clear this entry
             auto *pub_lr = _pub_infos_fromdep.get<cgn::LinkAndRunInfo>(true);
             pub_lr->shared_files += r_lnr->shared_files;
@@ -818,4 +830,4 @@ cgn::TargetInfos CxxPrebuiltInterpreter::interpret(
     return rv;
 }
 
-} //namespace
+} //namespace cxx

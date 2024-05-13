@@ -233,6 +233,8 @@ Graph::Graph() {
 }
 Graph::~Graph() {
     db_flush_node();
+    if (file_)
+        fclose(file_);
 }
 
 void Graph::db_load(const std::string &filename)
@@ -412,7 +414,7 @@ void Graph::db_flush_node()
             std::stringstream ss;
             auto *self_name = db_blocks[n->db_selfname_id].as_string->strkey;
             ss<<"Graph.fwrite(): off=" << n->db_offset 
-              << " " + *self_name + "\n";
+              << " [blk" + std::to_string(n->db_selfname_id) + "] " + *self_name + "\n";
             for (auto oitem : newdata) {
                 uint32_t blk_id = (oitem & ~(1UL<<31));
                 if (oitem & (1UL<<31))
@@ -424,6 +426,7 @@ void Graph::db_flush_node()
             logger.paragraph(ss.str());
         }
     } //end for(db_pending_write)
+    fflush(file_);
 } //Graph::db_flush_node()
 
 Graph::DBStringBlock *Graph::db_fetch_string(std::string name)

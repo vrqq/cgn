@@ -6,7 +6,7 @@ git("cpp-base64.git", x) {
     x.dest_dir = "repo";
 }
 
-cxx_sources("cpp-base64", x) {
+cxx_static("cpp-base64", x) {
     x.pub.include_dirs = {"repo"};
     x.srcs = {"repo/base64.cpp"};
 }

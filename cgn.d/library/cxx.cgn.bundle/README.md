@@ -36,6 +36,7 @@ cxx_sources(x)
 	for cxin as public CxxInfo
 		cxin => rv[CxxInfo] + self_buildarg
 	x.src => x.obj => rv[BrInfo].obj
+	// Option : 控制CxxInfo是否暴露
 
 cxx_static(x)
 	for private/inherit BuildAndRunInfo:
@@ -46,6 +47,8 @@ cxx_static(x)
 	for inherit CxxInfo
 		cxin => self_buildarg + rv[cxxInfo]
 	x.src => x.a => rv[brInfo].a
+	// Option 1: CxxInfo是否向上暴露
+	// Option 2: 是否将dep的.obj打包进当前.a
 
 cxx_shared/cxx_executable(x)
 	for private CxxInfo:
@@ -71,4 +74,29 @@ cxx_shared/cxx_executable(x)
 		x.so => target_out/{target_name}/x.so
 		rv[CxxInfo].ldflags += "rpath={target_name}"
 		rv[brInfo].rt += "x.so -> {target_name}/x.so"
+	// Option : 控制CxxInfo是否暴露 + 是否 /Wholearchive:.a
+	//
+	// Reason : 由于interpreter不晓得源码内写了哪些dllexport 故
+	//			CxxInfo暴露时 就认为 dep.static 的函数也需要暴露
+	//			dep.shared 同理 暴露给上游 link
+	//			即使 obj 没打进当前dll 他也会随着TargetInfo 到上游
+	//			从而引发潜在的 symbol-collection
+	//			一般 dll/exe 还独立发布 (处理全部
+	//		    DYNDEP-DLL 之后就不含 undefined symbol 了)
+	//
+	//			故private语义 需打包 obj/.a 同时 抹掉内部的dllexport
+
 ```
+
+**可能的改进**
+* `cxx_sources(x)`
+	* inherit : 暴露 dep.CxxInfo
+	* privcfg : 隐藏 dep.CxxInfo 例如从当前target间接调用dep内函数
+* `cxx_static(x)`
+	* packobj + inherit : dep.obj -> this.static && 暴露 dep.CxxInfo
+	* nopack  + inherit : dep.obj -> this.obj    && 暴露 dep.CxxInfo
+	* packobj + privcfg : dep.obj -> this.static && 不暴露 dep.CxxInfo && 削减 ranlib
+	* nopack  + privcfg : dep.obj -> this.obj    && 不暴露 dep.CxxInfo
+* `cxx_shared/cxx_executable(x)`
+	* privdep : dep.obj 抹掉导出表
+	* inherit : dep.obj 正常link  && /wholearchive:pub.a

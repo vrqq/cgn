@@ -12,8 +12,7 @@ cgn::TargetInfos GitFetcher::interpret(context_type &x, cgn::CGNTargetOpt opt)
     opt.ninja->append_include(rule_path);
     auto *field = opt.ninja->append_build();
     
-    std::string dest_dir = opt.src_prefix 
-                         + api.rebase_path(x.dest_dir, opt.src_prefix);
+    std::string dest_dir = api.locale_path(opt.src_prefix + x.dest_dir);
     if (x.using_depot_tool.size()) {
         auto tool = api.analyse_target(x.using_depot_tool, *api.query_config("host_release"));
         auto *def = tool.infos.get<cgn::DefaultInfo>();

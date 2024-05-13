@@ -25,25 +25,37 @@
 
 namespace cxx {
 
-enum class DepType {
+enum class DepType : char{
     // (DO NOT CONSUME ANY TargetInfo from dep)
     // only define the build order, drop the return info from deps. 
-    _order_dep = 0,
+    _order_dep = 1,
 
     // (aka PRIVATE)
     // the default flag, the dependents were only used in private,
     // see details in cxx language note.
-    _private_dep = 1L << 0,
+    _private_dep = 1L << 2,
 
     // (aka PUBLIC)
     // consume and inherit the CxxInfo and LinkAndRunInfo from dependents, 
     // like to add '/WHOLEARCHIVE' if current is exe target.
-    _inherit = 1L << 1,
+    _inherit = 1L << 3,
+
+    _pack_obj = 1L << 4,
+
+    _bypass_obj = 1L << 5,
 };
 
 constexpr static DepType order_dep   = DepType::_order_dep;
 constexpr static DepType private_dep = DepType::_private_dep;
 constexpr static DepType inherit     = DepType::_inherit;
+constexpr static DepType pack_obj    = DepType::_pack_obj;
+constexpr static DepType bypass_obj  = DepType::_bypass_obj;
+
+inline constexpr bool 
+operator&(DepType a, DepType b) { return ((char)a & (char)b); }
+
+inline constexpr DepType 
+operator|(DepType a, DepType b) { return DepType((char)a | (char)b); }
 
 struct CxxInfo : cgn::BaseInfo {
     std::unordered_set<std::string>  //(PENDING: unordered_set also accepted)
@@ -58,10 +70,10 @@ struct CxxInfo : cgn::BaseInfo {
                        // e.g.："-Wl,--rpath=\\$ORIGIN", "/L:ws2_32.lib"
                        
     static const char *name() { return "CxxInfo"; }
-    CxxInfo() : BaseInfo{&v} {}
+    CxxInfo() : BaseInfo{&_glb_cxx_vtable()} {}
 
 private:
-    static const VTable v;
+    const static cgn::BaseInfo::VTable &_glb_cxx_vtable();
 };
 
 struct CxxContext : CxxInfo

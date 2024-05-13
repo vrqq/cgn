@@ -6,6 +6,6 @@ git("cnl.git", x) {
     x.dest_dir = "repo";
 }
 
-cxx_sources("cnl", x) {
+cxx_prebuilt("cnl", x) {
     x.pub.include_dirs = {"src/include"};
 }
