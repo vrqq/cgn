@@ -18,6 +18,8 @@ template<bool ConstCfg = false>
 struct TargetInfoDep : protected TargetInfoDepData {
     using cfg_type = typename std::conditional<ConstCfg, 
                         const Configuration, Configuration>::type;
+
+    const std::string &name;
     cfg_type cfg;
 
     TargetInfos add_dep(const std::string &label) {

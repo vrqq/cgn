@@ -139,6 +139,8 @@ static std::pair<std::string, char> file_check(const std::string &fpath) {
         return {fpath.substr(0, fd), '+'};
     if (ext == "c" || ext == "s")
         return {fpath.substr(0, fd), 'c'};
+    // if (ext == "def")
+    //     return {"", '!'};
     return {"", 0};
 }
 
@@ -348,6 +350,21 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
             real_srcs += api.file_glob(opt.src_prefix + ss, opt.src_prefix);
     }
     std::swap(x.srcs, real_srcs);
+    std::string dyn_def_file = [&]() -> std::string {
+        if (x.role != 'x' && x.role != 's')
+            return "";
+        std::string ext;
+        for (auto &it : x.srcs) {
+            for (auto p = it.size()-4; 0<=p && p<it.size(); p++)
+                if ('A' <= it[p] && it[p] <= 'Z')
+                    ext.push_back(it[p] - 'A' + 'a');
+                else
+                    ext.push_back(it[p]);
+            if (ext == ".def")
+                return it;
+        }
+        return "";
+    }();
     
     static std::string rule_path = api.get_filepath(rule_ninja);
     opt.ninja->append_include(rule_path);
@@ -385,6 +402,12 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
             "-fvisibility=hidden",
             "-Wl,--exclude-libs,ALL"
         };
+        // using .def file to guide symbol expose
+        // only valid for current target
+        // if (dyn_def_file.empty())
+        //     interp_arg.cflags += {
+        //         "-fvisibility=hidden",
+        //     };
         interp_arg.ldflags += {
             "-L.",
             "-Wl,--warn-common", "-Wl,-z,origin", 
@@ -527,6 +550,8 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         }
         else
             path_out = cgn::Tools::locale_path(opt.out_prefix + "_" + chk.first + ".o");
+        // if (chk.second == '!')//special file : .def
+        //     dyn_def_file = path_in;
         if (chk.second) {
             auto *field = opt.ninja->append_build();
             field->rule = "gcc";
@@ -630,6 +655,11 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
                     carg.ldflags += {two_escape("-Wl,--rpath=$ORIGIN/" + path_rel)};
                 }
             }
+
+            if (dyn_def_file.size())
+            //     carg.ldflags += {"-Wl,--version-script=" + dyn_def_file};
+                carg.ldflags += {"-Wl,--export-dynamic-symbol-list=" + dyn_def_file};
+                // carg.ldflags += {"-Wl,-exported_symbols_list,\"" + dyn_def_file + "\""};
         }
         if (x.cfg["os"] == "win") {
             //TODO: manifest and .runtime

@@ -6,9 +6,32 @@ git("tbb.git", x) {
     x.dest_dir = "repo";
 }
 
+static std::string _os_str(const cgn::Configuration cfg) {
+    // repo/cmake/compiler/Clang.cmake
+    // script for for llvm linker (lld) is not same as GNU ld
+    if (cfg["toolchain"] == "llvm" && cfg["os"] == "mac")
+        return "mac64"; 
+
+    if (cfg["toolchain"] == "msvc") {
+        if (cfg["os"] == "win" && cfg["cpu"] == "x86")
+            return "win32";
+        if (cfg["os"] == "win" && cfg["cpu"] == "x86_64")
+            return "win64";
+    }
+
+    if (cfg["os"] == "linux" && cfg["cpu"] == "x86")
+        return "lin32";
+    if (cfg["os"] == "linux" && cfg["cpu"] == "x86_64")
+        return "lin64";
+    return "";
+}
+
 cxx_shared("tbb", x) {
     x.pub.include_dirs = x.include_dirs = {"repo/include"};
-    x.srcs = {"repo/src/tbb/*.cpp"};
+    x.srcs = {"repo/src/tbb/*.cpp", 
+              "expose_for_lld.def",
+            //  "repo/src/tbb/def/" + _os_str(x.cfg) + "-tbb.def"
+            };
 
     if (x.cfg["toolchain"] == "gcc" || x.cfg["toolchain"] == "llvm") {
         if (x.cfg["cpu"] == "x86" || x.cfg["cpu"] == "x86_64")
@@ -24,8 +47,10 @@ cxx_shared("tbb", x) {
 
     if (x.cfg["os"] != "win")
         x.ldflags += {"-pthread"};
-    if (x.cfg["os"] == "linux")
+    if (x.cfg["os"] == "linux") {
+        x.cflags += {"-fvisibility=default"};
         x.ldflags += {"-ldl", "-lrt"};
+    }
     if (x.cfg["os"] == "mac")
         x.pub.defines += {"_XOPEN_SOURCE"};
     if (x.cfg["cpu"] == "x86_64"){
@@ -42,6 +67,7 @@ cxx_shared("tbbmalloc", x) {
               "repo/src/tbbmalloc/backref.cpp",
               "repo/src/tbbmalloc/frontend.cpp",
               "repo/src/tbbmalloc/large_objects.cpp",
-              "repo/src/tbbmalloc/tbbmalloc.cpp"};
+              "repo/src/tbbmalloc/tbbmalloc.cpp", 
+              "repo/src/tbb/def/" + _os_str(x.cfg) + "-tbbbind.def"};
     x.defines = {"__TBBMALLOC_BUILD"};
 }

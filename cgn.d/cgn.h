@@ -150,7 +150,7 @@ public:
         const std::string &label_prefix, const std::string &name, 
         std::function<void(typename Interpreter::context_type&)> factory
     ) {
-        auto loader = [this, factory](const Configuration &cfg, CGNTargetOpt opt) {
+        auto loader = [this, factory](Configuration cfg, CGNTargetOpt opt) {
             for (const char *label : Interpreter::preload_labels()) {
                 const CGNScript *s = active_script(label);
                 add_adep_edge(s->adep, opt.adep);

@@ -107,7 +107,7 @@ std::string TargetInfos::to_string() const
 
 template<bool ConstCfg>
 TargetInfoDep<ConstCfg>::TargetInfoDep(const Configuration &cfg, CGNTargetOpt opt) 
-: cfg(cfg), TargetInfoDepData(opt) {
+: cfg(cfg), TargetInfoDepData(opt), name(this->opt.factory_name) {
     auto *def = merged_info.get<DefaultInfo>(true);
     def->target_label = opt.factory_ulabel;
     def->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
