@@ -28,10 +28,10 @@ cgn::TargetInfos ProtobufInterpreter::interpret(
     // args at {protoc '-I...'}
     std::string pbcflags_2esc;
     for (auto it : x.include_dirs)
-        pbcflags_2esc += "-I" + two_escape(it);
+        pbcflags_2esc += "-I" + two_escape(opt.src_prefix + it) + " ";
     pbcflags_2esc += "-I" 
-        + two_escape(api.get_filepath("@third_party//protobuf/repo/src"))
-        + " -I" + two_escape(api.rebase_path(opt.src_prefix, "."));
+        + two_escape(api.get_filepath("@third_party//protobuf/repo/src"));
+        // + " -I" + two_escape(api.rebase_path(opt.src_prefix, "."));
 
     // arg at {protoc '.proto'}
     std::vector<std::string> proto_fullpath_njesc;
@@ -55,11 +55,11 @@ cgn::TargetInfos ProtobufInterpreter::interpret(
     }
 
     opt.ninja->append_include(
-        api.get_filepath("@third_party//protobuf/rule_part1.ninja")
+        api.get_filepath("@cgn.d//library/general.cgn.bundle/rule.ninja")
     );
 
     auto *field = opt.ninja->append_build();
-    field->rule = "input_as_exec";
+    field->rule = "run";
     field->inputs  = {opt.ninja->escape_path(pbcexe)};
     field->inputs += proto_fullpath_njesc;
     field->variables["args"] = pbcflags_2esc

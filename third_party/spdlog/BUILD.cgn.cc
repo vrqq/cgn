@@ -11,7 +11,7 @@ cxx_static("spdlog", x) {
     x.include_dirs = x.pub.include_dirs = {base + "/include"};
     x.include_dirs += {base + "/src"};
 
-    x.defines = {"SPDLOG_COMPILED_LIB"};
+    x.defines = {"SPDLOG_FMT_EXTERNAL", "SPDLOG_COMPILED_LIB"};
     x.pub.defines = {
         "SPDLOG_FMT_EXTERNAL", "SPDLOG_COMPILED_LIB"
     };

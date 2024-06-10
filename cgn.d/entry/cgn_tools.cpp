@@ -193,7 +193,7 @@ std::string Tools::locale_path(const std::string &in)
 
 std::string Tools::parent_path(const std::string &in)
 {
-    auto p = std::filesystem::path{in}.parent_path();
+    auto p = std::filesystem::path{in};
     return p.has_parent_path()? p.parent_path().string() : ".";
 }
 
@@ -357,7 +357,7 @@ Tools::read_kvfile(const std::string &fname)
     std::unordered_map<std::string, std::string> rv;
     std::ifstream fin(fname);
     for (std::string ss; !fin.eof() && std::getline(fin, ss);) {
-        if (ss.empty())
+        if (ss.empty() || ss[0]=='#' || ss[0]==';')
             continue;
         if (auto fd = ss.find('='); fd != ss.npos) {
             std::string key = strip(ss.substr(0, fd-1));

@@ -1,4 +1,23 @@
 
-rule run
+rule quick_run
     command = ${cmd}
     description = ${desc}
+
+rule run
+    command = ${exe} ${in} ${args}
+    description = ${desc}
+
+rule run_rsp
+    command = ${exe} @${out}.rsp
+    description = ${desc}
+    rspfile = ${out}.rsp
+    rspfile_content = ${in} ${args}
+
+rule unix_stamp
+    command = touch ${out}
+    description = STAMP ${out}
+
+rule win_stamp
+    command = cmd /c \"type nul > ${out}"
+    description = STAMP ${out}
+

@@ -84,6 +84,12 @@ inline cgn::Configuration config_guessor(std::unordered_set<std::string> &argls)
     return cfg;
 } //config_guessor()
 
+inline cgn::Configuration config_guessor_notest(
+    std::unordered_set<std::string> argls
+) {
+    return config_guessor(argls);
+}
+
 inline cgn::Configuration generate_host_release()
 {
     cgn::HostInfo hinfo = api.get_host_info();

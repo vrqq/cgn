@@ -1,26 +1,6 @@
 #include "../cgn.h"
 #include "../provider_dep.h"
-
-namespace {
-
-template<typename Type1> std::string print1(const Type1 &ls, const std::string &indent)
-{
-    using Type = std::decay_t<decltype(ls)>;
-    std::string ss;
-    auto iter = ls.begin();
-    for (size_t i=0; i<ls.size() && i<5; i++, iter++) {
-        if (!ss.empty())
-            ss += "\n" + indent;
-        if constexpr(std::is_same_v<std::vector<std::string>, Type>)
-            ss += *iter + ", ";
-        else
-            ss += iter->first + ": " + iter->second + ", ";
-    }
-    ss += "(" + std::to_string(ls.size()) + " elements)";
-    return ss;
-};
-
-}
+#include "quick_print.hpp"
 
 namespace cgn {
 
@@ -33,14 +13,27 @@ const BaseInfo::VTable DefaultInfo::v = {
         auto *rr   = (const DefaultInfo *)(rhs);
         self->outputs.insert(self->outputs.end(), rr->outputs.begin(), rr->outputs.end());
     },
-    [](const void *ecx) -> std::string { 
+    [](const void *ecx, char type) -> std::string { 
         auto *self = (DefaultInfo *)ecx;
+        std::size_t len = (type=='h'?5:999);
         return std::string{"{\n"}
-            + "  label: " + self->target_label + "\n"
-            + " output: " + print1(self->outputs, "         ") + "\n"
+            + "   label: " + self->target_label + "\n"
+            + "   entry: " + self->build_entry_name + "\n"
+            + "  output: " + list2str_h(self->outputs, "          ", len) + "\n"
             + "}";
     }
 }; 
+
+// keep element first seen and remove duplicate in 'ls'
+static void remove_dup(std::vector<std::string> &ls)
+{
+    std::unordered_set<std::string> visited;
+    std::size_t i=0;
+    for (std::size_t j=0; j<ls.size(); j++)
+        if (visited.insert(ls[j]).second == true)
+            std::swap(ls[i++], ls[j]);
+    ls.resize(i);
+}
 
 const BaseInfo::VTable LinkAndRunInfo::v = {
     []() -> std::shared_ptr<BaseInfo> { 
@@ -51,6 +44,7 @@ const BaseInfo::VTable LinkAndRunInfo::v = {
         auto *rr   = (const LinkAndRunInfo *)(rhs);
         auto merge = [](auto *out, auto &in) {
             out->insert(out->end(), in.begin(), in.end());
+            remove_dup(*out);
         };
         merge(&self->shared_files, rr->shared_files);
         merge(&self->static_files, rr->static_files);
@@ -58,14 +52,15 @@ const BaseInfo::VTable LinkAndRunInfo::v = {
         self->runtime_files.insert(
             rr->runtime_files.begin(), rr->runtime_files.end());
     },
-    [](const void *ecx) -> std::string { 
+    [](const void *ecx, char type) -> std::string { 
         const LinkAndRunInfo *self = (const LinkAndRunInfo *)ecx;
         
+        std::size_t len = (type=='h'?5:999);
         return std::string{"{\n"}
-            + "    obj: " + print1(self->object_files, "         ") + "\n"
-            + "    dll: " + print1(self->shared_files, "         ") + "\n"
-            + "      a: " + print1(self->static_files, "         ") + "\n"
-            + "     rt: " + print1(self->runtime_files, "         ") + "\n"
+            + "  obj: " + list2str_h(self->object_files,  "       ", len) + "\n"
+            + "  dll: " + list2str_h(self->shared_files,  "       ", len) + "\n"
+            + "    a: " + list2str_h(self->static_files,  "       ", len) + "\n"
+            + "   rt: " + list2str_h(self->runtime_files, "       ", len) + "\n"
             + "}";
     }
 }; 
@@ -94,11 +89,13 @@ void TargetInfos::merge_entry(
 }
 
 
-std::string TargetInfos::to_string() const
+std::string TargetInfos::to_string(char type) const
 {
     std::string rv;
-    for (auto &[name, inf] : _data)
-        rv += "[" + name + "] " + inf->to_string() + "\n";
+    if (type == 'h' || type == 'H') {
+        for (auto &[name, inf] : _data)
+            rv += "[" + name + "] " + inf->to_string(type) + "\n";
+    }
     return rv;
 }
 

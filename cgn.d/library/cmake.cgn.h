@@ -65,6 +65,13 @@ struct CMakeInterpreter {
     static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 }; //CMakeInterpreter
 
+// struct CMakeMultiContext : CMakeContext {
+//     using CMakeContext::CMakeContext;
+//     void add_target(const std::string &suffix, std::initializer_list<std::string> _outputs);
+// };
+
+// std::vector<std::shared_ptr<void>> cmake_multi_processor();
+
 // } //namespace
 
 

@@ -190,6 +190,8 @@ struct CGNInitSetup {
 
     //cfg_restrictions[key] = value[]
     std::unordered_map<std::string, std::vector<std::string>> cfg_restrictions;
+
+    std::string log_message;
 };
 
 extern cgn::CGN api;

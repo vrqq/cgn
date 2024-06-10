@@ -23,7 +23,7 @@ cgn::TargetInfos GitFetcher::interpret(context_type &x, cgn::CGNTargetOpt opt)
                         + " " + x.repo + " " + x.commit_id;
         field->variables["cmd"] = cmd;
         field->outputs = {opt.ninja->escape_path(stamp)};
-        field->rule = "run";
+        field->rule = "quick_run";
     }
     else {
         std::string touchfile = api.locale_path(x.dest_dir + opt.BUILD_ENTRY);
@@ -44,7 +44,7 @@ cgn::TargetInfos GitFetcher::interpret(context_type &x, cgn::CGNTargetOpt opt)
         field->variables["desc"] = "GIT FETCH " + x.repo;
         // field->outputs = {opt.ninja->escape_path(opt.src_prefix + opt.BUILD_ENTRY)};
         field->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
-        field->rule = "run";
+        field->rule = "quick_run";
 
         // auto *entry = opt.ninja->append_build();
         // entry->rule = "phony";

@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <thread>
 #include <atomic>
+
+#include "quick_print.hpp"
 #include "../cgn.h"
 
 cgn::CGN api;
@@ -167,7 +169,12 @@ int main(int argc, char **argv)
             return 1;
         }
         auto rv = api.analyse_target(args[1], *cfg);
-        std::cout<<"\n--- Query Result ---\n"<<rv.infos.to_string()<<std::endl;
+
+        char type = api.get_kvargs().count("verbose")?'H':'h';
+        std::cout<<"\n--- Configuration ---\n"
+                 <<cgn::list2str_h(*cfg, "", 999) <<std::endl;
+
+        std::cout<<"\n--- Analyse Result ---\n"<<rv.infos.to_string(type)<<std::endl;
         return 0;
     }
     if (args[0] == "preload")

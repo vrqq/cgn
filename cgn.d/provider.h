@@ -22,19 +22,12 @@ template<size_t N> struct ConstLabelGroup {
     const data_type *end() const { return data + N; }
 };
 
-//vtable of target info
-// struct TargetInfoV {
-//     std::shared_ptr<BaseInfo> (*allocate)();
-//     void        (*merge_from)(void *ecx, void *rhs);
-//     std::string (*to_string)(void *ecx);
-// };
-
 //Base class
 struct BaseInfo {
     struct VTable {
         std::shared_ptr<BaseInfo> (*allocate)();
         void        (*merge_from)(void *ecx, const void *rhs);
-        std::string (*to_string)(const void *ecx);
+        std::string (*to_string)(const void *ecx, char type);
     };
 
     BaseInfo(const VTable *vtable) : vtable(vtable) {};
@@ -46,8 +39,8 @@ struct BaseInfo {
     void merge_from(const BaseInfo *rhs) {
         return vtable->merge_from(this, rhs);
     }
-    std::string to_string() const {
-        return vtable->to_string(this);
+    std::string to_string(char type) const {
+        return vtable->to_string(this, type);
     }
 
 private:
@@ -98,6 +91,7 @@ private:
     static const VTable v;
 };
 
+// BaseInfo[] table
 class TargetInfos
 {
 public:
@@ -124,7 +118,10 @@ public:
 
     void merge_entry(const std::string &name, const std::shared_ptr<BaseInfo> &rhs);
 
-    std::string to_string() const;
+    //@param type: 'j': json_full (not implemented)
+    //             'h': human readable text with size=5
+    //             'H': fully human readable data
+    std::string to_string(char type = 'h') const;
 
     bool no_store = false;
 

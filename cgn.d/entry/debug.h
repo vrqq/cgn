@@ -13,9 +13,10 @@ namespace cgn {
                 (std::string{"\x1B["} + c + ss + "\x1B[0m") : ss;
         }
         void paragraph(const std::string &data) {
-            // if(data.size() && data.back() != '\n')
-            //     data.push_back('\n');
-            printer.PrintOnNewLine(data);
+            std::string newline;
+            if(data.size() && data.back() != '\n')
+                newline = "\n";
+            printer.PrintOnNewLine(data + newline);
         };
 
         void print(const std::string &data) {

@@ -1,11 +1,3 @@
-rule unix_stamp
-    command = touch ${out}
-    description = STAMP
-
-rule win_stamp
-    command = cmd /c type nul > "${out}"
-    description = STAMP
-
 rule gcc
     command = ${cc} -MMD -MF ${out}.d ${cflags} -c ${in} -o ${out}
     description = CXX ${out}

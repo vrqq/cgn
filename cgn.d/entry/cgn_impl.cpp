@@ -478,18 +478,25 @@ std::shared_ptr<void> CGNImpl::bind_target_factory(
 void CGNImpl::build_target(
     const std::string &label, const Configuration &cfg
 ) {
+    this->precall_reset();
     std::string ninja_target;
     auto rv = analyse_target(label, cfg, &ninja_target);
     if (rv.errmsg.size())
         throw std::runtime_error{rv.errmsg};
     if (ninja_target.empty())
         throw std::runtime_error{label + " target not found."};
+    
+    //generate compile_commands.json
+    std::string compdb = "ninja -f " + obj_main_ninja.string()
+                       + " -t compdb > " + cgn_out.string() 
+                       + "/obj/compile_commands.json";
+    system(compdb.c_str());
     logger.print(logger.color(label + " analysed", logger.GREEN));
     graph.db_flush_node();
     
     std::string cmd = "ninja -f " + obj_main_ninja.string() 
                     + " " + Tools::shell_escape(ninja_target);
-    if (scriptcc_debug_mode)
+    if (logger.verbose)
         cmd += " --verbose";
     logger.paragraph(cmd + "\n");
     system(cmd.c_str());
@@ -569,10 +576,12 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
         std::ofstream{obj_main_ninja};
     else
         for (std::string ln; !fin.eof() && std::getline(fin, ln);)
-            if (ln.size() > SUBNINJA.size())
-                main_subninja.insert(
-                    NinjaFile::parse_ninja_str(ln.substr(SUBNINJA.size()))
-                );
+            if (ln.size() > SUBNINJA.size()) {
+                auto subfile = NinjaFile::parse_ninja_str(
+                                ln.substr(SUBNINJA.size()));
+                if (std::filesystem::is_regular_file(subfile))
+                    main_subninja.insert(subfile);
+            }
         
     // graph init (load previous one)
     logger.print("Loading fileDB");
@@ -610,6 +619,8 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
 
         CGNInitSetup x;
         cgn_setup(x);
+        if (x.log_message.size())
+            logger.paragraph(x.log_message);
         for (auto &[name, cfg] : x.configs){
             std::string uid = cfg_mgr->commit(cfg);
             cfg_mgr->set_name(name, uid);

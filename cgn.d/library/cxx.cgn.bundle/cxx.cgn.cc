@@ -7,6 +7,7 @@
 
 //
 #include "cxx.cgn.h"
+#include "../../entry/quick_print.hpp"
 
 //start vector_set_calculator
 #include <vector>
@@ -104,13 +105,15 @@ const cgn::BaseInfo::VTable &CxxInfo::_glb_cxx_vtable()
             self->ldflags += r->ldflags;
             self->cflags  += r->cflags;
         }, 
-        [](const void *ecx) -> std::string { 
+        [](const void *ecx, char type) -> std::string { 
             auto *self = (CxxInfo *)ecx;
+            const char *indent = "           ";
+            size_t len = (type=='h'?5:999);
             return std::string{"{\n"}
-                + "  cflags: [..]size=" + std::to_string(self->cflags.size()) + "\n"
-                + " ldflags: [..]size=" + std::to_string(self->ldflags.size()) + "\n"
-                + " incdirs: [..]size=" + std::to_string(self->include_dirs.size()) + "\n"
-                + " defines: [..]size=" + std::to_string(self->defines.size()) + "\n"
+                + "   cflags: " + cgn::list2str_h(self->cflags, indent, len) + "\n"
+                + "  ldflags: " + cgn::list2str_h(self->ldflags, indent, len) + "\n"
+                + "  incdirs: " + cgn::list2str_h(self->include_dirs, indent, len) + "\n"
+                + "  defines: " + cgn::list2str_h(self->defines, indent, len) + "\n"
                 + "}";
         }
     };
@@ -673,7 +676,8 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         field->inputs = obj_out_ninja_esc 
                       + opt.ninja->escape_path(x._lnr_to_self.object_files);
         field->implicit_inputs = opt.ninja->escape_path(x._lnr_to_self.static_files) 
-                               + opt.ninja->escape_path(x._lnr_to_self.shared_files);
+                               + opt.ninja->escape_path(x._lnr_to_self.shared_files)
+                               + opt.ninja->escape_path(x._wholearchive_a);
         field->outputs = {outfile_njesc};
         field->variables["exe"] = opt.ninja->escape_path(
                                     x.role=='s'? exe_solink:exe_xlink);
