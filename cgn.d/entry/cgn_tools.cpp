@@ -19,7 +19,7 @@
     #include <unistd.h>
 #endif
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
     #include <sys/utsname.h>
 #endif
 
@@ -171,6 +171,9 @@ HostInfo Tools::get_host_info()
             rv.cpu = "x86";
     #elif __APPLE__
         rv.os = "mac";
+        struct utsname osInfo{};
+        uname(&osInfo);
+        rv.cpu = osInfo.machine;
     #elif __linux__
         rv.os = "linux";
         struct utsname osInfo{};
@@ -301,7 +304,7 @@ int64_t Tools::stat(const std::string &path)
     if (stat64(path.c_str(), &st) < 0) {
     #else
     struct stat st;
-    if (stat(path.c_str(), &st) < 0) {
+    if (::stat(path.c_str(), &st) < 0) {
     #endif
         if (errno == ENOENT || errno == ENOTDIR)
             return 0;

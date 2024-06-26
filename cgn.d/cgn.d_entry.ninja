@@ -33,10 +33,11 @@ build $output/cgn_entry.a : ar $output/cgn.o $output/cgn_impl.o $output/cli.o $
     $output/graph.o $output/ninja_file.o $output/provider.o $
     $output/dev_helper.o $output/wincp.o
 
-build $output/cgn: link $output/cgn.o $output/cgn_impl.o $output/cli.o $
-    $output/cgn_tools.o $output/cgn_tools_fileglob.o $output/configuration.o $output/dl_helper.o $
-    $output/graph.o $output/ninja_file.o $output/provider.o $
-    $output/dev_helper.o $output/wincp.o ${ninjaout}/ninja_port_unix.a
+build $output/cgn: link $output/cli.o $output/dev_helper.o $
+    $output/cgn.o $output/cgn_impl.o $
+    $output/cgn_tools.o $output/cgn_tools_fileglob.o $output/configuration.o $
+    $output/graph.o $output/ninja_file.o $output/provider.o $output/dl_helper.o $
+    $output/wincp.o ${ninjaout}/ninja_port_unix.a
 
 build $output/cgn.exe: link $output/cgn.o $output/cgn_impl.o $output/cli.o $
     $output/cgn_tools.o $output/cgn_tools_fileglob.o $output/configuration.o $output/dl_helper.o $

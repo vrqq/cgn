@@ -72,8 +72,8 @@ namespace raymii {
                 pclose(pipe);
                 throw;
             }
-            exitcode = WEXITSTATUS(pclose(pipe));
-            return CommandResult{result, exitcode};
+            exitcode = pclose(pipe);
+            return CommandResult{result, WEXITSTATUS(exitcode)};
         }
 
     };

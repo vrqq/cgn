@@ -21,12 +21,11 @@ namespace cgn {
         FreeLibrary(m_ptr);
     }
 }
-#endif
 
-#ifdef __linux__
+#else
+
     #include <dlfcn.h>
     #include <unistd.h>
-    #include <linux/limits.h>
     
 namespace cgn {
     DLHelper::DLHelper(const std::string &file) {

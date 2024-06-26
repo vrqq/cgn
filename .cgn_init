@@ -1,3 +1,0 @@
-cgn.d = cgn.d
-third_party = third_party
-CELL_SETUP = @cgn.d//library/cgn_default_setup.cgn.cc

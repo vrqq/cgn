@@ -16,9 +16,7 @@ namespace {
 
 #ifdef _WIN32
 constexpr char SEP = '\\';
-#endif
-
-#ifdef __linux__
+#else
 constexpr char SEP = '/';
 #endif
 

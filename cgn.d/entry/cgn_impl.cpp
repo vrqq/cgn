@@ -19,6 +19,9 @@ extern void cgn_setup(CGNInitSetup &x);
 extern void cgn_setup(CGNInitSetup &x) __attribute__((weak));
 #endif
 
+// for only debug purpersal in dev
+// void cgn_setup(CGNInitSetup &x) {}
+
 namespace cgn {
 
 
@@ -158,7 +161,9 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
             return false;
         };
 
-        bool is_msvc = cc_end_with("cl.exe");
+        bool is_win  = (api.get_host_info().os == "win");
+        bool is_unix = !is_win;
+        bool is_msvc  = cc_end_with("cl.exe");
         bool is_clang = cc_end_with("clang") || cc_end_with("clang++");
 
         // .rsp file is temporary and not included in adep->files[]
@@ -181,11 +186,11 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
             linker_in += Tools::shell_escape(outname) + " ";
             std::ofstream frsp(rspname); 
 
-            if (is_msvc)
+            if (is_msvc && is_win)
                 frsp<< it <<" /nologo /showIncludes "
                     "/DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
                     "/utf-8 /MD /OUT:" + Tools::shell_escape(outname);
-            else {
+            else if (is_unix) {
                 if (is_clang && scriptcc_debug_mode) //llvm debug (lldb)
                     frsp<<"-g -glldb -fstandalone-debug -fno-limit-debug-info "
                           "-fsanitize=address ";
@@ -245,13 +250,17 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
 
         std::vector<std::string> node_vals;
         node_vals.push_back(s.sofile);
-        if (is_msvc) {
+        if (is_msvc && is_win) {
             run_link("/nologo /utf-8 /MD /link /DLL /OUT:" + s.sofile);
             clpar.includes_.insert(script_srcs.begin(), script_srcs.end());
             node_vals.insert(node_vals.end(), clpar.includes_.begin(), 
                              clpar.includes_.end());
-        }else {
-            if (is_clang) //llvm-linker is faster then gnu linker
+        }
+        else if (is_unix) {
+            // in macos no -fuse-ld=lld supported in XCode
+            if (api.get_host_info().os == "mac")
+                run_link(" -g -fPIC --shared -Wl,-undefined,dynamic_lookup -o " + s.sofile);
+            else if (is_clang) //llvm-linker is faster then gnu linker
                 run_link(" -g -fuse-ld=lld -fPIC --shared -o " + s.sofile);
             else
                 run_link(" -g -fPIC --shared -o " + s.sofile);
@@ -514,9 +523,12 @@ std::string CGNImpl::_expand_cell(const std::string &ss) const
         if (fd == ss.npos || ss[fd+1] != '/')
             throw std::runtime_error{"Wrong label: '@cell//' required"};
 
-        std::string cellname = ss.substr(1, fd-1);
-        if (auto fd2 = cells.find(cellname); fd2 != cells.end())
-            return fd2->second + "/" + ss.substr(fd+2);
+        std::string cellname = ss.substr(0, fd);
+        if (cells.count(cellname))
+            return (cell_lnk_path / cellname / ss.substr(fd+2)).string();
+        // std::string cellname = ss.substr(1, fd-1);
+        // if (auto fd2 = cells.find(cellname); fd2 != cells.end())
+        //     return fd2->second + "/" + ss.substr(fd+2);
         throw std::runtime_error{"Wrong label: cell not found: " + cellname};
     }
     else
@@ -589,46 +601,62 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
 
     //CGN cell init
     //load cell-path map from .cgn_init
-    cells = Tools::read_kvfile(".cgn_init");
+    // cells = Tools::read_kvfile(".cgn_init");
+
+    for (auto it : std::filesystem::directory_iterator(cell_lnk_path)) {
+        // name: string like "@base"
+        std::string name = it.path().filename().string();
+        cells.insert(name);
+        if (logger.verbose)
+            logger.paragraph("Cell " + name + " detected.");
+    }
 
     //create folder symbolic link
     // TODO: permission denied when create_directory_symlink() on windows platform
-    GraphNode *init_node = graph.get_node(".cgn_init");
-    graph.test_status(init_node);
-    if (init_node->files.empty() || init_node->status != GraphNode::Latest) {
-        graph.set_node_files(init_node, {".cgn_init"});
-        std::filesystem::remove_all(cell_lnk_path);
-        std::filesystem::create_directory(cell_lnk_path);
-        for (auto [k, v] : cells) {
-            if (k == "CELL_SETUP")
-                continue;
-            std::filesystem::path out = cell_lnk_path / ("@" + k);
-            std::error_code ec;
-            std::filesystem::create_directory_symlink(std::filesystem::absolute(v), out, ec);
-            if (ec)
-                throw std::runtime_error{"error no symlink cell_include: " + v 
-                        + ", error_code=" + std::to_string(ec.value())};
-        }
-        graph.set_node_status_to_latest(init_node);
-    }
+    // GraphNode *init_node = graph.get_node(".cgn_init");
+    // graph.test_status(init_node);
+    // if (init_node->files.empty() || init_node->status != GraphNode::Latest) {
+    //     graph.set_node_files(init_node, {".cgn_init"});
+    //     std::filesystem::remove_all(cell_lnk_path);
+    //     std::filesystem::create_directory(cell_lnk_path);
+    //     for (auto [k, v] : cells) {
+    //         if (k == "CELL_SETUP")
+    //             continue;
+    //         std::filesystem::path out = cell_lnk_path / ("@" + k);
+    //         std::error_code ec;
+    //         std::filesystem::create_directory_symlink(std::filesystem::absolute(v), out, ec);
+    //         if (ec)
+    //             throw std::runtime_error{"error no symlink cell_include: " + v 
+    //                     + ", error_code=" + std::to_string(ec.value())};
+    //     }
+    //     graph.set_node_status_to_latest(init_node);
+    // }
 
     //call cgn_setup()
-    if (auto fd = cells.find("CELL_SETUP"); fd != cells.end()) {
-        active_script(fd->second);
-        cells.erase(fd);
+    const std::string cgn_setup_filename = "cgn_setup.cgn.cc";
+    if (!std::filesystem::exists(cgn_setup_filename))
+        throw std::runtime_error{cgn_setup_filename + " not found"};
 
-        CGNInitSetup x;
-        cgn_setup(x);
-        if (x.log_message.size())
-            logger.paragraph(x.log_message);
-        for (auto &[name, cfg] : x.configs){
-            std::string uid = cfg_mgr->commit(cfg);
-            cfg_mgr->set_name(name, uid);
-        }
-    }else{
-        throw std::runtime_error{"CELL-SETUP UNASSIGNED!"};
-        // active_script("@cgn.d//library/cgn_default_setup.cgn.cc");
+    active_script("//" + cgn_setup_filename);
+    CGNInitSetup x;
+    cgn_setup(x);
+    if (x.log_message.size())
+        logger.paragraph(x.log_message);
+    for (auto &[name, cfg] : x.configs){
+        std::string uid = cfg_mgr->commit(cfg);
+        cfg_mgr->set_name(name, uid);
     }
+
+    // if (auto fd = cells.find("CELL_SETUP"); fd != cells.end()) {
+    //     active_script(fd->second);
+    //     cells.erase(fd);
+
+    //     CGNInitSetup x;
+    //     cgn_setup(x);
+    // }else{
+    //     throw std::runtime_error{"CELL-SETUP UNASSIGNED!"};
+    //     // active_script("@cgn.d//library/cgn_default_setup.cgn.cc");
+    // }
 } //CGNImpl::init()
 
 } //namespace

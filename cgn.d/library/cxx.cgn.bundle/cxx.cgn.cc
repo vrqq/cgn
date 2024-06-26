@@ -6,6 +6,7 @@
 //      --sysroot=/project/freebsd-14.0-arm64 -fuse-ld=lld
 
 //
+#include <cassert>
 #include "cxx.cgn.h"
 #include "../../entry/quick_print.hpp"
 
@@ -391,7 +392,15 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
     std::vector<std::string> interp_cflags_cc{"-std=c++17"}, interp_cflags_c{"-std=gnu17"};
     std::string prefix = x.cfg["cxx_prefix"];
     std::string exe_cc, exe_cxx, exe_solink, exe_xlink, exe_ar;
+
+    // cnrrently we have 3 types of linker in unix-like world
+    //  * linux: gnu-ld (binutils)
+    //  * linux: llvm-ld
+    //  * mac:   bsd-ld (os-internal)
+    bool is_mac_bsd_linker;
+    
     if (x.cfg["toolchain"] == "gcc") {
+        assert(x.cfg["os"] == "linux");
         exe_cc  = two_escape(prefix + "gcc");
         exe_cxx = two_escape(prefix + "g++");
         exe_ar  = two_escape(prefix + "gcc-ar");
@@ -442,13 +451,20 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
             interp_arg.cflags += {
                 "--sysroot=" + two_escape(x.cfg["cxx_sysroot"])
             };
-    } //toolchain == "gcc"
-    else if (x.cfg["toolchain"] == "llvm") {
+    } //end toolchain == "gcc" && os == "linux"
+    else if (x.cfg["toolchain"] == "llvm" && (x.cfg["os"] == "linux" || x.cfg["os"] == "mac")) {
         exe_cc  = two_escape(prefix + "clang");
         exe_cxx = two_escape(prefix + "clang++");
-        exe_ar  = two_escape(prefix + "llvm-ar");
-        exe_solink = two_escape(prefix + "clang++") + " -fuse-ld=lld -shared";
-        exe_xlink  = two_escape(prefix + "clang++") + " -fuse-ld=lld";
+        exe_ar     = two_escape(prefix + "ar");
+        exe_solink = two_escape(prefix + "clang++") + " -shared";
+        exe_xlink  = two_escape(prefix + "clang++");
+        if (x.cfg["os"] == "linux") {
+            exe_ar     = two_escape(prefix + "llvm-ar");
+            exe_solink = two_escape(prefix + "clang++") + " -fuse-ld=lld -shared";
+            exe_xlink  = two_escape(prefix + "clang++") + " -fuse-ld=lld";
+        }
+        if (x.cfg["os"] == "mac")
+            is_mac_bsd_linker = true;
 
         interp_arg.cflags += {
             "-fvisibility=hidden",
@@ -457,9 +473,12 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         
         interp_arg.ldflags += {
             "-L.",
-            "-Wl,--warn-common", "-Wl,--warn-backrefs",
-            "-lpthread", "-lrt"
+            "-lpthread"
         };
+        if (x.cfg["os"] == "linux")
+            interp_arg.ldflags += {"-Wl,--warn-common", "-Wl,--warn-backrefs", "-lrt"};
+        if (x.cfg["os"] == "mac") //for macos : using warn-commons instead of warn-common
+            interp_arg.ldflags += {"-fprofile-instr-generate", "-Wl,-warn_commons"};
 
         interp_arg.defines += {"_GNU_SOURCE"};
         interp_cflags_c = {"-std=c17"};
@@ -505,7 +524,7 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
                 cpu = "aarch64";
             interp_arg.cflags += {"--target=" + cpu + "-pc-" + (std::string)x.cfg["os"]};
         }
-    } //toolchain == "llvm"
+    } //toolchain == "llvm" && os=="linux"/"mac"
     else {
         throw std::runtime_error{
             "Unsupported toolchain " + (std::string)x.cfg["toolchain"]};
@@ -681,16 +700,26 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         field->outputs = {outfile_njesc};
         field->variables["exe"] = opt.ninja->escape_path(
                                     x.role=='s'? exe_solink:exe_xlink);
+        
+        std::string buildstr_a, buildstr_start_group, buildstr_end_group;
+        if (is_mac_bsd_linker)
+            buildstr_a = " " + list2str(two_escape(x._wholearchive_a), "-Wl,-force_load ");
+        else{
+            buildstr_a = " -Wl,--wholearchive " 
+                       + list2str(two_escape(x._wholearchive_a))
+                       + "-Wl,--no-whole-archive";
+            buildstr_start_group = "-Wl,--start-group";
+            buildstr_end_group   = "-Wl,--end-group";
+        }
         field->variables["args"] = list2str(carg.ldflags) 
             + "-o " + api.shell_escape(field->outputs[0])
-            + " -Wl,--whole-archive " + list2str(two_escape(x._wholearchive_a))
-            + "-Wl,--no-whole-archive "
-            + "-Wl,--start-group "
+            + buildstr_a + " "
+            + buildstr_start_group + " "
             + list2str(obj_out_ninja_esc)
             + list2str(two_escape(x._lnr_to_self.object_files))
             + list2str(two_escape(x._lnr_to_self.static_files))
             + list2str(two_escape(x._lnr_to_self.shared_files), "-l:")
-            + "-Wl,--end-group";
+            + buildstr_end_group;
         field->variables["desc"] = "LINK " + outfile_njesc;
         
         // generate entry

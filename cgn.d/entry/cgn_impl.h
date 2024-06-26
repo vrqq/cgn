@@ -1,5 +1,6 @@
 #pragma once
 #include <unordered_map>
+#include <unordered_set>
 #include <filesystem>
 #include "graph.h"
 #include "configuration.h"
@@ -48,7 +49,8 @@ public:
 private:
     std::string _expand_cell(const std::string &ss) const;
 
-    std::unordered_map<std::string, std::string> cells;
+    // std::unordered_map<std::string, std::string> cells;
+    std::unordered_set<std::string> cells;
 
     std::filesystem::path cgn_out;
     std::filesystem::path analysis_path;

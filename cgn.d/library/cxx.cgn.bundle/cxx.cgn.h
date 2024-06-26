@@ -17,6 +17,25 @@
 //   .include_dirs : <this.pub> <deps>
 //   .defines : any order
 //
+// 
+// Supported configurations
+// * cxx_toolchain="msvc" os="win"
+//      cl.exe with link.exe
+// * cxx_toolchain="gcc"  os="linux"
+//      gcc/g++ with binutils-ld
+// * cxx_toolchain="llvm" os="linux"
+//      clang/clang++ with llvm-ld
+// * cxx_toolchain="llvm" os="mac"
+//      clang/clang++ with bsd-ld (os internal)
+//
+// Others are under development
+// * toolchain="gcc"  os="mac"
+//      GNU binutils's ld does not support Darwin (macOS)
+//      gcc/g++ with bsd-ld (os internal)
+// * toolchain="llvm" os="win"
+//      clang++ and llvm-ld for windows
+// * toolchain="llvm2" os="mac" (using llvm-ld)
+//
 #pragma once
 #include <vector>
 #include <unordered_set>
