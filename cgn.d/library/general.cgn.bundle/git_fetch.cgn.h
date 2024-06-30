@@ -15,10 +15,15 @@ struct GitContext
     std::string using_depot_tool;
 
     // the source where git to
-    std::string dest_dir = "src";
+    std::string dest_dir = "repo";
     
     std::string repo;
     std::string commit_id;
+
+    struct {
+        std::vector<std::string> command;
+        std::string cwd = ".";
+    }post_script;
 
     GitContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
     : name(opt.factory_name) {}

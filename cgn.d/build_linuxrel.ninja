@@ -1,10 +1,9 @@
 ## CGN Development bootstrap
 ## builddir : the output folder
 ## ============================
-builddir = build
+builddir = build_linux
 
-cflags = -I. -g -std=c++17 -fsanitize=address -fcolor-diagnostics $
-         -fshow-column -fshow-source-location -fcaret-diagnostics
+cflags = -I. -std=c++17 -fshow-column -fshow-source-location
 
 rule cc
     deps    = gcc
@@ -23,8 +22,7 @@ rule link
               -Wl,--export-dynamic -fvisibility=default $
               -Wl,-rpath=$$ORIGIN -MMD -MF $out.d $cflags $in -o $out
 
-include ninja_port.ninja
-
-include cgn.d_entry.ninja
+include buildpart_ninjaport.ninja
+include buildpart_cgnentry.ninja
 
 default $output/cgn

@@ -1,4 +1,5 @@
 #include "../../entry/raymii_command.hpp"
+#include "../../std_operator.hpp"
 #include "general.cgn.h"
 
 static std::string two_escape(const std::string &in) {
@@ -55,6 +56,45 @@ cgn::TargetInfos ShellBinary::interpret(context_type &x, cgn::CGNTargetOpt opt)
     return rv;
 } //ShellBinary::interpret()
 
+// Copy
+// ----
+cgn::TargetInfos CopyInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
+{
+    if (x.from.size() != x.to.size())
+        throw std::runtime_error{opt.factory_ulabel + " from[] and to[] are not same size."};
+
+    // Since ninja cannot recognize folder in INPUT, we have to let target
+    // re-analyse every time. For example someone was originally a regular 
+    // file, but now it has become a folder.
+
+    std::string rulepath = api.get_filepath("@cgn.d//library/general.cgn.bundle/rule.ninja");
+    opt.ninja->append_include(rulepath);
+
+    // using 'cp' in unix-like os (rule.ninja)
+    std::string rule = (api.get_host_info().os != "win"? "unix_cp" : "win_cp");
+
+    std::vector<std::string> collection;
+    for (std::size_t i=0; i<x.from.size(); i++) {
+        auto *build = opt.ninja->append_build();
+        build->rule    = rule;
+        build->inputs  = {opt.ninja->escape_path(x.from[i])};
+        build->outputs = {opt.ninja->escape_path(x.to[i])};
+        collection += build->outputs;
+    }
+
+    // ninja phony entry: collection + deps
+    auto *phony = opt.ninja->append_build();
+    phony->rule = "PHONY";
+    phony->inputs = collection + x.ninja_target_dep;
+
+    // Generate return value
+    cgn::TargetInfos &rv = x.merged_info;
+    auto *def = rv.get<cgn::DefaultInfo>(true);
+    def->outputs += x.to;
+
+    return rv;
+} //CopyInterpreter::interpret
+
 
 // Target Alias
 // ------------
@@ -73,6 +113,30 @@ cgn::TargetInfos AliasInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
     definfo->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
     return real.infos;
 } //AliasInterpreter::interpret
+
+
+cgn::CGNTarget DynamicAliasInterpreter::DynamicAliasContext::load_target(
+    const std::string &label, const cgn::Configuration &cfg
+) {
+    auto rv = api.analyse_target(label, cfg);
+    actual_target_infos = rv.infos;
+    if (!actual_target_infos.empty())
+        self_def = *actual_target_infos.get<cgn::DefaultInfo>();
+    return rv;
+} //DynamicAliasContext::load_target
+
+cgn::TargetInfos DynamicAliasInterpreter::interpret(
+    context_type &x, cgn::CGNTargetOpt opt
+) {
+    if (x.actual_target_infos.empty())
+        throw std::runtime_error{ opt.factory_name + " no valid target loaded." };
+
+    // DefaultInfo cannot be modified.
+    auto *def = x.actual_target_infos.get<cgn::DefaultInfo>();
+    *def = x.self_def;
+    def->target_label = opt.factory_ulabel;
+    return x.actual_target_infos;
+} //DynamicAliasContext::interpret
 
 
 // Target Group

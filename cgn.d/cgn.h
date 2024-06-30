@@ -104,10 +104,22 @@ struct Tools {
 
     static std::vector<std::string> file_glob(const std::string &dir, const std::string &base = ".");
 
-    static std::string rebase_path(const std::string &p, const std::string &base);
+    // converts p to be relative to a different base directory.
+    // @param new_base: 
+    //   The directory to convert the paths to be relative to. This can be an
+    //   absolute path or a relative path (which will be treated as being relative
+    //   to the current BUILD-file's directory).
+    //   As a special case, if new_base is the empty string (the default), all
+    //   paths will be converted to system-absolute native style paths with system
+    //   path separators. This is useful for invoking external programs.
+    static std::string rebase_path(const std::string &p, const std::string &new_base);
 
+    // convert path 'in' to OS-dependent separator style, even if the path does 
+    // not exist.
     static std::string locale_path(const std::string &in);
 
+    // Retrieve the parent path of the input, accepting both absolute and 
+    // relative paths. If the parent path does not exist, return ".".
     static std::string parent_path(const std::string &in);
 
     static std::unordered_map<std::string, std::string> read_kvfile(
@@ -121,6 +133,8 @@ struct Tools {
     static bool win32_long_paths_enabled();
 
     static bool is_win7_or_later();
+
+    static void print_debug(const std::string &text, bool verbose_level = false);
 
     std::string absolute_label(const std::string &p, std::string base);
 
@@ -165,8 +179,10 @@ public:
 
     // bool clean_all();
 
+    // The init function must be called before others.
     void init(const std::unordered_map<std::string, std::string> &kvargs);
 
+    // Return kvargs assigned from init().
     const std::unordered_map<std::string, std::string> &get_kvargs() const;
 
     ~CGN();

@@ -24,6 +24,7 @@
 #endif
 
 #include "../cgn.h"
+#include "debug.h"
 
 namespace cgn {
 
@@ -185,6 +186,8 @@ HostInfo Tools::get_host_info()
 
 std::string Tools::rebase_path(const std::string &p, const std::string &base)
 {
+    if (base.empty())
+        return std::filesystem::absolute(p).string();
     // return std::filesystem::proximate(p, base).string();
     return std::filesystem::path(p).lexically_proximate(base).string();
 }
@@ -373,5 +376,11 @@ Tools::read_kvfile(const std::string &fname)
     return rv;
 }
 
+
+void Tools::print_debug(const std::string &text, bool verbose_level)
+{
+    if (!verbose_level || logger.verbose)
+        logger.paragraph(text);
+}
 
 } //namespace

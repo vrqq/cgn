@@ -1,0 +1,27 @@
+## CGN Development bootstrap
+## builddir : the output folder
+## ============================
+
+!!! WARNING! DO NOT USE windows version of cgn !!!
+when calling cgn.exe it would erase source code in cgn.d
+
+builddir = build
+
+rule cc
+    deps    = msvc
+    rspfile = ${out}.d
+    rspfile_content = /nologo /showIncludes /std:c++17 /I. /errorReport:prompt /DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_CONSOLE /D_AMD64_ /GL /Gy /O2 /Oi /MD /EHsc /utf-8 /EHs /c ${in} /Fo:${out}
+    command = cl.exe @${out}.d
+
+rule ar
+    command = lib.exe /nologo /OUT:${out} ${in}
+
+rule link
+    rspfile = ${out}.d
+    rspfile_content = /FORCE:UNRESOLVED /nologo /MACHINE:X64 /RELEASE /LTCG:incremental /OUT:${out} ${in}
+    command = link.exe @${out}.d
+
+include buildpart_ninjaport.ninja
+include buildpart_cgnentry.ninja
+
+default $output/cgn.exe

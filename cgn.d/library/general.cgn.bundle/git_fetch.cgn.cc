@@ -26,35 +26,60 @@ cgn::TargetInfos GitFetcher::interpret(context_type &x, cgn::CGNTargetOpt opt)
         field->rule = "quick_run";
     }
     else {
-        std::string touchfile = api.locale_path(x.dest_dir + opt.BUILD_ENTRY);
+        std::string touchfile = api.locale_path(
+            opt.src_prefix + x.dest_dir + opt.BUILD_ENTRY);
         #ifdef _WIN32
+        std::string cmd_true = "echo.>NUL";
         std::string suffix = "cmd /c \"type nul >" + touchfile + "\""
                            + " 1 > nul";
         #else
+        std::string cmd_true = "true";
         std::string suffix = "touch " + touchfile
                            + " 1> /dev/null 2>&1";
         #endif
+        
         std::string cmd = "mkdir -p " + two_escape(dest_dir)
-                        + " && cd " + two_escape(dest_dir) + " && git init"
-                        + " && git remote add origin " + x.repo
+                        + " && cd " + two_escape(dest_dir)
+                        + " && (git init || " + cmd_true + ")"
+                        + " && (git remote add origin " + x.repo + " || " + cmd_true + ")"
                         + " && git fetch --depth=1 origin " + x.commit_id
                         + " && git reset --hard " + x.commit_id
-                        + " && cd .. && " + suffix;
+                        + " && cd " + api.rebase_path(".", dest_dir); //cdback
+
+        // cmd + x.post_script
+        if (x.post_script.command.size()) {
+            std::string cdback;
+            if (x.post_script.cwd.size()){
+                std::string path1 = api.locale_path(opt.src_prefix + x.post_script.cwd);
+                cdback = " && cd " + api.rebase_path(".", path1);
+                cmd += " && cd " + path1;
+            }
+            cmd += " && ";
+            for (auto arg : x.post_script.command)
+                cmd += opt.ninja->escape_path(api.shell_escape(arg)) + " ";
+            cmd += cdback;
+        }
+
+        //cmd + stampfile
+        cmd += " && " + suffix;
+
+
         field->variables["cmd"] = cmd;
         field->variables["desc"] = "GIT FETCH " + x.repo;
         // field->outputs = {opt.ninja->escape_path(opt.src_prefix + opt.BUILD_ENTRY)};
-        field->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
+        field->outputs = {touchfile};
         field->rule = "quick_run";
 
-        // auto *entry = opt.ninja->append_build();
-        // entry->rule = "phony";
-        // entry->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
-        // entry->inputs  = {opt.src_prefix + opt.BUILD_ENTRY};
+        auto *entry = opt.ninja->append_build();
+        entry->rule = "phony";
+        entry->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
+        entry->inputs  = {touchfile};
     }
 
     cgn::TargetInfos rv;
     auto *def = rv.get<cgn::DefaultInfo>(true);
     def->target_label = opt.factory_ulabel;
     def->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
+    def->outputs = {dest_dir};
     return rv;
 }

@@ -44,6 +44,25 @@ struct ShellBinary
     static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 }; //ShellBinary
 
+struct CopyInterpreter
+{
+    struct Context : cgn::TargetInfoDep<true>{
+        const std::string name;
+
+        // Copy file from 'from' to 'to' one by one,
+        // the size of from and to must be equal.
+        std::vector<std::string> from, to;
+
+        Context(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt) 
+        : cgn::TargetInfoDep<true>(cfg, opt), name(opt.factory_name) {}
+
+        friend class CopyInterpreter;
+    };
+
+    using context_type = Context;
+    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+};
+
 
 //Generate a ninja target which run command in shell
 // struct CustomNinja {
@@ -97,6 +116,33 @@ struct AliasInterpreter
     static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 }; //AliasInterpreter
 
+struct DynamicAliasInterpreter
+{
+    struct DynamicAliasContext {
+        const std::string name;
+        const cgn::Configuration last_cfg;
+        cgn::TargetInfos actual_target_infos;
+
+        cgn::CGNTarget load_target(const std::string &label) { 
+            return load_target(label, last_cfg);
+        }
+        cgn::CGNTarget load_target(const std::string &label, const cgn::Configuration &cfg);
+
+        DynamicAliasContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
+        : name(opt.factory_name), last_cfg(cfg) {}
+        
+        private: friend class DynamicAliasInterpreter;
+        cgn::DefaultInfo self_def;
+    };
+    using context_type = DynamicAliasContext;
+    
+    constexpr static cgn::ConstLabelGroup<1> preload_labels() {
+        return {"@cgn.d//library/general.cgn.bundle"};
+    }
+
+    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+}; //DynamicAliasInterpreter
+
 
 struct GroupInterpreter
 {
@@ -143,6 +189,7 @@ struct LinkAndRuntimeFiles {
 };
 
 #define sh_binary(name, x) CGN_RULE_DEFINE(ShellBinary, name, x)
+#define dynamic_alias(name, x) CGN_RULE_DEFINE(DynamicAliasInterpreter, name, x)
 #define alias(name, x) CGN_RULE_DEFINE(AliasInterpreter, name, x)
 #define group(name, x) CGN_RULE_DEFINE(GroupInterpreter, name, x)
 #define link_and_runtime_files(name, x) CGN_RULE_DEFINE(LinkAndRuntimeFiles, name, x)

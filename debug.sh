@@ -1,3 +1,3 @@
 #!/bin/sh
 
-./cgn.d/build/cgn --target llvm,debug,asan build $@
+./cgn.d/build_linux/cgn --target llvm,debug,asan build $@
