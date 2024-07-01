@@ -1,14 +1,16 @@
 #include <cgn>
 
-static std::string ZSTD_ROOT = "src";
+static std::string ZSTD_ROOT = "repo";
 
 git("zstd.git", x) {
     x.repo = "https://github.com/facebook/zstd.git";
+    x.dest_dir = ZSTD_ROOT;
     x.commit_id = "794ea1b0afca0f020f4e57b6732332231fb23c70";
 }
 
 cxx_static("zstd", x) {
-    x.defines = {"XXH_NAMESPACE=ZSTD_", "ZSTD_MULTITHREAD", "ZSTD_LEGACY_SUPPORT=1",
+    x.defines = {"XXH_NAMESPACE=ZSTD_", "ZSTD_MULTITHREAD", 
+        "ZSTD_LEGACY_SUPPORT=1",
         "ZSTD_LEGACY_MULTITHREADED_API"};
     if (x.cfg["optimization"] == "debug")
         x.defines += {"DEBUGLEVEL=0"};

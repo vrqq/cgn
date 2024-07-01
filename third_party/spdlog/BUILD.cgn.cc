@@ -2,6 +2,7 @@
 
 git("spdlog.git", x) {
     x.repo = "https://github.com/gabime/spdlog.git";
+    x.
     x.commit_id = "27cb4c76708608465c413f6d0e6b8d99a4d84302";
 }
 

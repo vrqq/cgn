@@ -257,13 +257,14 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
                              clpar.includes_.end());
         }
         else if (is_unix) {
+            std::string dbg_flag = scriptcc_debug_mode?" -g":"";
             // in macos no -fuse-ld=lld supported in XCode
             if (api.get_host_info().os == "mac")
-                run_link(" -g -fPIC --shared -Wl,-undefined,dynamic_lookup -o " + s.sofile);
+                run_link(dbg_flag + " -fPIC --shared -Wl,-undefined,dynamic_lookup -o " + s.sofile);
             else if (is_clang) //llvm-linker is faster then gnu linker
-                run_link(" -g -fuse-ld=lld -fPIC --shared -o " + s.sofile);
+                run_link(dbg_flag + " -fuse-ld=lld -fPIC --shared -o " + s.sofile);
             else
-                run_link(" -g -fPIC --shared -o " + s.sofile);
+                run_link(dbg_flag + " -fPIC --shared -o " + s.sofile);
             dfcoll.insert(script_srcs.begin(), script_srcs.end());
             node_vals.insert(node_vals.end(), dfcoll.begin(), dfcoll.end());
         }

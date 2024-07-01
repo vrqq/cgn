@@ -7,7 +7,7 @@ git("zlib.git", x) {
 
 cxx_static("zlib", x) {
     x.pub.include_dirs = {"src"};
-    x.srcs = {"src/*.c"};
+    x.srcs = {"repo/*.c"};
     if (x.cfg["os"] == "win")
         x.srcs += {"src/win32/zlib1.def"};
     if (x.cfg["os"] == "linux")
@@ -20,16 +20,16 @@ cxx_static("zlib", x) {
 }
 
 cxx_executable("zlib_test", x) {
-    x.srcs = {"src/test/example.c"};
+    x.srcs = {"repo/test/example.c"};
     x.add_dep(":zlib", cxx::private_dep);
 }
 
 cxx_executable("zlib_test_infcover", x) {
-    x.srcs = {"src/test/infcover.c"};
+    x.srcs = {"repo/test/infcover.c"};
     x.add_dep(":zlib", cxx::private_dep);
 }
 
 cxx_executable("zlib_test_minigzip", x) {
-    x.srcs = {"src/test/minigzip.c"};
+    x.srcs = {"repo/test/minigzip.c"};
     x.add_dep(":zlib", cxx::private_dep);
 }

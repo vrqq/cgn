@@ -188,7 +188,8 @@ struct LinkAndRuntimeFiles {
     static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 };
 
-#define sh_binary(name, x) CGN_RULE_DEFINE(ShellBinary, name, x)
+#define sh_binary(name, x)  CGN_RULE_DEFINE(ShellBinary, name, x)
+#define copy_files(name, x) CGN_RULE_DEFINE(CopyInterpreter, name, x)
 #define dynamic_alias(name, x) CGN_RULE_DEFINE(DynamicAliasInterpreter, name, x)
 #define alias(name, x) CGN_RULE_DEFINE(AliasInterpreter, name, x)
 #define group(name, x) CGN_RULE_DEFINE(GroupInterpreter, name, x)
