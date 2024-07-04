@@ -10,7 +10,7 @@
 #include "quick_print.hpp"
 #include "../cgn.h"
 
-cgn::CGN api;
+CGN_EXPORT cgn::CGN api;
 
 int show_helper(const char *arg0) {
     std::cerr<<arg0<<"\n"
@@ -137,6 +137,8 @@ int main(int argc, char **argv)
         }
     };
 
+try{
+
     if (args[0] == "analyze" || args[0] == "analyse") {
         if (args.size() != 2)
             return show_helper(argv[0]);
@@ -201,6 +203,12 @@ int main(int argc, char **argv)
             std::cerr<<dir.string()<<"\n"
                      <<"Warning: it seems not a cgn-out folder, do nothing."<<std::endl;
     }
+
+}catch(std::exception &e) { //windows CRT won't show anything for unhandled exception.
+    std::cerr<<"\n---EXCEPTION---\n"
+             <<e.what()<<std::endl;
+    return 1;
+}
 
     return 0;
 }

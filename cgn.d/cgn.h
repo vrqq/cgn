@@ -6,6 +6,14 @@
 #include "entry/ninja_file.h"
 #include "provider.h"
 
+// #ifndef CGN_EXPORT
+    #ifdef _WIN32
+        #define CGN_EXPORT __declspec(dllexport)
+    #else
+        #define CGN_EXPORT __attribute__((visibility("default")))
+    #endif
+// #endif
+
 namespace cgn {
 
 class  CGNImpl;
@@ -92,7 +100,7 @@ struct HostInfo {
     std::string glibc_version, glibc_release;
 };
 
-struct Tools {
+struct CGN_EXPORT Tools {
     static uint32_t host_to_u32be(uint32_t in);
     static uint32_t u32be_to_host(uint32_t in);
 
@@ -140,7 +148,7 @@ struct Tools {
 
 }; //struct Tools
 
-class CGN : public Tools {
+class CGN_EXPORT CGN : public Tools {
 public:
     std::string get_filepath(const std::string &file_label) const;
 
@@ -210,4 +218,4 @@ struct CGNInitSetup {
     std::string log_message;
 };
 
-extern cgn::CGN api;
+CGN_EXPORT extern cgn::CGN api;

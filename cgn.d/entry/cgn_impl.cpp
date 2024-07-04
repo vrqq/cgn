@@ -3,6 +3,7 @@
 #include <optional>
 #include <filesystem>
 #include <cassert>
+#include <array>
 #include "raymii_command.hpp"
 #include "cgn_impl.h"
 #include "ninja_file.h"
@@ -181,15 +182,18 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
             if (ext != ".cc" && ext != ".cpp" && ext != ".c++" && ext != ".cxx")
                 continue;
             std::string rspname = s.sofile + "-" + pt.stem().string() + ".rsp";
-            std::string outname = s.sofile + "-" + pt.stem().string() + ".o";
+            std::string outname = s.sofile + "-" + pt.stem().string() + ".o" + (is_win?"bj":"");
             std::string depname = s.sofile + "-" + pt.stem().string() + ".d";
             linker_in += Tools::shell_escape(outname) + " ";
             std::ofstream frsp(rspname); 
 
-            if (is_msvc && is_win)
-                frsp<< it <<" /nologo /showIncludes "
+            if (is_msvc && is_win) {
+                frsp<< "/c " << it <<" /nologo /showIncludes /Od /Gy "
                     "/DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
-                    "/utf-8 /MD /OUT:" + Tools::shell_escape(outname);
+                    "/utf-8 /EHsc /MD /Fo: " + Tools::shell_escape(outname);
+                if (scriptcc_debug_mode)
+                    frsp<<" /Zi /Fd: " + Tools::shell_escape(outname) + ".pdb";
+            }
             else if (is_unix) {
                 if (is_clang && scriptcc_debug_mode) //llvm debug (lldb)
                     frsp<<"-g -glldb -fstandalone-debug -fno-limit-debug-info "
@@ -212,7 +216,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
             );
             // logger.printer.SetConsoleLocked(false);
             if (build_rv.exitstatus != 0)
-                throw std::runtime_error{build_rv.output};
+                throw std::runtime_error{outname + " " + build_rv.output};
             
             //header dep
             std::string errmsg;
@@ -239,7 +243,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
         
         //add header dep before set_node_files
         auto run_link = [&](std::string arg) {
-            std::ofstream frsp(s.sofile + ".rsp"); 
+            std::ofstream frsp(s.sofile + ".rsp");
             frsp << linker_in << arg;
             frsp.close();
             logger.print(logger.color("ScriptCC ") + s.sofile);
@@ -251,7 +255,8 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
         std::vector<std::string> node_vals;
         node_vals.push_back(s.sofile);
         if (is_msvc && is_win) {
-            run_link("/nologo /utf-8 /MD /link /DLL /OUT:" + s.sofile);
+            std::string dbg_flag = scriptcc_debug_mode?" /DEBUG":"";
+            run_link(dbg_flag + " /nologo /utf-8 /link /DLL /FORCE:UNRESOLVED /OUT:\"" + s.sofile + "\" ");
             clpar.includes_.insert(script_srcs.begin(), script_srcs.end());
             node_vals.insert(node_vals.end(), clpar.includes_.begin(), 
                              clpar.includes_.end());
@@ -548,6 +553,9 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
     logger.verbose = cmd_kvargs.count("verbose");
     logger.printer.set_smart_terminal(!logger.verbose);
 
+    if (logger.verbose)
+        logger.paragraph("CWD: " + std::filesystem::current_path().string());
+
     //init path
     std::string dsuffix = (scriptcc_debug_mode? "d":"");
     cgn_out = cmd_kvargs.at("cgn-out");
@@ -604,6 +612,8 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
     //load cell-path map from .cgn_init
     // cells = Tools::read_kvfile(".cgn_init");
 
+    if (std::filesystem::is_directory(cell_lnk_path) == false)
+        throw std::runtime_error{cell_lnk_path.string() + " is not a folder."};
     for (auto it : std::filesystem::directory_iterator(cell_lnk_path)) {
         // name: string like "@base"
         std::string name = it.path().filename().string();

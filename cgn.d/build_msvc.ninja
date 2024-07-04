@@ -10,7 +10,7 @@ builddir = build_win
 rule cc
     deps    = msvc
     rspfile = ${out}.d
-    rspfile_content = /nologo /showIncludes /std:c++17 /I. /errorReport:prompt /DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_CONSOLE /D_AMD64_ /GL /Gy /O2 /Oi /MD /EHsc /utf-8 /EHs /c ${in} /Fo:${out}
+    rspfile_content = /nologo /showIncludes /std:c++17 /I. /errorReport:prompt /DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_CONSOLE /D_AMD64_ /Gy /Oi /MD /EHsc /utf-8 /EHs /c ${in} /Fo: ${out} /Zi /Fd: ${out}.pdb
     command = cl.exe @${out}.d
 
 rule ar
@@ -18,7 +18,7 @@ rule ar
 
 rule link
     rspfile = ${out}.d
-    rspfile_content = /FORCE:UNRESOLVED /nologo /MACHINE:X64 /RELEASE /LTCG:incremental /OUT:${out} ${in}
+    rspfile_content = /FORCE:UNRESOLVED /nologo /MACHINE:X64 /DEBUG /LTCG:incremental /OUT:${out} ${in}
     command = link.exe @${out}.d
 
 include buildpart_ninjaport.ninja

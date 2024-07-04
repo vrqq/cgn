@@ -1,7 +1,7 @@
 #include "../cgn.h"
 #include "cgn_default_setup.cgn.h"
 
-void cgn_setup(CGNInitSetup &x) {
+CGN_EXPORT void cgn_setup(CGNInitSetup &x) {
     
     x.configs["host_release"] = generate_host_release();
 

@@ -705,7 +705,7 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         if (is_mac_bsd_linker)
             buildstr_a = " " + list2str(two_escape(x._wholearchive_a), "-Wl,-force_load ");
         else{
-            buildstr_a = " -Wl,--wholearchive " 
+            buildstr_a = " -Wl,--whole-archive " 
                        + list2str(two_escape(x._wholearchive_a))
                        + "-Wl,--no-whole-archive";
             buildstr_start_group = "-Wl,--start-group";

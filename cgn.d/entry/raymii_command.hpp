@@ -15,8 +15,9 @@
 //
 //     You should have received a copy of the GNU General Public License
 //     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#include <array>
+// #include <array>
 #include <ostream>
+#include <vector>
 #include <string>
 #ifdef _WIN32
 #include <stdio.h>
@@ -52,7 +53,8 @@ namespace raymii {
              */
         static CommandResult exec(const std::string &command) {
             int exitcode = 0;
-            std::array<char, 1048576> buffer {};
+            std::vector<char> buffer(1048576);
+            // std::array<char, 1048576> buffer {};
             std::string result;
 #ifdef _WIN32
 #define popen _popen
@@ -65,7 +67,7 @@ namespace raymii {
             }
             try {
                 std::size_t bytesread;
-                while ((bytesread = std::fread(buffer.data(), sizeof(buffer.at(0)), sizeof(buffer), pipe)) != 0) {
+                while ((bytesread = std::fread(buffer.data(), sizeof(char), buffer.size(), pipe)) != 0) {
                     result += std::string(buffer.data(), bytesread);
                 }
             } catch (...) {
