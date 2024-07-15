@@ -1,0 +1,4 @@
+LIBRARY fake2.dll
+
+EXPORTS
+?work2@@YAHXZ
