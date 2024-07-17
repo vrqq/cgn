@@ -14,11 +14,11 @@ int main()
     std::cout<<"MAIN EXECUTE."<<std::endl;
     // return 1;
 
-    auto ptr2 = LoadLibrary("func2/x.dll");
-    if (ptr2)
-        std::cout<<"func2/x.dll loaded"<<std::endl;
-    else
-        std::cout<<"func2/x.dll load failure "<<GetLastError()<<std::endl;
+    // auto ptr2 = LoadLibrary("func2/x.dll");
+    // if (ptr2)
+    //     std::cout<<"func2/x.dll loaded"<<std::endl;
+    // else
+    //     std::cout<<"func2/x.dll load failure "<<GetLastError()<<std::endl;
 
     auto ptr1 = LoadLibrary("func1/x.dll");
 

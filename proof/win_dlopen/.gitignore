@@ -1,4 +1,5 @@
 *.obj
+*.obj.txt
 *.dll
 *.dll.txt
 *.lib

@@ -9,8 +9,8 @@ File Type: COFF OBJECT
 FILE HEADER VALUES
             8664 machine (x64)
               C9 number of sections
-        6694A9DC time date stamp Mon Jul 15 12:47:24 2024
-            48BE file pointer to symbol table
+        669535D5 time date stamp Mon Jul 15 22:44:37 2024
+            48C1 file pointer to symbol table
              2A5 number of symbols
                0 size of optional header
                0 characteristics
@@ -19,8 +19,8 @@ SECTION HEADER #1
 .drectve name
        0 physical address
        0 virtual address
-     152 size of raw data
-    1F7C file pointer to raw data (00001F7C to 000020CD)
+     153 size of raw data
+    1F7C file pointer to raw data (00001F7C to 000020CE)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -37,33 +37,33 @@ RAW DATA #1
   00000030: 43 48 3A 22 5F 49 54 45 52 41 54 4F 52 5F 44 45  CH:"_ITERATOR_DE
   00000040: 42 55 47 5F 4C 45 56 45 4C 3D 30 22 20 2F 46 41  BUG_LEVEL=0" /FA
   00000050: 49 4C 49 46 4D 49 53 4D 41 54 43 48 3A 22 52 75  ILIFMISMATCH:"Ru
-  00000060: 6E 74 69 6D 65 4C 69 62 72 61 72 79 3D 4D 54 5F  ntimeLibrary=MT_
-  00000070: 53 74 61 74 69 63 52 65 6C 65 61 73 65 22 20 2F  StaticRelease" /
-  00000080: 44 45 46 41 55 4C 54 4C 49 42 3A 22 6C 69 62 63  DEFAULTLIB:"libc
-  00000090: 70 6D 74 22 20 2F 46 41 49 4C 49 46 4D 49 53 4D  pmt" /FAILIFMISM
-  000000A0: 41 54 43 48 3A 22 5F 43 52 54 5F 53 54 44 49 4F  ATCH:"_CRT_STDIO
-  000000B0: 5F 49 53 4F 5F 57 49 44 45 5F 53 50 45 43 49 46  _ISO_WIDE_SPECIF
-  000000C0: 49 45 52 53 3D 30 22 20 2F 46 41 49 4C 49 46 4D  IERS=0" /FAILIFM
-  000000D0: 49 53 4D 41 54 43 48 3A 22 61 6E 6E 6F 74 61 74  ISMATCH:"annotat
-  000000E0: 65 5F 73 74 72 69 6E 67 3D 30 22 20 2F 46 41 49  e_string=0" /FAI
-  000000F0: 4C 49 46 4D 49 53 4D 41 54 43 48 3A 22 61 6E 6E  LIFMISMATCH:"ann
-  00000100: 6F 74 61 74 65 5F 76 65 63 74 6F 72 3D 30 22 20  otate_vector=0" 
-  00000110: 2F 44 45 46 41 55 4C 54 4C 49 42 3A 22 4C 49 42  /DEFAULTLIB:"LIB
-  00000120: 43 4D 54 22 20 2F 44 45 46 41 55 4C 54 4C 49 42  CMT" /DEFAULTLIB
-  00000130: 3A 22 4F 4C 44 4E 41 4D 45 53 22 20 2F 45 58 50  :"OLDNAMES" /EXP
-  00000140: 4F 52 54 3A 3F 66 75 6E 63 31 40 40 59 41 48 58  ORT:?func1@@YAHX
-  00000150: 5A 20                                            Z 
+  00000060: 6E 74 69 6D 65 4C 69 62 72 61 72 79 3D 4D 44 5F  ntimeLibrary=MD_
+  00000070: 44 79 6E 61 6D 69 63 52 65 6C 65 61 73 65 22 20  DynamicRelease" 
+  00000080: 2F 44 45 46 41 55 4C 54 4C 49 42 3A 22 6D 73 76  /DEFAULTLIB:"msv
+  00000090: 63 70 72 74 22 20 2F 46 41 49 4C 49 46 4D 49 53  cprt" /FAILIFMIS
+  000000A0: 4D 41 54 43 48 3A 22 5F 43 52 54 5F 53 54 44 49  MATCH:"_CRT_STDI
+  000000B0: 4F 5F 49 53 4F 5F 57 49 44 45 5F 53 50 45 43 49  O_ISO_WIDE_SPECI
+  000000C0: 46 49 45 52 53 3D 30 22 20 2F 46 41 49 4C 49 46  FIERS=0" /FAILIF
+  000000D0: 4D 49 53 4D 41 54 43 48 3A 22 61 6E 6E 6F 74 61  MISMATCH:"annota
+  000000E0: 74 65 5F 73 74 72 69 6E 67 3D 30 22 20 2F 46 41  te_string=0" /FA
+  000000F0: 49 4C 49 46 4D 49 53 4D 41 54 43 48 3A 22 61 6E  ILIFMISMATCH:"an
+  00000100: 6E 6F 74 61 74 65 5F 76 65 63 74 6F 72 3D 30 22  notate_vector=0"
+  00000110: 20 2F 44 45 46 41 55 4C 54 4C 49 42 3A 22 4D 53   /DEFAULTLIB:"MS
+  00000120: 56 43 52 54 22 20 2F 44 45 46 41 55 4C 54 4C 49  VCRT" /DEFAULTLI
+  00000130: 42 3A 22 4F 4C 44 4E 41 4D 45 53 22 20 2F 45 58  B:"OLDNAMES" /EX
+  00000140: 50 4F 52 54 3A 3F 66 75 6E 63 31 40 40 59 41 48  PORT:?func1@@YAH
+  00000150: 58 5A 20                                         XZ 
 
    Linker Directives
    -----------------
    /FAILIFMISMATCH:_MSC_VER=1900
    /FAILIFMISMATCH:_ITERATOR_DEBUG_LEVEL=0
-   /FAILIFMISMATCH:RuntimeLibrary=MT_StaticRelease
-   /DEFAULTLIB:libcpmt
+   /FAILIFMISMATCH:RuntimeLibrary=MD_DynamicRelease
+   /DEFAULTLIB:msvcprt
    /FAILIFMISMATCH:_CRT_STDIO_ISO_WIDE_SPECIFIERS=0
    /FAILIFMISMATCH:annotate_string=0
    /FAILIFMISMATCH:annotate_vector=0
-   /DEFAULTLIB:LIBCMT
+   /DEFAULTLIB:MSVCRT
    /DEFAULTLIB:OLDNAMES
    /EXPORT:?func1@@YAHXZ
 
@@ -72,7 +72,7 @@ SECTION HEADER #2
        0 physical address
        0 virtual address
       8C size of raw data
-    20CE file pointer to raw data (000020CE to 00002159)
+    20CF file pointer to raw data (000020CF to 0000215A)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -99,7 +99,7 @@ SECTION HEADER #3
        0 physical address
        0 virtual address
       10 size of raw data
-    215A file pointer to raw data (0000215A to 00002169)
+    215B file pointer to raw data (0000215B to 0000216A)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -132,8 +132,8 @@ SECTION HEADER #5
        0 physical address
        0 virtual address
       C0 size of raw data
-    216A file pointer to raw data (0000216A to 00002229)
-    222A file pointer to relocation table
+    216B file pointer to raw data (0000216B to 0000222A)
+    222B file pointer to relocation table
        0 file pointer to line numbers
        C number of relocations
        0 number of line numbers
@@ -162,7 +162,7 @@ RELOCATIONS #5
  Offset    Type              Applied To         Index     Name
  --------  ----------------  -----------------  --------  ------
  00000007  REL32                      00000000       2A2  __security_cookie
- 00000016  REL32                      00000000         D  $SG22232
+ 00000016  REL32                      00000000         D  $SG22235
  00000020  REL32                      00000000        C6  ??0?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@QEAA@QEBD@Z (public: __cdecl std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >(char const * const))
  0000002B  REL32                      00000000        CA  ?size@?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@QEBA_KXZ (public: unsigned __int64 __cdecl std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >::size(void)const )
  0000003A  REL32                      00000000        C9  ?c_str@?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@QEBAPEBDXZ (public: char const * __cdecl std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >::c_str(void)const )
@@ -179,8 +179,8 @@ cgndef$x name
        0 physical address
        0 virtual address
       18 size of raw data
-    22A2 file pointer to raw data (000022A2 to 000022B9)
-    22BA file pointer to relocation table
+    22A3 file pointer to raw data (000022A3 to 000022BA)
+    22BB file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -204,8 +204,8 @@ SECTION HEADER #7
        0 physical address
        0 virtual address
       2E size of raw data
-    22C4 file pointer to raw data (000022C4 to 000022F1)
-    22F2 file pointer to relocation table
+    22C5 file pointer to raw data (000022C5 to 000022F2)
+    22F3 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -232,8 +232,8 @@ SECTION HEADER #8
        0 physical address
        0 virtual address
       3B size of raw data
-    2306 file pointer to raw data (00002306 to 00002340)
-    2341 file pointer to relocation table
+    2307 file pointer to raw data (00002307 to 00002341)
+    2342 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -260,9 +260,9 @@ SECTION HEADER #9
 .text$mn name
        0 physical address
        0 virtual address
-      85 size of raw data
-    2355 file pointer to raw data (00002355 to 000023D9)
-    23DA file pointer to relocation table
+      86 size of raw data
+    2356 file pointer to raw data (00002356 to 000023DB)
+    23DC file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -277,11 +277,11 @@ RAW DATA #9
   00000010: C0 27 48 89 44 24 28 48 8B 44 24 50 48 39 44 24  À'H.D$(H.D$PH9D$
   00000020: 28 77 05 E8 00 00 00 00 48 8B 4C 24 28 E8 00 00  (w.è....H.L$(è..
   00000030: 00 00 48 89 44 24 20 48 83 7C 24 20 00 74 02 EB  ..H.D$ H.|$ .t.ë
-  00000040: 0B E8 00 00 00 00 33 C0 85 C0 75 F5 33 C0 85 C0  .è....3À.Àuõ3À.À
-  00000050: 75 E5 48 8B 44 24 20 48 83 C0 27 48 83 E0 E0 48  uåH.D$ H.À'H.ààH
-  00000060: 89 44 24 30 B8 08 00 00 00 48 6B C0 FF 48 8B 4C  .D$0¸....HkÀÿH.L
-  00000070: 24 30 48 8B 54 24 20 48 89 14 01 48 8B 44 24 30  $0H.T$ H...H.D$0
-  00000080: 48 83 C4 48 C3                                   H.ÄHÃ
+  00000040: 0C FF 15 00 00 00 00 33 C0 85 C0 75 F4 33 C0 85  .ÿ.....3À.Àuô3À.
+  00000050: C0 75 E4 48 8B 44 24 20 48 83 C0 27 48 83 E0 E0  ÀuäH.D$ H.À'H.àà
+  00000060: 48 89 44 24 30 B8 08 00 00 00 48 6B C0 FF 48 8B  H.D$0¸....HkÀÿH.
+  00000070: 4C 24 30 48 8B 54 24 20 48 89 14 01 48 8B 44 24  L$0H.T$ H...H.D$
+  00000080: 30 48 83 C4 48 C3                                0H.ÄHÃ
 
 RELOCATIONS #9
                                                 Symbol    Symbol
@@ -289,15 +289,15 @@ RELOCATIONS #9
  --------  ----------------  -----------------  --------  ------
  00000024  REL32                      00000000        B0  ?_Throw_bad_array_new_length@std@@YAXXZ (void __cdecl std::_Throw_bad_array_new_length(void))
  0000002E  REL32                      00000000        B2  ?_Allocate@_Default_allocate_traits@std@@SAPEAX_K@Z (public: static void * __cdecl std::_Default_allocate_traits::_Allocate(unsigned __int64))
- 00000042  REL32                      00000000        96  _invalid_parameter_noinfo_noreturn
+ 00000043  REL32                      00000000        96  __imp__invalid_parameter_noinfo_noreturn
 
 SECTION HEADER #A
 .text$mn name
        0 physical address
        0 virtual address
      1C4 size of raw data
-    23F8 file pointer to raw data (000023F8 to 000025BB)
-    25BC file pointer to relocation table
+    23FA file pointer to raw data (000023FA to 000025BD)
+    25BE file pointer to relocation table
        0 file pointer to line numbers
       12 number of relocations
        0 number of line numbers
@@ -366,8 +366,8 @@ SECTION HEADER #B
        0 physical address
        0 virtual address
       44 size of raw data
-    2670 file pointer to raw data (00002670 to 000026B3)
-    26B4 file pointer to relocation table
+    2672 file pointer to raw data (00002672 to 000026B5)
+    26B6 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -397,7 +397,7 @@ SECTION HEADER #C
        0 physical address
        0 virtual address
        B size of raw data
-    26D2 file pointer to raw data (000026D2 to 000026DC)
+    26D4 file pointer to raw data (000026D4 to 000026DE)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -416,8 +416,8 @@ SECTION HEADER #D
        0 physical address
        0 virtual address
       3D size of raw data
-    26DD file pointer to raw data (000026DD to 00002719)
-    271A file pointer to relocation table
+    26DF file pointer to raw data (000026DF to 0000271B)
+    271C file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -445,7 +445,7 @@ SECTION HEADER #E
        0 physical address
        0 virtual address
        6 size of raw data
-    272E file pointer to raw data (0000272E to 00002733)
+    2730 file pointer to raw data (00002730 to 00002735)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -464,7 +464,7 @@ SECTION HEADER #F
        0 physical address
        0 virtual address
       17 size of raw data
-    2734 file pointer to raw data (00002734 to 0000274A)
+    2736 file pointer to raw data (00002736 to 0000274C)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -484,7 +484,7 @@ SECTION HEADER #10
        0 physical address
        0 virtual address
        B size of raw data
-    274B file pointer to raw data (0000274B to 00002755)
+    274D file pointer to raw data (0000274D to 00002757)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -503,7 +503,7 @@ SECTION HEADER #11
        0 physical address
        0 virtual address
        B size of raw data
-    2756 file pointer to raw data (00002756 to 00002760)
+    2758 file pointer to raw data (00002758 to 00002762)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -522,7 +522,7 @@ SECTION HEADER #12
        0 physical address
        0 virtual address
        B size of raw data
-    2761 file pointer to raw data (00002761 to 0000276B)
+    2763 file pointer to raw data (00002763 to 0000276D)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -541,7 +541,7 @@ SECTION HEADER #13
        0 physical address
        0 virtual address
       47 size of raw data
-    276C file pointer to raw data (0000276C to 000027B2)
+    276E file pointer to raw data (0000276E to 000027B4)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -564,7 +564,7 @@ SECTION HEADER #14
        0 physical address
        0 virtual address
       47 size of raw data
-    27B3 file pointer to raw data (000027B3 to 000027F9)
+    27B5 file pointer to raw data (000027B5 to 000027FB)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -587,8 +587,8 @@ SECTION HEADER #15
        0 physical address
        0 virtual address
       3A size of raw data
-    27FA file pointer to raw data (000027FA to 00002833)
-    2834 file pointer to relocation table
+    27FC file pointer to raw data (000027FC to 00002835)
+    2836 file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -615,7 +615,7 @@ SECTION HEADER #16
        0 physical address
        0 virtual address
        B size of raw data
-    283E file pointer to raw data (0000283E to 00002848)
+    2840 file pointer to raw data (00002840 to 0000284A)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -634,8 +634,8 @@ SECTION HEADER #17
        0 physical address
        0 virtual address
       50 size of raw data
-    2849 file pointer to raw data (00002849 to 00002898)
-    2899 file pointer to relocation table
+    284B file pointer to raw data (0000284B to 0000289A)
+    289B file pointer to relocation table
        0 file pointer to line numbers
        4 number of relocations
        0 number of line numbers
@@ -666,8 +666,8 @@ SECTION HEADER #18
        0 physical address
        0 virtual address
       18 size of raw data
-    28C1 file pointer to raw data (000028C1 to 000028D8)
-    28D9 file pointer to relocation table
+    28C3 file pointer to raw data (000028C3 to 000028DA)
+    28DB file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -692,7 +692,7 @@ SECTION HEADER #19
        0 physical address
        0 virtual address
       20 size of raw data
-    28E3 file pointer to raw data (000028E3 to 00002902)
+    28E5 file pointer to raw data (000028E5 to 00002904)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -712,7 +712,7 @@ SECTION HEADER #1A
        0 physical address
        0 virtual address
       15 size of raw data
-    2903 file pointer to raw data (00002903 to 00002917)
+    2905 file pointer to raw data (00002905 to 00002919)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -732,8 +732,8 @@ SECTION HEADER #1B
        0 physical address
        0 virtual address
       3C size of raw data
-    2918 file pointer to raw data (00002918 to 00002953)
-    2954 file pointer to relocation table
+    291A file pointer to raw data (0000291A to 00002955)
+    2956 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -761,8 +761,8 @@ SECTION HEADER #1C
        0 physical address
        0 virtual address
       36 size of raw data
-    2968 file pointer to raw data (00002968 to 0000299D)
-    299E file pointer to relocation table
+    296A file pointer to raw data (0000296A to 0000299F)
+    29A0 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -790,8 +790,8 @@ SECTION HEADER #1D
        0 physical address
        0 virtual address
       36 size of raw data
-    29B2 file pointer to raw data (000029B2 to 000029E7)
-    29E8 file pointer to relocation table
+    29B4 file pointer to raw data (000029B4 to 000029E9)
+    29EA file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -819,8 +819,8 @@ SECTION HEADER #1E
        0 physical address
        0 virtual address
       33 size of raw data
-    29FC file pointer to raw data (000029FC to 00002A2E)
-    2A2F file pointer to relocation table
+    29FE file pointer to raw data (000029FE to 00002A30)
+    2A31 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -849,8 +849,8 @@ SECTION HEADER #1F
        0 physical address
        0 virtual address
       58 size of raw data
-    2A4D file pointer to raw data (00002A4D to 00002AA4)
-    2AA5 file pointer to relocation table
+    2A4F file pointer to raw data (00002A4F to 00002AA6)
+    2AA7 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -880,8 +880,8 @@ SECTION HEADER #20
        0 physical address
        0 virtual address
       49 size of raw data
-    2AB9 file pointer to raw data (00002AB9 to 00002B01)
-    2B02 file pointer to relocation table
+    2ABB file pointer to raw data (00002ABB to 00002B03)
+    2B04 file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -909,8 +909,8 @@ SECTION HEADER #21
        0 physical address
        0 virtual address
       1B size of raw data
-    2B0C file pointer to raw data (00002B0C to 00002B26)
-    2B27 file pointer to relocation table
+    2B0E file pointer to raw data (00002B0E to 00002B28)
+    2B29 file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -935,8 +935,8 @@ SECTION HEADER #22
        0 physical address
        0 virtual address
       1B size of raw data
-    2B31 file pointer to raw data (00002B31 to 00002B4B)
-    2B4C file pointer to relocation table
+    2B33 file pointer to raw data (00002B33 to 00002B4D)
+    2B4E file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -961,8 +961,8 @@ SECTION HEADER #23
        0 physical address
        0 virtual address
       25 size of raw data
-    2B56 file pointer to raw data (00002B56 to 00002B7A)
-    2B7B file pointer to relocation table
+    2B58 file pointer to raw data (00002B58 to 00002B7C)
+    2B7D file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -989,7 +989,7 @@ SECTION HEADER #24
        0 physical address
        0 virtual address
        6 size of raw data
-    2B8F file pointer to raw data (00002B8F to 00002B94)
+    2B91 file pointer to raw data (00002B91 to 00002B96)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -1008,8 +1008,8 @@ SECTION HEADER #25
        0 physical address
        0 virtual address
       18 size of raw data
-    2B95 file pointer to raw data (00002B95 to 00002BAC)
-    2BAD file pointer to relocation table
+    2B97 file pointer to raw data (00002B97 to 00002BAE)
+    2BAF file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -1034,8 +1034,8 @@ SECTION HEADER #26
        0 physical address
        0 virtual address
       18 size of raw data
-    2BB7 file pointer to raw data (00002BB7 to 00002BCE)
-    2BCF file pointer to relocation table
+    2BB9 file pointer to raw data (00002BB9 to 00002BD0)
+    2BD1 file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -1060,8 +1060,8 @@ SECTION HEADER #27
        0 physical address
        0 virtual address
       2E size of raw data
-    2BD9 file pointer to raw data (00002BD9 to 00002C06)
-    2C07 file pointer to relocation table
+    2BDB file pointer to raw data (00002BDB to 00002C08)
+    2C09 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -1088,7 +1088,7 @@ SECTION HEADER #28
        0 physical address
        0 virtual address
       10 size of raw data
-    2C1B file pointer to raw data (00002C1B to 00002C2A)
+    2C1D file pointer to raw data (00002C1D to 00002C2C)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -1107,8 +1107,8 @@ SECTION HEADER #29
        0 physical address
        0 virtual address
       3B size of raw data
-    2C2B file pointer to raw data (00002C2B to 00002C65)
-    2C66 file pointer to relocation table
+    2C2D file pointer to raw data (00002C2D to 00002C67)
+    2C68 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -1136,8 +1136,8 @@ SECTION HEADER #2A
        0 physical address
        0 virtual address
       3B size of raw data
-    2C7A file pointer to raw data (00002C7A to 00002CB4)
-    2CB5 file pointer to relocation table
+    2C7C file pointer to raw data (00002C7C to 00002CB6)
+    2CB7 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -1165,8 +1165,8 @@ SECTION HEADER #2B
        0 physical address
        0 virtual address
       3B size of raw data
-    2CC9 file pointer to raw data (00002CC9 to 00002D03)
-    2D04 file pointer to relocation table
+    2CCB file pointer to raw data (00002CCB to 00002D05)
+    2D06 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -1194,7 +1194,7 @@ SECTION HEADER #2C
        0 physical address
        0 virtual address
        6 size of raw data
-    2D18 file pointer to raw data (00002D18 to 00002D1D)
+    2D1A file pointer to raw data (00002D1A to 00002D1F)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -1212,9 +1212,9 @@ SECTION HEADER #2D
 .text$mn name
        0 physical address
        0 virtual address
-      99 size of raw data
-    2D1E file pointer to raw data (00002D1E to 00002DB6)
-    2DB7 file pointer to relocation table
+      9A size of raw data
+    2D20 file pointer to raw data (00002D20 to 00002DB9)
+    2DBA file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -1232,23 +1232,23 @@ RAW DATA #2D
   00000040: 01 48 89 44 24 28 48 C7 44 24 38 08 00 00 00 48  .H.D$(HÇD$8....H
   00000050: 8B 44 24 50 48 8B 4C 24 28 48 8B 00 48 2B C1 48  .D$PH.L$(H..H+ÁH
   00000060: 89 44 24 20 48 83 7C 24 20 08 72 0A 48 83 7C 24  .D$ H.|$ .r.H.|$
-  00000070: 20 27 77 02 EB 0B E8 00 00 00 00 33 C0 85 C0 75   'w.ë.è....3À.Àu
-  00000080: F5 33 C0 85 C0 75 DD 48 8B 44 24 50 48 8B 4C 24  õ3À.ÀuÝH.D$PH.L$
-  00000090: 28 48 89 08 48 83 C4 48 C3                       (H..H.ÄHÃ
+  00000070: 20 27 77 02 EB 0C FF 15 00 00 00 00 33 C0 85 C0   'w.ë.ÿ.....3À.À
+  00000080: 75 F4 33 C0 85 C0 75 DC 48 8B 44 24 50 48 8B 4C  uô3À.ÀuÜH.D$PH.L
+  00000090: 24 28 48 89 08 48 83 C4 48 C3                    $(H..H.ÄHÃ
 
 RELOCATIONS #2D
                                                 Symbol    Symbol
  Offset    Type              Applied To         Index     Name
  --------  ----------------  -----------------  --------  ------
- 00000077  REL32                      00000000        96  _invalid_parameter_noinfo_noreturn
+ 00000078  REL32                      00000000        96  __imp__invalid_parameter_noinfo_noreturn
 
 SECTION HEADER #2E
 .text$mn name
        0 physical address
        0 virtual address
       18 size of raw data
-    2DC1 file pointer to raw data (00002DC1 to 00002DD8)
-    2DD9 file pointer to relocation table
+    2DC4 file pointer to raw data (00002DC4 to 00002DDB)
+    2DDC file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -1273,8 +1273,8 @@ SECTION HEADER #2F
        0 physical address
        0 virtual address
       33 size of raw data
-    2DE3 file pointer to raw data (00002DE3 to 00002E15)
-    2E16 file pointer to relocation table
+    2DE6 file pointer to raw data (00002DE6 to 00002E18)
+    2E19 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -1302,8 +1302,8 @@ SECTION HEADER #30
        0 physical address
        0 virtual address
       92 size of raw data
-    2E2A file pointer to raw data (00002E2A to 00002EBB)
-    2EBC file pointer to relocation table
+    2E2D file pointer to raw data (00002E2D to 00002EBE)
+    2EBF file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -1336,7 +1336,7 @@ SECTION HEADER #31
        0 physical address
        0 virtual address
        B size of raw data
-    2EC6 file pointer to raw data (00002EC6 to 00002ED0)
+    2EC9 file pointer to raw data (00002EC9 to 00002ED3)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -1355,7 +1355,7 @@ SECTION HEADER #32
        0 physical address
        0 virtual address
        B size of raw data
-    2ED1 file pointer to raw data (00002ED1 to 00002EDB)
+    2ED4 file pointer to raw data (00002ED4 to 00002EDE)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -1374,8 +1374,8 @@ SECTION HEADER #33
        0 physical address
        0 virtual address
       1B size of raw data
-    2EDC file pointer to raw data (00002EDC to 00002EF6)
-    2EF7 file pointer to relocation table
+    2EDF file pointer to raw data (00002EDF to 00002EF9)
+    2EFA file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -1400,8 +1400,8 @@ SECTION HEADER #34
        0 physical address
        0 virtual address
       1B size of raw data
-    2F01 file pointer to raw data (00002F01 to 00002F1B)
-    2F1C file pointer to relocation table
+    2F04 file pointer to raw data (00002F04 to 00002F1E)
+    2F1F file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -1426,7 +1426,7 @@ SECTION HEADER #35
        0 physical address
        0 virtual address
       2E size of raw data
-    2F26 file pointer to raw data (00002F26 to 00002F53)
+    2F29 file pointer to raw data (00002F29 to 00002F56)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -1447,8 +1447,8 @@ SECTION HEADER #36
        0 physical address
        0 virtual address
       40 size of raw data
-    2F54 file pointer to raw data (00002F54 to 00002F93)
-    2F94 file pointer to relocation table
+    2F57 file pointer to raw data (00002F57 to 00002F96)
+    2F97 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -1476,7 +1476,7 @@ SECTION HEADER #37
        0 physical address
        0 virtual address
        6 size of raw data
-    2FA8 file pointer to raw data (00002FA8 to 00002FAD)
+    2FAB file pointer to raw data (00002FAB to 00002FB0)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -1495,7 +1495,7 @@ SECTION HEADER #38
        0 physical address
        0 virtual address
        6 size of raw data
-    2FAE file pointer to raw data (00002FAE to 00002FB3)
+    2FB1 file pointer to raw data (00002FB1 to 00002FB6)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -1514,7 +1514,7 @@ SECTION HEADER #39
        0 physical address
        0 virtual address
        B size of raw data
-    2FB4 file pointer to raw data (00002FB4 to 00002FBE)
+    2FB7 file pointer to raw data (00002FB7 to 00002FC1)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -1533,8 +1533,8 @@ SECTION HEADER #3A
        0 physical address
        0 virtual address
       24 size of raw data
-    2FBF file pointer to raw data (00002FBF to 00002FE2)
-    2FE3 file pointer to relocation table
+    2FC2 file pointer to raw data (00002FC2 to 00002FE5)
+    2FE6 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -1562,8 +1562,8 @@ SECTION HEADER #3B
        0 physical address
        0 virtual address
       C5 size of raw data
-    3001 file pointer to raw data (00003001 to 000030C5)
-    30C6 file pointer to relocation table
+    3004 file pointer to raw data (00003004 to 000030C8)
+    30C9 file pointer to relocation table
        0 file pointer to line numbers
        7 number of relocations
        0 number of line numbers
@@ -1605,8 +1605,8 @@ SECTION HEADER #3C
        0 physical address
        0 virtual address
       15 size of raw data
-    310C file pointer to raw data (0000310C to 00003120)
-    3121 file pointer to relocation table
+    310F file pointer to raw data (0000310F to 00003123)
+    3124 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -1632,8 +1632,8 @@ SECTION HEADER #3D
        0 physical address
        0 virtual address
       25 size of raw data
-    3135 file pointer to raw data (00003135 to 00003159)
-    315A file pointer to relocation table
+    3138 file pointer to raw data (00003138 to 0000315C)
+    315D file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -1660,7 +1660,7 @@ SECTION HEADER #3E
        0 physical address
        0 virtual address
       1A size of raw data
-    316E file pointer to raw data (0000316E to 00003187)
+    3171 file pointer to raw data (00003171 to 0000318A)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -1680,8 +1680,8 @@ SECTION HEADER #3F
        0 physical address
        0 virtual address
       1B size of raw data
-    3188 file pointer to raw data (00003188 to 000031A2)
-    31A3 file pointer to relocation table
+    318B file pointer to raw data (0000318B to 000031A5)
+    31A6 file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -1706,8 +1706,8 @@ SECTION HEADER #40
        0 physical address
        0 virtual address
       31 size of raw data
-    31AD file pointer to raw data (000031AD to 000031DD)
-    31DE file pointer to relocation table
+    31B0 file pointer to raw data (000031B0 to 000031E0)
+    31E1 file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -1734,8 +1734,8 @@ SECTION HEADER #41
        0 physical address
        0 virtual address
       27 size of raw data
-    31E8 file pointer to raw data (000031E8 to 0000320E)
-    320F file pointer to relocation table
+    31EB file pointer to raw data (000031EB to 00003211)
+    3212 file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -1761,8 +1761,8 @@ SECTION HEADER #42
        0 physical address
        0 virtual address
       18 size of raw data
-    3219 file pointer to raw data (00003219 to 00003230)
-    3231 file pointer to relocation table
+    321C file pointer to raw data (0000321C to 00003233)
+    3234 file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -1787,7 +1787,7 @@ SECTION HEADER #43
        0 physical address
        0 virtual address
        B size of raw data
-    323B file pointer to raw data (0000323B to 00003245)
+    323E file pointer to raw data (0000323E to 00003248)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -1806,7 +1806,7 @@ SECTION HEADER #44
        0 physical address
        0 virtual address
        D size of raw data
-    3246 file pointer to raw data (00003246 to 00003252)
+    3249 file pointer to raw data (00003249 to 00003255)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -1825,8 +1825,8 @@ SECTION HEADER #45
        0 physical address
        0 virtual address
       6E size of raw data
-    3253 file pointer to raw data (00003253 to 000032C0)
-    32C1 file pointer to relocation table
+    3256 file pointer to raw data (00003256 to 000032C3)
+    32C4 file pointer to relocation table
        0 file pointer to line numbers
        5 number of relocations
        0 number of line numbers
@@ -1860,7 +1860,7 @@ SECTION HEADER #46
        0 physical address
        0 virtual address
        F size of raw data
-    32F3 file pointer to raw data (000032F3 to 00003301)
+    32F6 file pointer to raw data (000032F6 to 00003304)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -1879,8 +1879,8 @@ SECTION HEADER #47
        0 physical address
        0 virtual address
       38 size of raw data
-    3302 file pointer to raw data (00003302 to 00003339)
-    333A file pointer to relocation table
+    3305 file pointer to raw data (00003305 to 0000333C)
+    333D file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -1907,7 +1907,7 @@ SECTION HEADER #48
        0 physical address
        0 virtual address
        8 size of raw data
-    3344 file pointer to raw data (00003344 to 0000334B)
+    3347 file pointer to raw data (00003347 to 0000334E)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -1926,8 +1926,8 @@ SECTION HEADER #49
        0 physical address
        0 virtual address
        C size of raw data
-    334C file pointer to raw data (0000334C to 00003357)
-    3358 file pointer to relocation table
+    334F file pointer to raw data (0000334F to 0000335A)
+    335B file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -1959,7 +1959,7 @@ SECTION HEADER #4A
        0 physical address
        0 virtual address
        8 size of raw data
-    3376 file pointer to raw data (00003376 to 0000337D)
+    3379 file pointer to raw data (00003379 to 00003380)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -1978,8 +1978,8 @@ SECTION HEADER #4B
        0 physical address
        0 virtual address
        C size of raw data
-    337E file pointer to raw data (0000337E to 00003389)
-    338A file pointer to relocation table
+    3381 file pointer to raw data (00003381 to 0000338C)
+    338D file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2011,7 +2011,7 @@ SECTION HEADER #4C
        0 physical address
        0 virtual address
        8 size of raw data
-    33A8 file pointer to raw data (000033A8 to 000033AF)
+    33AB file pointer to raw data (000033AB to 000033B2)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2030,8 +2030,8 @@ SECTION HEADER #4D
        0 physical address
        0 virtual address
        C size of raw data
-    33B0 file pointer to raw data (000033B0 to 000033BB)
-    33BC file pointer to relocation table
+    33B3 file pointer to raw data (000033B3 to 000033BE)
+    33BF file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2063,7 +2063,7 @@ SECTION HEADER #4E
        0 physical address
        0 virtual address
        8 size of raw data
-    33DA file pointer to raw data (000033DA to 000033E1)
+    33DD file pointer to raw data (000033DD to 000033E4)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2082,8 +2082,8 @@ SECTION HEADER #4F
        0 physical address
        0 virtual address
        C size of raw data
-    33E2 file pointer to raw data (000033E2 to 000033ED)
-    33EE file pointer to relocation table
+    33E5 file pointer to raw data (000033E5 to 000033F0)
+    33F1 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2115,7 +2115,7 @@ SECTION HEADER #50
        0 physical address
        0 virtual address
        8 size of raw data
-    340C file pointer to raw data (0000340C to 00003413)
+    340F file pointer to raw data (0000340F to 00003416)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2134,8 +2134,8 @@ SECTION HEADER #51
        0 physical address
        0 virtual address
        C size of raw data
-    3414 file pointer to raw data (00003414 to 0000341F)
-    3420 file pointer to relocation table
+    3417 file pointer to raw data (00003417 to 00003422)
+    3423 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2167,7 +2167,7 @@ SECTION HEADER #52
        0 physical address
        0 virtual address
        8 size of raw data
-    343E file pointer to raw data (0000343E to 00003445)
+    3441 file pointer to raw data (00003441 to 00003448)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2186,8 +2186,8 @@ SECTION HEADER #53
        0 physical address
        0 virtual address
        C size of raw data
-    3446 file pointer to raw data (00003446 to 00003451)
-    3452 file pointer to relocation table
+    3449 file pointer to raw data (00003449 to 00003454)
+    3455 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2219,7 +2219,7 @@ SECTION HEADER #54
        0 physical address
        0 virtual address
        8 size of raw data
-    3470 file pointer to raw data (00003470 to 00003477)
+    3473 file pointer to raw data (00003473 to 0000347A)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2238,8 +2238,8 @@ SECTION HEADER #55
        0 physical address
        0 virtual address
        C size of raw data
-    3478 file pointer to raw data (00003478 to 00003483)
-    3484 file pointer to relocation table
+    347B file pointer to raw data (0000347B to 00003486)
+    3487 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2271,7 +2271,7 @@ SECTION HEADER #56
        0 physical address
        0 virtual address
        8 size of raw data
-    34A2 file pointer to raw data (000034A2 to 000034A9)
+    34A5 file pointer to raw data (000034A5 to 000034AC)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2290,8 +2290,8 @@ SECTION HEADER #57
        0 physical address
        0 virtual address
        C size of raw data
-    34AA file pointer to raw data (000034AA to 000034B5)
-    34B6 file pointer to relocation table
+    34AD file pointer to raw data (000034AD to 000034B8)
+    34B9 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2323,7 +2323,7 @@ SECTION HEADER #58
        0 physical address
        0 virtual address
        8 size of raw data
-    34D4 file pointer to raw data (000034D4 to 000034DB)
+    34D7 file pointer to raw data (000034D7 to 000034DE)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2342,8 +2342,8 @@ SECTION HEADER #59
        0 physical address
        0 virtual address
        C size of raw data
-    34DC file pointer to raw data (000034DC to 000034E7)
-    34E8 file pointer to relocation table
+    34DF file pointer to raw data (000034DF to 000034EA)
+    34EB file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2375,7 +2375,7 @@ SECTION HEADER #5A
        0 physical address
        0 virtual address
        8 size of raw data
-    3506 file pointer to raw data (00003506 to 0000350D)
+    3509 file pointer to raw data (00003509 to 00003510)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2394,8 +2394,8 @@ SECTION HEADER #5B
        0 physical address
        0 virtual address
        C size of raw data
-    350E file pointer to raw data (0000350E to 00003519)
-    351A file pointer to relocation table
+    3511 file pointer to raw data (00003511 to 0000351C)
+    351D file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2427,7 +2427,7 @@ SECTION HEADER #5C
        0 physical address
        0 virtual address
        8 size of raw data
-    3538 file pointer to raw data (00003538 to 0000353F)
+    353B file pointer to raw data (0000353B to 00003542)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2446,8 +2446,8 @@ SECTION HEADER #5D
        0 physical address
        0 virtual address
        C size of raw data
-    3540 file pointer to raw data (00003540 to 0000354B)
-    354C file pointer to relocation table
+    3543 file pointer to raw data (00003543 to 0000354E)
+    354F file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2479,7 +2479,7 @@ SECTION HEADER #5E
        0 physical address
        0 virtual address
        8 size of raw data
-    356A file pointer to raw data (0000356A to 00003571)
+    356D file pointer to raw data (0000356D to 00003574)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2498,8 +2498,8 @@ SECTION HEADER #5F
        0 physical address
        0 virtual address
        C size of raw data
-    3572 file pointer to raw data (00003572 to 0000357D)
-    357E file pointer to relocation table
+    3575 file pointer to raw data (00003575 to 00003580)
+    3581 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2531,7 +2531,7 @@ SECTION HEADER #60
        0 physical address
        0 virtual address
        8 size of raw data
-    359C file pointer to raw data (0000359C to 000035A3)
+    359F file pointer to raw data (0000359F to 000035A6)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2550,8 +2550,8 @@ SECTION HEADER #61
        0 physical address
        0 virtual address
        C size of raw data
-    35A4 file pointer to raw data (000035A4 to 000035AF)
-    35B0 file pointer to relocation table
+    35A7 file pointer to raw data (000035A7 to 000035B2)
+    35B3 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2583,7 +2583,7 @@ SECTION HEADER #62
        0 physical address
        0 virtual address
        8 size of raw data
-    35CE file pointer to raw data (000035CE to 000035D5)
+    35D1 file pointer to raw data (000035D1 to 000035D8)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2602,8 +2602,8 @@ SECTION HEADER #63
        0 physical address
        0 virtual address
        C size of raw data
-    35D6 file pointer to raw data (000035D6 to 000035E1)
-    35E2 file pointer to relocation table
+    35D9 file pointer to raw data (000035D9 to 000035E4)
+    35E5 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2635,7 +2635,7 @@ SECTION HEADER #64
        0 physical address
        0 virtual address
        8 size of raw data
-    3600 file pointer to raw data (00003600 to 00003607)
+    3603 file pointer to raw data (00003603 to 0000360A)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2654,8 +2654,8 @@ SECTION HEADER #65
        0 physical address
        0 virtual address
        C size of raw data
-    3608 file pointer to raw data (00003608 to 00003613)
-    3614 file pointer to relocation table
+    360B file pointer to raw data (0000360B to 00003616)
+    3617 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2687,7 +2687,7 @@ SECTION HEADER #66
        0 physical address
        0 virtual address
        8 size of raw data
-    3632 file pointer to raw data (00003632 to 00003639)
+    3635 file pointer to raw data (00003635 to 0000363C)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2706,8 +2706,8 @@ SECTION HEADER #67
        0 physical address
        0 virtual address
        C size of raw data
-    363A file pointer to raw data (0000363A to 00003645)
-    3646 file pointer to relocation table
+    363D file pointer to raw data (0000363D to 00003648)
+    3649 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2718,20 +2718,20 @@ SECTION HEADER #67
          Read Only
 
 RAW DATA #67
-  00000000: 00 00 00 00 99 00 00 00 00 00 00 00              ............
+  00000000: 00 00 00 00 9A 00 00 00 00 00 00 00              ............
 
 Function Table #103 (1)
 
            Begin     End       Info
 
-  00000000 00000000  00000099  00000000
+  00000000 00000000  0000009A  00000000
 
 RELOCATIONS #67
                                                 Symbol    Symbol
  Offset    Type              Applied To         Index     Name
  --------  ----------------  -----------------  --------  ------
  00000000  ADDR32NB                   00000000        FB  $LN11
- 00000004  ADDR32NB                   00000099        FB  $LN11
+ 00000004  ADDR32NB                   0000009A        FB  $LN11
  00000008  ADDR32NB                   00000000       176  $unwind$?_Adjust_manually_vector_aligned@std@@YAXAEAPEAXAEA_K@Z
 
 SECTION HEADER #68
@@ -2739,7 +2739,7 @@ SECTION HEADER #68
        0 physical address
        0 virtual address
        8 size of raw data
-    3664 file pointer to raw data (00003664 to 0000366B)
+    3667 file pointer to raw data (00003667 to 0000366E)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2758,8 +2758,8 @@ SECTION HEADER #69
        0 physical address
        0 virtual address
        C size of raw data
-    366C file pointer to raw data (0000366C to 00003677)
-    3678 file pointer to relocation table
+    366F file pointer to raw data (0000366F to 0000367A)
+    367B file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2791,7 +2791,7 @@ SECTION HEADER #6A
        0 physical address
        0 virtual address
        8 size of raw data
-    3696 file pointer to raw data (00003696 to 0000369D)
+    3699 file pointer to raw data (00003699 to 000036A0)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2810,8 +2810,8 @@ SECTION HEADER #6B
        0 physical address
        0 virtual address
        C size of raw data
-    369E file pointer to raw data (0000369E to 000036A9)
-    36AA file pointer to relocation table
+    36A1 file pointer to raw data (000036A1 to 000036AC)
+    36AD file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2843,7 +2843,7 @@ SECTION HEADER #6C
        0 physical address
        0 virtual address
        8 size of raw data
-    36C8 file pointer to raw data (000036C8 to 000036CF)
+    36CB file pointer to raw data (000036CB to 000036D2)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2862,8 +2862,8 @@ SECTION HEADER #6D
        0 physical address
        0 virtual address
        C size of raw data
-    36D0 file pointer to raw data (000036D0 to 000036DB)
-    36DC file pointer to relocation table
+    36D3 file pointer to raw data (000036D3 to 000036DE)
+    36DF file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2895,7 +2895,7 @@ SECTION HEADER #6E
        0 physical address
        0 virtual address
        8 size of raw data
-    36FA file pointer to raw data (000036FA to 00003701)
+    36FD file pointer to raw data (000036FD to 00003704)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2914,8 +2914,8 @@ SECTION HEADER #6F
        0 physical address
        0 virtual address
        C size of raw data
-    3702 file pointer to raw data (00003702 to 0000370D)
-    370E file pointer to relocation table
+    3705 file pointer to raw data (00003705 to 00003710)
+    3711 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2947,7 +2947,7 @@ SECTION HEADER #70
        0 physical address
        0 virtual address
        8 size of raw data
-    372C file pointer to raw data (0000372C to 00003733)
+    372F file pointer to raw data (0000372F to 00003736)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -2966,8 +2966,8 @@ SECTION HEADER #71
        0 physical address
        0 virtual address
        C size of raw data
-    3734 file pointer to raw data (00003734 to 0000373F)
-    3740 file pointer to relocation table
+    3737 file pointer to raw data (00003737 to 00003742)
+    3743 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -2999,7 +2999,7 @@ SECTION HEADER #72
        0 physical address
        0 virtual address
        8 size of raw data
-    375E file pointer to raw data (0000375E to 00003765)
+    3761 file pointer to raw data (00003761 to 00003768)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3018,8 +3018,8 @@ SECTION HEADER #73
        0 physical address
        0 virtual address
        C size of raw data
-    3766 file pointer to raw data (00003766 to 00003771)
-    3772 file pointer to relocation table
+    3769 file pointer to raw data (00003769 to 00003774)
+    3775 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3051,7 +3051,7 @@ SECTION HEADER #74
        0 physical address
        0 virtual address
        8 size of raw data
-    3790 file pointer to raw data (00003790 to 00003797)
+    3793 file pointer to raw data (00003793 to 0000379A)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3070,8 +3070,8 @@ SECTION HEADER #75
        0 physical address
        0 virtual address
        C size of raw data
-    3798 file pointer to raw data (00003798 to 000037A3)
-    37A4 file pointer to relocation table
+    379B file pointer to raw data (0000379B to 000037A6)
+    37A7 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3103,7 +3103,7 @@ SECTION HEADER #76
        0 physical address
        0 virtual address
        8 size of raw data
-    37C2 file pointer to raw data (000037C2 to 000037C9)
+    37C5 file pointer to raw data (000037C5 to 000037CC)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3122,8 +3122,8 @@ SECTION HEADER #77
        0 physical address
        0 virtual address
        C size of raw data
-    37CA file pointer to raw data (000037CA to 000037D5)
-    37D6 file pointer to relocation table
+    37CD file pointer to raw data (000037CD to 000037D8)
+    37D9 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3155,7 +3155,7 @@ SECTION HEADER #78
        0 physical address
        0 virtual address
        8 size of raw data
-    37F4 file pointer to raw data (000037F4 to 000037FB)
+    37F7 file pointer to raw data (000037F7 to 000037FE)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3174,8 +3174,8 @@ SECTION HEADER #79
        0 physical address
        0 virtual address
        C size of raw data
-    37FC file pointer to raw data (000037FC to 00003807)
-    3808 file pointer to relocation table
+    37FF file pointer to raw data (000037FF to 0000380A)
+    380B file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3207,7 +3207,7 @@ SECTION HEADER #7A
        0 physical address
        0 virtual address
        8 size of raw data
-    3826 file pointer to raw data (00003826 to 0000382D)
+    3829 file pointer to raw data (00003829 to 00003830)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3226,8 +3226,8 @@ SECTION HEADER #7B
        0 physical address
        0 virtual address
        C size of raw data
-    382E file pointer to raw data (0000382E to 00003839)
-    383A file pointer to relocation table
+    3831 file pointer to raw data (00003831 to 0000383C)
+    383D file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3259,8 +3259,8 @@ SECTION HEADER #7C
        0 physical address
        0 virtual address
       10 size of raw data
-    3858 file pointer to raw data (00003858 to 00003867)
-    3868 file pointer to relocation table
+    385B file pointer to raw data (0000385B to 0000386A)
+    386B file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -3285,8 +3285,8 @@ SECTION HEADER #7D
        0 physical address
        0 virtual address
        C size of raw data
-    387C file pointer to raw data (0000387C to 00003887)
-    3888 file pointer to relocation table
+    387F file pointer to raw data (0000387F to 0000388A)
+    388B file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3318,8 +3318,8 @@ SECTION HEADER #7E
        0 physical address
        0 virtual address
        9 size of raw data
-    38A6 file pointer to raw data (000038A6 to 000038AE)
-    38AF file pointer to relocation table
+    38A9 file pointer to raw data (000038A9 to 000038B1)
+    38B2 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -3344,8 +3344,8 @@ SECTION HEADER #7F
        0 physical address
        0 virtual address
        6 size of raw data
-    38C3 file pointer to raw data (000038C3 to 000038C8)
-    38C9 file pointer to relocation table
+    38C6 file pointer to raw data (000038C6 to 000038CB)
+    38CC file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -3369,7 +3369,7 @@ SECTION HEADER #80
        0 physical address
        0 virtual address
        7 size of raw data
-    38D3 file pointer to raw data (000038D3 to 000038D9)
+    38D6 file pointer to raw data (000038D6 to 000038DC)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3388,7 +3388,7 @@ SECTION HEADER #81
        0 physical address
        0 virtual address
        8 size of raw data
-    38DA file pointer to raw data (000038DA to 000038E1)
+    38DD file pointer to raw data (000038DD to 000038E4)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3407,8 +3407,8 @@ SECTION HEADER #82
        0 physical address
        0 virtual address
        C size of raw data
-    38E2 file pointer to raw data (000038E2 to 000038ED)
-    38EE file pointer to relocation table
+    38E5 file pointer to raw data (000038E5 to 000038F0)
+    38F1 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3440,7 +3440,7 @@ SECTION HEADER #83
        0 physical address
        0 virtual address
        8 size of raw data
-    390C file pointer to raw data (0000390C to 00003913)
+    390F file pointer to raw data (0000390F to 00003916)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3459,8 +3459,8 @@ SECTION HEADER #84
        0 physical address
        0 virtual address
        C size of raw data
-    3914 file pointer to raw data (00003914 to 0000391F)
-    3920 file pointer to relocation table
+    3917 file pointer to raw data (00003917 to 00003922)
+    3923 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3492,7 +3492,7 @@ SECTION HEADER #85
        0 physical address
        0 virtual address
        8 size of raw data
-    393E file pointer to raw data (0000393E to 00003945)
+    3941 file pointer to raw data (00003941 to 00003948)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3511,8 +3511,8 @@ SECTION HEADER #86
        0 physical address
        0 virtual address
        C size of raw data
-    3946 file pointer to raw data (00003946 to 00003951)
-    3952 file pointer to relocation table
+    3949 file pointer to raw data (00003949 to 00003954)
+    3955 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3544,7 +3544,7 @@ SECTION HEADER #87
        0 physical address
        0 virtual address
        8 size of raw data
-    3970 file pointer to raw data (00003970 to 00003977)
+    3973 file pointer to raw data (00003973 to 0000397A)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3563,8 +3563,8 @@ SECTION HEADER #88
        0 physical address
        0 virtual address
        C size of raw data
-    3978 file pointer to raw data (00003978 to 00003983)
-    3984 file pointer to relocation table
+    397B file pointer to raw data (0000397B to 00003986)
+    3987 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3596,7 +3596,7 @@ SECTION HEADER #89
        0 physical address
        0 virtual address
        8 size of raw data
-    39A2 file pointer to raw data (000039A2 to 000039A9)
+    39A5 file pointer to raw data (000039A5 to 000039AC)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3615,8 +3615,8 @@ SECTION HEADER #8A
        0 physical address
        0 virtual address
        C size of raw data
-    39AA file pointer to raw data (000039AA to 000039B5)
-    39B6 file pointer to relocation table
+    39AD file pointer to raw data (000039AD to 000039B8)
+    39B9 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3648,7 +3648,7 @@ SECTION HEADER #8B
        0 physical address
        0 virtual address
        8 size of raw data
-    39D4 file pointer to raw data (000039D4 to 000039DB)
+    39D7 file pointer to raw data (000039D7 to 000039DE)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3667,8 +3667,8 @@ SECTION HEADER #8C
        0 physical address
        0 virtual address
        C size of raw data
-    39DC file pointer to raw data (000039DC to 000039E7)
-    39E8 file pointer to relocation table
+    39DF file pointer to raw data (000039DF to 000039EA)
+    39EB file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3700,8 +3700,8 @@ SECTION HEADER #8D
        0 physical address
        0 virtual address
       10 size of raw data
-    3A06 file pointer to raw data (00003A06 to 00003A15)
-    3A16 file pointer to relocation table
+    3A09 file pointer to raw data (00003A09 to 00003A18)
+    3A19 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -3726,8 +3726,8 @@ SECTION HEADER #8E
        0 physical address
        0 virtual address
        C size of raw data
-    3A2A file pointer to raw data (00003A2A to 00003A35)
-    3A36 file pointer to relocation table
+    3A2D file pointer to raw data (00003A2D to 00003A38)
+    3A39 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3759,8 +3759,8 @@ SECTION HEADER #8F
        0 physical address
        0 virtual address
        5 size of raw data
-    3A54 file pointer to raw data (00003A54 to 00003A58)
-    3A59 file pointer to relocation table
+    3A57 file pointer to raw data (00003A57 to 00003A5B)
+    3A5C file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -3784,7 +3784,7 @@ SECTION HEADER #90
        0 physical address
        0 virtual address
        3 size of raw data
-    3A63 file pointer to raw data (00003A63 to 00003A65)
+    3A66 file pointer to raw data (00003A66 to 00003A68)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3803,7 +3803,7 @@ SECTION HEADER #91
        0 physical address
        0 virtual address
        8 size of raw data
-    3A66 file pointer to raw data (00003A66 to 00003A6D)
+    3A69 file pointer to raw data (00003A69 to 00003A70)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3822,8 +3822,8 @@ SECTION HEADER #92
        0 physical address
        0 virtual address
        C size of raw data
-    3A6E file pointer to raw data (00003A6E to 00003A79)
-    3A7A file pointer to relocation table
+    3A71 file pointer to raw data (00003A71 to 00003A7C)
+    3A7D file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3855,7 +3855,7 @@ SECTION HEADER #93
        0 physical address
        0 virtual address
        8 size of raw data
-    3A98 file pointer to raw data (00003A98 to 00003A9F)
+    3A9B file pointer to raw data (00003A9B to 00003AA2)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3874,8 +3874,8 @@ SECTION HEADER #94
        0 physical address
        0 virtual address
        C size of raw data
-    3AA0 file pointer to raw data (00003AA0 to 00003AAB)
-    3AAC file pointer to relocation table
+    3AA3 file pointer to raw data (00003AA3 to 00003AAE)
+    3AAF file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3907,7 +3907,7 @@ SECTION HEADER #95
        0 physical address
        0 virtual address
        8 size of raw data
-    3ACA file pointer to raw data (00003ACA to 00003AD1)
+    3ACD file pointer to raw data (00003ACD to 00003AD4)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -3926,8 +3926,8 @@ SECTION HEADER #96
        0 physical address
        0 virtual address
        C size of raw data
-    3AD2 file pointer to raw data (00003AD2 to 00003ADD)
-    3ADE file pointer to relocation table
+    3AD5 file pointer to raw data (00003AD5 to 00003AE0)
+    3AE1 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -3959,8 +3959,8 @@ SECTION HEADER #97
        0 physical address
        0 virtual address
       34 size of raw data
-    3AFC file pointer to raw data (00003AFC to 00003B2F)
-    3B30 file pointer to relocation table
+    3AFF file pointer to raw data (00003AFF to 00003B32)
+    3B33 file pointer to relocation table
        0 file pointer to line numbers
        5 number of relocations
        0 number of line numbers
@@ -3990,8 +3990,8 @@ SECTION HEADER #98
        0 physical address
        0 virtual address
        C size of raw data
-    3B62 file pointer to raw data (00003B62 to 00003B6D)
-    3B6E file pointer to relocation table
+    3B65 file pointer to raw data (00003B65 to 00003B70)
+    3B71 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4022,8 +4022,8 @@ SECTION HEADER #99
        0 physical address
        0 virtual address
        C size of raw data
-    3B8C file pointer to raw data (00003B8C to 00003B97)
-    3B98 file pointer to relocation table
+    3B8F file pointer to raw data (00003B8F to 00003B9A)
+    3B9B file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4054,7 +4054,7 @@ SECTION HEADER #9A
        0 physical address
        0 virtual address
       10 size of raw data
-    3BB6 file pointer to raw data (00003BB6 to 00003BC5)
+    3BB9 file pointer to raw data (00003BB9 to 00003BC8)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -4072,7 +4072,7 @@ SECTION HEADER #9B
        0 physical address
        0 virtual address
        8 size of raw data
-    3BC6 file pointer to raw data (00003BC6 to 00003BCD)
+    3BC9 file pointer to raw data (00003BC9 to 00003BD0)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -4091,8 +4091,8 @@ SECTION HEADER #9C
        0 physical address
        0 virtual address
        C size of raw data
-    3BCE file pointer to raw data (00003BCE to 00003BD9)
-    3BDA file pointer to relocation table
+    3BD1 file pointer to raw data (00003BD1 to 00003BDC)
+    3BDD file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4124,7 +4124,7 @@ SECTION HEADER #9D
        0 physical address
        0 virtual address
        8 size of raw data
-    3BF8 file pointer to raw data (00003BF8 to 00003BFF)
+    3BFB file pointer to raw data (00003BFB to 00003C02)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -4143,8 +4143,8 @@ SECTION HEADER #9E
        0 physical address
        0 virtual address
        C size of raw data
-    3C00 file pointer to raw data (00003C00 to 00003C0B)
-    3C0C file pointer to relocation table
+    3C03 file pointer to raw data (00003C03 to 00003C0E)
+    3C0F file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4176,7 +4176,7 @@ SECTION HEADER #9F
        0 physical address
        0 virtual address
        8 size of raw data
-    3C2A file pointer to raw data (00003C2A to 00003C31)
+    3C2D file pointer to raw data (00003C2D to 00003C34)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -4195,8 +4195,8 @@ SECTION HEADER #A0
        0 physical address
        0 virtual address
        C size of raw data
-    3C32 file pointer to raw data (00003C32 to 00003C3D)
-    3C3E file pointer to relocation table
+    3C35 file pointer to raw data (00003C35 to 00003C40)
+    3C41 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4228,8 +4228,8 @@ SECTION HEADER #A1
        0 physical address
        0 virtual address
       10 size of raw data
-    3C5C file pointer to raw data (00003C5C to 00003C6B)
-    3C6C file pointer to relocation table
+    3C5F file pointer to raw data (00003C5F to 00003C6E)
+    3C6F file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -4254,8 +4254,8 @@ SECTION HEADER #A2
        0 physical address
        0 virtual address
        C size of raw data
-    3C80 file pointer to raw data (00003C80 to 00003C8B)
-    3C8C file pointer to relocation table
+    3C83 file pointer to raw data (00003C83 to 00003C8E)
+    3C8F file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4287,8 +4287,8 @@ SECTION HEADER #A3
        0 physical address
        0 virtual address
        5 size of raw data
-    3CAA file pointer to raw data (00003CAA to 00003CAE)
-    3CAF file pointer to relocation table
+    3CAD file pointer to raw data (00003CAD to 00003CB1)
+    3CB2 file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -4312,7 +4312,7 @@ SECTION HEADER #A4
        0 physical address
        0 virtual address
        3 size of raw data
-    3CB9 file pointer to raw data (00003CB9 to 00003CBB)
+    3CBC file pointer to raw data (00003CBC to 00003CBE)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -4331,7 +4331,7 @@ SECTION HEADER #A5
        0 physical address
        0 virtual address
        8 size of raw data
-    3CBC file pointer to raw data (00003CBC to 00003CC3)
+    3CBF file pointer to raw data (00003CBF to 00003CC6)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -4350,8 +4350,8 @@ SECTION HEADER #A6
        0 physical address
        0 virtual address
        C size of raw data
-    3CC4 file pointer to raw data (00003CC4 to 00003CCF)
-    3CD0 file pointer to relocation table
+    3CC7 file pointer to raw data (00003CC7 to 00003CD2)
+    3CD3 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4383,7 +4383,7 @@ SECTION HEADER #A7
        0 physical address
        0 virtual address
        8 size of raw data
-    3CEE file pointer to raw data (00003CEE to 00003CF5)
+    3CF1 file pointer to raw data (00003CF1 to 00003CF8)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -4402,8 +4402,8 @@ SECTION HEADER #A8
        0 physical address
        0 virtual address
        C size of raw data
-    3CF6 file pointer to raw data (00003CF6 to 00003D01)
-    3D02 file pointer to relocation table
+    3CF9 file pointer to raw data (00003CF9 to 00003D04)
+    3D05 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4435,7 +4435,7 @@ SECTION HEADER #A9
        0 physical address
        0 virtual address
        8 size of raw data
-    3D20 file pointer to raw data (00003D20 to 00003D27)
+    3D23 file pointer to raw data (00003D23 to 00003D2A)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -4454,8 +4454,8 @@ SECTION HEADER #AA
        0 physical address
        0 virtual address
        C size of raw data
-    3D28 file pointer to raw data (00003D28 to 00003D33)
-    3D34 file pointer to relocation table
+    3D2B file pointer to raw data (00003D2B to 00003D36)
+    3D37 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4487,7 +4487,7 @@ SECTION HEADER #AB
        0 physical address
        0 virtual address
        8 size of raw data
-    3D52 file pointer to raw data (00003D52 to 00003D59)
+    3D55 file pointer to raw data (00003D55 to 00003D5C)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -4506,8 +4506,8 @@ SECTION HEADER #AC
        0 physical address
        0 virtual address
        C size of raw data
-    3D5A file pointer to raw data (00003D5A to 00003D65)
-    3D66 file pointer to relocation table
+    3D5D file pointer to raw data (00003D5D to 00003D68)
+    3D69 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4539,7 +4539,7 @@ SECTION HEADER #AD
        0 physical address
        0 virtual address
        8 size of raw data
-    3D84 file pointer to raw data (00003D84 to 00003D8B)
+    3D87 file pointer to raw data (00003D87 to 00003D8E)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -4558,8 +4558,8 @@ SECTION HEADER #AE
        0 physical address
        0 virtual address
        C size of raw data
-    3D8C file pointer to raw data (00003D8C to 00003D97)
-    3D98 file pointer to relocation table
+    3D8F file pointer to raw data (00003D8F to 00003D9A)
+    3D9B file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4570,20 +4570,20 @@ SECTION HEADER #AE
          Read Only
 
 RAW DATA #AE
-  00000000: 00 00 00 00 85 00 00 00 00 00 00 00              ............
+  00000000: 00 00 00 00 86 00 00 00 00 00 00 00              ............
 
 Function Table #174 (1)
 
            Begin     End       Info
 
-  00000000 00000000  00000085  00000000
+  00000000 00000000  00000086  00000000
 
 RELOCATIONS #AE
                                                 Symbol    Symbol
  Offset    Type              Applied To         Index     Name
  --------  ----------------  -----------------  --------  ------
  00000000  ADDR32NB                   00000000       119  $LN12
- 00000004  ADDR32NB                   00000085       119  $LN12
+ 00000004  ADDR32NB                   00000086       119  $LN12
  00000008  ADDR32NB                   00000000       24F  $unwind$??$_Allocate_manually_vector_aligned@U_Default_allocate_traits@std@@@std@@YAPEAX_K@Z
 
 SECTION HEADER #AF
@@ -4591,8 +4591,8 @@ SECTION HEADER #AF
        0 physical address
        0 virtual address
       18 size of raw data
-    3DB6 file pointer to raw data (00003DB6 to 00003DCD)
-    3DCE file pointer to relocation table
+    3DB9 file pointer to raw data (00003DB9 to 00003DD0)
+    3DD1 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4619,7 +4619,7 @@ SECTION HEADER #B0
        0 physical address
        0 virtual address
       12 size of raw data
-    3DEC file pointer to raw data (00003DEC to 00003DFD)
+    3DEF file pointer to raw data (00003DEF to 00003E00)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -4639,8 +4639,8 @@ SECTION HEADER #B1
        0 physical address
        0 virtual address
       18 size of raw data
-    3DFE file pointer to raw data (00003DFE to 00003E15)
-    3E16 file pointer to relocation table
+    3E01 file pointer to raw data (00003E01 to 00003E18)
+    3E19 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4667,8 +4667,8 @@ SECTION HEADER #B2
        0 physical address
        0 virtual address
       18 size of raw data
-    3E34 file pointer to raw data (00003E34 to 00003E4B)
-    3E4C file pointer to relocation table
+    3E37 file pointer to raw data (00003E37 to 00003E4E)
+    3E4F file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4695,7 +4695,7 @@ SECTION HEADER #B3
        0 physical address
        0 virtual address
       15 size of raw data
-    3E6A file pointer to raw data (00003E6A to 00003E7E)
+    3E6D file pointer to raw data (00003E6D to 00003E81)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -4715,8 +4715,8 @@ SECTION HEADER #B4
        0 physical address
        0 virtual address
       1C size of raw data
-    3E7F file pointer to raw data (00003E7F to 00003E9A)
-    3E9B file pointer to relocation table
+    3E82 file pointer to raw data (00003E82 to 00003E9D)
+    3E9E file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -4742,8 +4742,8 @@ SECTION HEADER #B5
        0 physical address
        0 virtual address
       1C size of raw data
-    3EAF file pointer to raw data (00003EAF to 00003ECA)
-    3ECB file pointer to relocation table
+    3EB2 file pointer to raw data (00003EB2 to 00003ECD)
+    3ECE file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4770,8 +4770,8 @@ SECTION HEADER #B6
        0 physical address
        0 virtual address
       2F size of raw data
-    3EE9 file pointer to raw data (00003EE9 to 00003F17)
-    3F18 file pointer to relocation table
+    3EEC file pointer to raw data (00003EEC to 00003F1A)
+    3F1B file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -4797,8 +4797,8 @@ SECTION HEADER #B7
        0 physical address
        0 virtual address
       24 size of raw data
-    3F22 file pointer to raw data (00003F22 to 00003F45)
-    3F46 file pointer to relocation table
+    3F25 file pointer to raw data (00003F25 to 00003F48)
+    3F49 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -4825,8 +4825,8 @@ SECTION HEADER #B8
        0 physical address
        0 virtual address
       24 size of raw data
-    3F5A file pointer to raw data (00003F5A to 00003F7D)
-    3F7E file pointer to relocation table
+    3F5D file pointer to raw data (00003F5D to 00003F80)
+    3F81 file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -4852,8 +4852,8 @@ SECTION HEADER #B9
        0 physical address
        0 virtual address
       24 size of raw data
-    3F88 file pointer to raw data (00003F88 to 00003FAB)
-    3FAC file pointer to relocation table
+    3F8B file pointer to raw data (00003F8B to 00003FAE)
+    3FAF file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -4880,8 +4880,8 @@ SECTION HEADER #BA
        0 physical address
        0 virtual address
       24 size of raw data
-    3FC0 file pointer to raw data (00003FC0 to 00003FE3)
-    3FE4 file pointer to relocation table
+    3FC3 file pointer to raw data (00003FC3 to 00003FE6)
+    3FE7 file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -4907,8 +4907,8 @@ SECTION HEADER #BB
        0 physical address
        0 virtual address
       24 size of raw data
-    3FEE file pointer to raw data (00003FEE to 00004011)
-    4012 file pointer to relocation table
+    3FF1 file pointer to raw data (00003FF1 to 00004014)
+    4015 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -4935,7 +4935,7 @@ SECTION HEADER #BC
        0 physical address
        0 virtual address
       10 size of raw data
-    4026 file pointer to raw data (00004026 to 00004035)
+    4029 file pointer to raw data (00004029 to 00004038)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -4954,8 +4954,8 @@ SECTION HEADER #BD
        0 physical address
        0 virtual address
       24 size of raw data
-    4036 file pointer to raw data (00004036 to 00004059)
-    405A file pointer to relocation table
+    4039 file pointer to raw data (00004039 to 0000405C)
+    405D file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -4983,8 +4983,8 @@ SECTION HEADER #BE
        0 physical address
        0 virtual address
       14 size of raw data
-    4078 file pointer to raw data (00004078 to 0000408B)
-    408C file pointer to relocation table
+    407B file pointer to raw data (0000407B to 0000408E)
+    408F file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -5009,8 +5009,8 @@ SECTION HEADER #BF
        0 physical address
        0 virtual address
        C size of raw data
-    4096 file pointer to raw data (00004096 to 000040A1)
-    40A2 file pointer to relocation table
+    4099 file pointer to raw data (00004099 to 000040A4)
+    40A5 file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -5034,8 +5034,8 @@ SECTION HEADER #C0
        0 physical address
        0 virtual address
       24 size of raw data
-    40AC file pointer to raw data (000040AC to 000040CF)
-    40D0 file pointer to relocation table
+    40AF file pointer to raw data (000040AF to 000040D2)
+    40D3 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -5062,8 +5062,8 @@ SECTION HEADER #C1
        0 physical address
        0 virtual address
       24 size of raw data
-    40E4 file pointer to raw data (000040E4 to 00004107)
-    4108 file pointer to relocation table
+    40E7 file pointer to raw data (000040E7 to 0000410A)
+    410B file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -5091,8 +5091,8 @@ SECTION HEADER #C2
        0 physical address
        0 virtual address
       14 size of raw data
-    4126 file pointer to raw data (00004126 to 00004139)
-    413A file pointer to relocation table
+    4129 file pointer to raw data (00004129 to 0000413C)
+    413D file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -5117,8 +5117,8 @@ SECTION HEADER #C3
        0 physical address
        0 virtual address
       14 size of raw data
-    4144 file pointer to raw data (00004144 to 00004157)
-    4158 file pointer to relocation table
+    4147 file pointer to raw data (00004147 to 0000415A)
+    415B file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -5144,8 +5144,8 @@ SECTION HEADER #C4
        0 physical address
        0 virtual address
       24 size of raw data
-    416C file pointer to raw data (0000416C to 0000418F)
-    4190 file pointer to relocation table
+    416F file pointer to raw data (0000416F to 00004192)
+    4193 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -5172,8 +5172,8 @@ SECTION HEADER #C5
        0 physical address
        0 virtual address
       24 size of raw data
-    41A4 file pointer to raw data (000041A4 to 000041C7)
-    41C8 file pointer to relocation table
+    41A7 file pointer to raw data (000041A7 to 000041CA)
+    41CB file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -5201,8 +5201,8 @@ SECTION HEADER #C6
        0 physical address
        0 virtual address
       14 size of raw data
-    41E6 file pointer to raw data (000041E6 to 000041F9)
-    41FA file pointer to relocation table
+    41E9 file pointer to raw data (000041E9 to 000041FC)
+    41FD file pointer to relocation table
        0 file pointer to line numbers
        1 number of relocations
        0 number of line numbers
@@ -5227,8 +5227,8 @@ SECTION HEADER #C7
        0 physical address
        0 virtual address
       1C size of raw data
-    4204 file pointer to raw data (00004204 to 0000421F)
-    4220 file pointer to relocation table
+    4207 file pointer to raw data (00004207 to 00004222)
+    4223 file pointer to relocation table
        0 file pointer to line numbers
        3 number of relocations
        0 number of line numbers
@@ -5255,8 +5255,8 @@ SECTION HEADER #C8
        0 physical address
        0 virtual address
       24 size of raw data
-    423E file pointer to raw data (0000423E to 00004261)
-    4262 file pointer to relocation table
+    4241 file pointer to raw data (00004241 to 00004264)
+    4265 file pointer to relocation table
        0 file pointer to line numbers
        2 number of relocations
        0 number of line numbers
@@ -5283,7 +5283,7 @@ SECTION HEADER #C9
        0 physical address
        0 virtual address
      648 size of raw data
-    4276 file pointer to raw data (00004276 to 000048BD)
+    4279 file pointer to raw data (00004279 to 000048C0)
        0 file pointer to relocation table
        0 file pointer to line numbers
        0 number of relocations
@@ -5294,11 +5294,11 @@ SECTION HEADER #C9
          (no align specified)
 
 RAW DATA #C9
-  00000000: FD E5 F8 95 D8 A2 EF A9 CC 5E DD FC 36 48 27 15  ýåø.Ø¢ï©Ì^Ýü6H'.
+  00000000: C3 7A 03 E5 7C 6A 2D 86 CC 5E DD FC 36 48 27 15  Ãz.å|j-.Ì^Ýü6H'.
   00000010: 79 B4 1F 93 DA 0E 6F E7 00 00 00 00 00 00 00 00  y´..Ú.oç........
   00000020: 18 55 C9 54 C2 AD EC C7 37 5B 90 70 2E 0C 35 DD  .UÉTÂ­ìÇ7[.p..5Ý
   00000030: 9E D2 68 95 B7 CF 01 BB 42 33 64 6D E8 26 17 40  .Òh.·Ï.»B3dmè&.@
-  00000040: E9 FF B5 A4 80 1E A1 D1 DF 3B 1A C8 C4 23 93 75  éÿµ¤..¡Ñß;.ÈÄ#.u
+  00000040: 3B 5E 9C A9 A0 1E 93 5B DF 3B 1A C8 C4 23 93 75  ;^.©...[ß;.ÈÄ#.u
   00000050: B6 D4 17 BB E8 D8 DD F5 67 C5 F1 67 32 DF 4F B4  ¶Ô.»èØÝõgÅñg2ßO´
   00000060: B5 80 36 79 D7 69 61 5C 3E B6 81 66 4C FC F7 BF  µ.6y×ia\>¶.fLü÷¿
   00000070: 1D 3D 6E 50 09 79 5A 6E 67 C5 F1 67 32 DF 4F B4  .=nP.yZngÅñg2ßO´
@@ -5316,7 +5316,7 @@ RAW DATA #C9
   00000130: 8B BB 95 28 68 63 12 6C 8F A3 51 57 2E DE 33 50  .».(hc.l.£QW.Þ3P
   00000140: 84 36 6D 5E D6 78 87 4C 84 36 6D 5E D6 78 87 4C  .6m^Öx.L.6m^Öx.L
   00000150: 84 36 6D 5E D6 78 87 4C 3E B6 81 66 4C FC F7 BF  .6m^Öx.L>¶.fLü÷¿
-  00000160: 89 E9 D1 43 CC EC E4 C0 56 03 DA 2B 4E 9A 68 B8  .éÑCÌìäÀV.Ú+N.h¸
+  00000160: EC B6 0A 0C 29 A8 3D 70 56 03 DA 2B 4E 9A 68 B8  ì¶..)¨=pV.Ú+N.h¸
   00000170: B8 FF 14 4B 73 96 7F C3 37 14 30 D5 9E 91 48 A2  ¸ÿ.Ks..Ã7.0Õ..H¢
   00000180: 67 C5 F1 67 32 DF 4F B4 67 C5 F1 67 32 DF 4F B4  gÅñg2ßO´gÅñg2ßO´
   00000190: 3F EC 3C 9B AF C8 EF 0C 3F EC 3C 9B AF C8 EF 0C  ?ì<.¯Èï.?ì<.¯Èï.
@@ -5345,7 +5345,7 @@ RAW DATA #C9
   00000300: 86 92 13 8E A8 E3 72 00 D9 6C B7 A0 D0 4B F5 D2  ....¨ãr.Ùl·.ÐKõÒ
   00000310: E3 8B 0B 6D 00 46 00 74 E8 08 1B 0E 86 62 13 6D  ã..m.F.tè....b.m
   00000320: A1 5A 95 D6 C8 FC 05 E5 B5 63 C8 10 72 86 43 80  ¡Z.ÖÈü.åµcÈ.r.C.
-  00000330: 1B 04 04 C2 95 50 CB 0A 39 49 3D 3F 0E D9 1F 54  ...Â.PË.9I=?.Ù.T
+  00000330: B8 9F 86 FA B9 68 27 48 39 49 3D 3F 0E D9 1F 54  ¸..ú¹h'H9I=?.Ù.T
   00000340: A3 90 D9 A2 84 E5 72 7C E8 08 1B 0E 86 62 13 6D  £.Ù¢.år|è....b.m
   00000350: A1 5A 95 D6 C8 FC 05 E5 2D 88 67 F0 28 F3 9E F5  ¡Z.ÖÈü.å-.gð(ó.õ
   00000360: 10 91 B6 AB 40 72 F5 F5 39 49 3D 3F 0E D9 1F 54  ..¶«@rõõ9I=?.Ù.T
@@ -5380,7 +5380,7 @@ RAW DATA #C9
   00000530: B8 B9 D2 6E 52 A9 9E 26 7A DF 8E 63 13 C4 6B 63  ¸¹ÒnR©.&zß.c.Äkc
   00000540: E8 08 1B 0E 86 62 13 6D 86 92 13 8E A8 E3 72 00  è....b.m....¨ãr.
   00000550: 42 62 18 F7 85 BC AB 53 20 57 4A 76 1C E8 2E 87  Bb.÷.¼«S WJv.è..
-  00000560: 5B 4A 80 08 2D 70 C5 D7 89 5E 64 5C F2 E8 6B 55  [J..-pÅ×.^d\òèkU
+  00000560: 5B 4A 80 08 2D 70 C5 D7 A8 F5 45 FF C4 55 8F 04  [J..-pÅ×¨õEÿÄU..
   00000570: 9D 90 8E CF B6 B2 56 DE 1E 6C 9B AD 54 A1 48 EE  ...Ï¶²VÞ.l.­T¡Hî
   00000580: 9D 90 8E CF B6 B2 56 DE 9D 90 8E CF B6 B2 56 DE  ...Ï¶²VÞ...Ï¶²VÞ
   00000590: 03 60 6F 3B 7F E9 48 89 3A DD FB 14 1C D7 C9 C4  .`o;.éH.:Ýû..×ÉÄ
@@ -5401,7 +5401,7 @@ COFF SYMBOL TABLE
 001 80010190 ABS    notype       Static       | @feat.00
 002 00000002 ABS    notype       Static       | @vol.md
 003 00000000 SECT1  notype       Static       | .drectve
-    Section length  152, #relocs    0, #linenums    0, checksum D4457AF1
+    Section length  153, #relocs    0, #linenums    0, checksum D4457AF1
 005 00000000 SECT2  notype       Static       | .debug$S
     Section length   8C, #relocs    0, #linenums    0, checksum        0
 007 00000000 SECT3  notype       Static       | .rdata
@@ -5410,7 +5410,7 @@ COFF SYMBOL TABLE
 00A 00000000 SECT4  notype       Static       | .bss
     Section length    1, #relocs    0, #linenums    0, checksum        0
 00C 00000000 SECT4  notype       External     | ?ext_cla@@3VCLA@@A (class CLA ext_cla)
-00D 00000008 SECT3  notype       Static       | $SG22232
+00D 00000008 SECT3  notype       Static       | $SG22235
 00E 00000000 SECT5  notype       Static       | cgndef
     Section length   C0, #relocs    C, #linenums    0, checksum 210EEAFD
 010 00000000 SECT6  notype       Static       | cgndef$x
@@ -5420,7 +5420,7 @@ COFF SYMBOL TABLE
 014 00000000 SECT8  notype       Static       | .text$mn
     Section length   3B, #relocs    2, #linenums    0, checksum C020F003, selection    2 (pick any)
 016 00000000 SECT9  notype       Static       | .text$mn
-    Section length   85, #relocs    3, #linenums    0, checksum 8BD2B808, selection    2 (pick any)
+    Section length   86, #relocs    3, #linenums    0, checksum F131B849, selection    2 (pick any)
 018 00000000 SECTA  notype       Static       | .text$mn
     Section length  1C4, #relocs   12, #linenums    0, checksum 5B1BB07D, selection    2 (pick any)
 01A 00000000 SECTB  notype       Static       | .text$mn
@@ -5492,7 +5492,7 @@ COFF SYMBOL TABLE
 05C 00000000 SECT2C notype       Static       | .text$mn
     Section length    6, #relocs    0, #linenums    0, checksum 7BCF4A59, selection    2 (pick any)
 05E 00000000 SECT2D notype       Static       | .text$mn
-    Section length   99, #relocs    1, #linenums    0, checksum 5A955846, selection    2 (pick any)
+    Section length   9A, #relocs    1, #linenums    0, checksum A1ACBA91, selection    2 (pick any)
 060 00000000 SECT2E notype       Static       | .text$mn
     Section length   18, #relocs    1, #linenums    0, checksum CC4F429E, selection    2 (pick any)
 062 00000000 SECT2F notype       Static       | .text$mn
@@ -5547,7 +5547,7 @@ COFF SYMBOL TABLE
     Section length   38, #relocs    1, #linenums    0, checksum 7AE6C6CC, selection    2 (pick any)
 094 00000000 UNDEF  notype ()    External     | ??2@YAPEAX_K@Z (void * __cdecl operator new(unsigned __int64))
 095 00000000 UNDEF  notype ()    External     | ??3@YAXPEAX_K@Z (void __cdecl operator delete(void *,unsigned __int64))
-096 00000000 UNDEF  notype ()    External     | _invalid_parameter_noinfo_noreturn
+096 00000000 UNDEF  notype       External     | __imp__invalid_parameter_noinfo_noreturn
 097 00000000 SECT28 notype ()    External     | ??2@YAPEAX_KPEAX@Z (void * __cdecl operator new(unsigned __int64,void *))
 098 00000000 UNDEF  notype ()    External     | memcpy
 099 00000000 UNDEF  notype ()    External     | strlen
@@ -5773,7 +5773,7 @@ COFF SYMBOL TABLE
     Section length    8, #relocs    0, #linenums    0, checksum 55A710BB, selection    5 (pick associative Section 0x2D)
 176 00000000 SECT66 notype       Static       | $unwind$?_Adjust_manually_vector_aligned@std@@YAXAEAPEAXAEA_K@Z
 177 00000000 SECT67 notype       Static       | .pdata
-    Section length    C, #relocs    3, #linenums    0, checksum 30CFAFDA, selection    5 (pick associative Section 0x2D)
+    Section length    C, #relocs    3, #linenums    0, checksum BE40A839, selection    5 (pick associative Section 0x2D)
 179 00000000 SECT67 notype       Static       | $pdata$?_Adjust_manually_vector_aligned@std@@YAXAEAPEAXAEA_K@Z
 17A 00000000 SECT68 notype       Static       | .xdata
     Section length    8, #relocs    0, #linenums    0, checksum 6072F4B7, selection    5 (pick associative Section 0x40)
@@ -5990,7 +5990,7 @@ COFF SYMBOL TABLE
     Section length    8, #relocs    0, #linenums    0, checksum  DD7168C, selection    5 (pick associative Section 0x9)
 24F 00000000 SECTAD notype       Static       | $unwind$??$_Allocate_manually_vector_aligned@U_Default_allocate_traits@std@@@std@@YAPEAX_K@Z
 250 00000000 SECTAE notype       Static       | .pdata
-    Section length    C, #relocs    3, #linenums    0, checksum 1BDB8BBE, selection    5 (pick associative Section 0x9)
+    Section length    C, #relocs    3, #linenums    0, checksum 95548C5D, selection    5 (pick associative Section 0x9)
 252 00000000 SECTAE notype       Static       | $pdata$??$_Allocate_manually_vector_aligned@U_Default_allocate_traits@std@@@std@@YAPEAX_K@Z
 253 00000000 SECTAF notype       Static       | .rdata
     Section length   18, #relocs    3, #linenums    0, checksum        0, selection    6 (pick largest)
@@ -6075,7 +6075,7 @@ COFF SYMBOL TABLE
 2A3 00000000 SECTC9 notype       Static       | .chks64
     Section length  648, #relocs    0, #linenums    0, checksum        0
 
-String Table Size = 0x2ED3 bytes
+String Table Size = 0x2ED9 bytes
 
   Summary
 
@@ -6083,11 +6083,11 @@ String Table Size = 0x2ED3 bytes
          648 .chks64
           77 .data$r
           8C .debug$S
-         152 .drectve
+         153 .drectve
          240 .pdata
           8F .rdata
          150 .rdata$r
-         CB2 .text$mn
+         CB4 .text$mn
           18 .text$x
           10 .voltbl
          1E2 .xdata
