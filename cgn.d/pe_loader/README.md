@@ -28,3 +28,16 @@ n * {<Header: 60 bytes> <...>}
 
 * The `1st Linker Member` contains all symbols exported.
 * Example: `msvcrt.lib` (git ignored)
+
+## Devnote
+**pefmt_debug.cpp**
+    A executable to debug obj and lib parser
+
+**folder 'dbg_tgt'**
+    Generate some simple .obj, .lib, and .dll and the dumpbin result.
+
+**trampo_debug.cpp**
+    A executable to debug ASM trampo generate
+
+**folder 'dbg_mod'**
+    Generate module-like .dll supported by trampo_debug.cpp

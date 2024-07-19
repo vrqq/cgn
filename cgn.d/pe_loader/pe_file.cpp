@@ -132,7 +132,7 @@ COFFFile::extract_somedata(std::istream &in)
         auto selname = symrow.name();
 
         std::size_t aux_count = (std::size_t)symrow._num_of_auxsym[0];
-        if (symrow.section_no() == COFFSymbolTable::IMAGE_SYM_UNDEFINED) {
+        if (symrow.section_no() == COFFSymbolTable::IMAGE_SYM_UNDEFINED_) {
             devout<<" 0x"<<std::hex<<in.tellg()<<" "<<i<<"-th | ";
             if (symrow.storage_class() == 105 && aux_count == 1) {
                 devout<<" | HAVE_WEAK_EXTERNAL "; // IMAGE_SYM_CLASS_WEAK_EXTERNAL

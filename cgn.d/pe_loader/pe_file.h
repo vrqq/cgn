@@ -5,6 +5,10 @@
 #include <cstring>
 #include "../cgn.h"
 
+#ifdef _WIN32
+#include <WinDef.h>
+#endif
+
 namespace cgn {
 
 //
@@ -21,9 +25,9 @@ struct LibraryFile
     }
 
     constexpr static std::string_view 
-        IMAGE_ARCHIVE_LINKER_MEMBER{"/               "},
-        IMAGE_ARCHIVE_LONGNAMES_MEMBER{"//              "},
-        IMAGE_ARCHIVE_HYBRIDMAP_MEMBER{"/<HYBRIDMAP>/   "};
+        IMAGE_ARCHIVE_LINKER_MEMBER_{"/               "},
+        IMAGE_ARCHIVE_LONGNAMES_MEMBER_{"//              "},
+        IMAGE_ARCHIVE_HYBRIDMAP_MEMBER_{"/<HYBRIDMAP>/   "};
 
     struct MemberHeader {
         char _name[16];
@@ -36,9 +40,9 @@ struct LibraryFile
 
         std::string_view name() const {
             std::string_view rv{_name, sizeof(_name)};
-            if (rv == IMAGE_ARCHIVE_LINKER_MEMBER 
-                || rv == IMAGE_ARCHIVE_LINKER_MEMBER
-                || rv == IMAGE_ARCHIVE_HYBRIDMAP_MEMBER
+            if (rv == IMAGE_ARCHIVE_LINKER_MEMBER_ 
+                || rv == IMAGE_ARCHIVE_LINKER_MEMBER_
+                || rv == IMAGE_ARCHIVE_HYBRIDMAP_MEMBER_
             ) return rv;
             for (std::size_t i=0; i<sizeof(_name); i++)
                 if (_name[i] == '/') { rv = rv.substr(0, i); break; }
@@ -139,9 +143,9 @@ struct COFFFile
             return {std::string{_name, strnlen(_name, 8)}, 0};
         }
 
-        constexpr static int16_t IMAGE_SYM_UNDEFINED = 0;
-        constexpr static int16_t IMAGE_SYM_ABSOLUTE = -1;
-        constexpr static int16_t IMAGE_SYM_DEBUG = -2;
+        constexpr static int16_t IMAGE_SYM_UNDEFINED_ = 0;
+        constexpr static int16_t IMAGE_SYM_ABSOLUTE_ = -1;
+        constexpr static int16_t IMAGE_SYM_DEBUG_ = -2;
         int16_t section_no() const {
             return *(int16_t*)_sect_num;
         }
@@ -170,15 +174,45 @@ struct COFFFile
     extract_somedata(std::istream &in);
 }; //COFFFile
 
+// Class for create .asm file to .cgn.cc script in cgn executable
 struct MSVCTrampo
 {
-    static std::unordered_set<std::string> msvcrt_symbols;
+    static std::unordered_set<std::string> sys_libs, msvcrt_symbols;
 
-    static void add_msvcrt_lib(const std::string &libname);
+    static void add_msvcrt_lib(std::string libname);
 
-    void add_jmpfunc(const std::string &func_name);
+    std::unordered_set<std::string> undef_syms;
+
+public:
+    MSVCTrampo();
+
+    void add_objfile(const std::string &filename);
+    // void add_jmpfunc(const std::string &func_name);
 
     void make_asmfile(const std::string &file_out);
 };
+
+// Class for create cgn API for calling from .asm file
+#ifdef _WIN32
+struct GlobalSymbol
+{
+    struct DllHandle{
+        std::vector<std::string> sym_exports;
+        HMODULE m_ptr;
+        operator bool() const { return m_ptr; }
+    };
+    static std::unordered_map<std::string, void*> symbol_table;
+
+    // get the address for 'jmp xxx' instruction in .asm file
+    static void *find(const std::string &sym);
+
+    // load .cgn.dll file in cgn-impl to replace WINAPI LoadLibrary()
+    static DllHandle WinLoadLibrary(const std::string &dllpath);
+
+    // replace for WINAPI UnloadLibrary()
+    static void WinUnloadLibrary(DllHandle &handle);
+};
+
+#endif
 
 } //namespace
