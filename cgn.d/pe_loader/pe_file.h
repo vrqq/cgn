@@ -113,6 +113,18 @@ struct COFFFile
     };
     static_assert(sizeof(SectionHeader) == 40);
 
+    // struct AuxiliaryWeakExternal
+    // {
+    //     char _tag_index[4];
+    //     char _attrs[4];
+    //     char _padding[10];
+    //     std::size_t tag_index() const {
+    //         return *(uint32_t*)_tag_index;
+    //     };
+    // };
+    // static_assert(sizeof(AuxiliaryWeakExternal) == 18);
+
+
     struct COFFSymbolTable {
         char _name[8];
         char _value[4];
@@ -133,6 +145,9 @@ struct COFFFile
         int16_t section_no() const {
             return *(int16_t*)_sect_num;
         }
+        int16_t storage_class() const {
+            return *(int16_t*)_storage_class;
+        }
     };
     static_assert(sizeof(COFFSymbolTable) == 18);
 
@@ -145,6 +160,10 @@ struct COFFFile
 
         // 'UNDEF' in 'COFF SYMBOL TABLE'
         std::unordered_set<std::string> undef_symbols;
+
+        // WeakExternal replacement
+        // alt_symbols[want-symbol] = alternative-symbol
+        // std::unordered_map<std::string, std::string> alt_symbols;
     };
 
     static std::pair<SomeData, std::string> 
