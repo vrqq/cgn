@@ -204,7 +204,7 @@ struct GlobalSymbol
     static std::unordered_map<std::string, void*> symbol_table;
 
     // get the address for 'jmp xxx' instruction in .asm file
-    static void *find(const std::string &sym);
+    __declspec(dllexport) static void* __cdecl find(const char *sym);
 
     // load .cgn.dll file in cgn-impl to replace WINAPI LoadLibrary()
     static DllHandle WinLoadLibrary(const std::string &dllpath);

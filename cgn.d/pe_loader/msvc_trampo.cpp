@@ -85,15 +85,37 @@ void MSVCTrampo::make_asmfile(const std::string &file_out)
         else
             iter++;
     
+    // ASM format:
+    //  .const
+    //      msvc_trampo_1 DB "...",0
+    //  end
+    //  .code
+    //  func_xxx PROC
+    //      push msvc_trampo_1
+    //      call ?find@GlobalSymbol@cgn@@SAPEAXPEBD@Z
+    //      add rsp, 4
+    //      jmp rax
+    //  func_xxx ENDP
+    //  .end
     std::ofstream fout(file_out);
-    fout<<".code\n";
+    std::string code_section;
+    int i = 0;
+    fout << ".const\n";
     for (auto &sym : undef_syms) {
-        fout<<"    "<<sym<<" PROC\n"
-            <<"        call GlobalSymbol_find\n"
-            <<"        jmp RAX\n"
-            <<"    "<<sym<<" ENDP\n\n";
+        std::string varname = "msvc_trampo_" + std::to_string(i++);
+        fout << "  " << varname << " DB \"" + sym + "\",0\n";
+        code_section +=
+            "  " + sym + " PROC\n"
+            "    push " + varname + "\n"
+            "    call ?find@GlobalSymbol@cgn@@SAPEAXPEBD@Z\n"
+            "    add rsp, 4\n"
+            "    jmp rax\n"
+            "  " + sym + " ENDP\n\n";
     }
-    fout<<"end\n";
+    fout << "end\n\n"
+         << ".code\n"
+         << code_section
+         << "end\n";
     fout.close();
 }
 

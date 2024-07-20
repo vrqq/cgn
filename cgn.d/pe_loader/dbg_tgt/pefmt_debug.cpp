@@ -1,7 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include <filesystem>
-#include "pe_file.h"
+#include "../pe_file.h"
 
 int debug_read_lib(std::string libname)
 {
@@ -126,5 +126,5 @@ int main(int argc, char **argv)
         std::cerr<<argv[0]<<"+ L/O/D + file\n";
         return 1;
     }
-    return debug_diff("tgt/objmaker.obj");
+    return debug_diff("objmaker.obj");
 }

@@ -1,0 +1,78 @@
+## This is a standalone ninja-build file for development in windows
+## ----------------------------------------------------------------
+
+rule link
+    rspfile = ${out}.d
+    rspfile_content = /FORCE:UNRESOLVED /nologo /MACHINE:X64 /DEBUG /OUT:${out} ${in}
+    command = link.exe @${out}.d
+
+rule linkdll
+    rspfile = ${out}.d
+    rspfile_content = /FORCE:UNRESOLVED /nologo /MACHINE:X64 /DEBUG /DLL /OUT:${out} ${in}
+    command = link.exe @${out}.d
+
+rule cc
+    deps    = msvc
+    rspfile = ${out}.d
+    rspfile_content = /nologo /showIncludes /std:c++17 /I. /errorReport:prompt /DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_CONSOLE /D_AMD64_ /Gy /Oi /MD /EHsc /utf-8 /EHs /c ${in} /Fo: ${out} /Zi /Fd: ${out}.pdb
+    command = cl.exe @${out}.d
+
+rule masm
+    command = ml64.exe /c /Cx /Fo ${out} ${in}
+
+
+rule bat
+    command = cmd.exe /c ${in}
+
+## target clean
+build clean : bat clear.bat
+
+## part of cgn.d source code
+## =========================
+
+build pe_file.obj           : cc pe_file.cpp
+build msvc_trampo.obj       : cc msvc_trampo.cpp
+build msvc_symbol_host.obj  : cc msvc_symbol_host.cpp
+build cgn_tools.obj         : cc ../entry/cgn_tools.cpp
+build line_printer.obj      : cc ../ninjabuild/src/line_printer.cc
+build util.obj              : cc ../ninjabuild/src/util.cc
+build string_piece_util.obj : cc ../ninjabuild/src/string_piece_util.cc
+build edit_distance.obj     : cc ../ninjabuild/src/edit_distance.cc 
+
+
+## part of debug (pe_debug)
+## Parse PE/COFF format
+## ========================
+
+build dbg_tgt/entry0.obj   dbg_tgt/entry0.obj.txt   dbg_tgt/entry0.dll $
+      dbg_tgt/base.obj     dbg_tgt/base.obj.txt     dbg_tgt/base.dll $
+      dbg_tgt/objmaker.obj dbg_tgt/objmaker.obj.txt dbg_tgt/objmaker.dll $
+      : bat dbg_tgt/tgt_build.bat
+
+build pefmt_debug.obj : cc pefmt_debug.cpp
+
+build pe_debug.exe : link pefmt_debug.obj pe_file.obj $
+                    cgn_tools.obj line_printer.obj util.obj $
+                    string_piece_util.obj edit_distance.obj $
+            || dbg_tgt/entry0.dll dbg_tgt/base.dll dbg_tgt/objmaker.dll
+
+
+## part of debug (tr_debug)
+## Try ASM jump and global symbol table
+## ====================================
+
+build dbg_trampo/entry.obj    : cc dbg_trampo/entry.cpp
+build dbg_trampo/libfunc1.obj : cc dbg_trampo/libfunc1.cpp
+build dbg_trampo/libfunc1.dll | dbg_trampo/libfunc1.lib : linkdll dbg_trampo/libfunc1.obj
+
+build dbg_trampo/tr_debug.exe | dbg_trampo/tr_debug.lib : link dbg_trampo/entry.obj $
+                pe_file.obj msvc_trampo.obj msvc_symbol_host.obj $
+                cgn_tools.obj line_printer.obj util.obj $
+                string_piece_util.obj edit_distance.obj $
+                || dbg_trampo/libfunc1.dll
+                
+build dbg_trampo/libuser.obj : cc dbg_trampo/libuser.cpp
+build dbg_trampo/libuser_trampo.obj : masm dbg_trampo/libuser_trampo.asm
+build dbg_trampo/libuser.dll : linkdll dbg_trampo/libuser.obj dbg_trampo/libuser_trampo.obj dbg_trampo/libfunc1.lib dbg_trampo/tr_debug.lib
+
+default pe_debug.exe dbg_trampo/libuser.dll

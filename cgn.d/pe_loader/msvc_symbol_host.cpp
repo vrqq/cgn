@@ -14,28 +14,37 @@ namespace cgn {
 
 std::unordered_map<std::string, void*> GlobalSymbol::symbol_table;
 
-void *GlobalSymbol::find(const std::string &sym)
+void* __cdecl GlobalSymbol::find(const char *sym)
 {
     if (auto fd = symbol_table.find(sym); fd != symbol_table.end())
         return fd->second;
     return nullptr;
 }
 
-GlobalSymbol::DllHandle GlobalSymbol::WinLoadLibrary(const std::string &dllpath)
+GlobalSymbol::DllHandle GlobalSymbol::WinLoadLibrary(const std::string& dllpath)
 {
     // GetProcAddress cannot iterator the exported symbol
-    auto libpath = dllpath.substr(dllpath.size()-4) + ".lib";
+    // So we load .lib here
+    if (dllpath.size() < 4)
+        throw std::runtime_error{ "Dllpath must end with .dll :" + dllpath };
+    auto libpath = dllpath.substr(0, dllpath.size() - 4) + ".lib";
     std::ifstream fin(libpath, std::ios::binary);
     if (!fin)
-        throw std::runtime_error{"Cannot open " + libpath};
+        throw std::runtime_error{ "Cannot open " + libpath };
     auto [exp, elog] = LibraryFile::extract_exported_symbols(fin);
     if (elog.size())
-        throw std::runtime_error{"Parse filure " + libpath};
+        throw std::runtime_error{ "Parse filure " + libpath };
 
+    // Load .dll and GetProcAddress() for all exported symbols
     DllHandle rv;
     rv.m_ptr = ::LoadLibrary(dllpath.c_str());
-    if (rv.m_ptr)
-        rv.sym_exports.insert(rv.sym_exports.end(), exp.begin(), exp.end());
+    if (rv.m_ptr) {
+        for (auto& sym : exp)
+            if (auto ptr = ::GetProcAddress(rv.m_ptr, sym.c_str()); ptr) {
+                symbol_table[sym] = ptr;
+                rv.sym_exports.push_back(sym);
+            }
+    }
     return rv;
 }
 
