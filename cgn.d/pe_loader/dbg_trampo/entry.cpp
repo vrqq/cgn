@@ -2,7 +2,7 @@
 #include "../pe_file.h"
 #include "publ.h"
 
-int gen_asm_for_libuser() {
+int load_libuser_dll(const std::string &userdll) {
     // Load libfunc1.dll
     std::string dllname = "./libfunc1.dll";
     std::cout<<"gen_asm_for_libuser"<<std::endl;
@@ -15,13 +15,12 @@ int gen_asm_for_libuser() {
         std::cout<<"   0x" << std::hex << addr << " " << sym << "\n";
 
     // Load libuser.dll (within ASM trampo)
-    std::string dll2 = "./libuser.dll";
-    auto rv2 = cgn::GlobalSymbol::WinLoadLibrary(dll2);
+    auto rv2 = cgn::GlobalSymbol::WinLoadLibrary(userdll);
     if (rv2.sym_exports.empty()) {
-        std::cerr << "Cannot load " << dll2 << std::endl;
+        std::cerr << "Cannot load " << userdll << std::endl;
         return 1;
     }
-    std::cout << "\n=== "<<dll2<<" Exported symbols ===\n";
+    std::cout << "\n=== "<< userdll <<" Exported symbols ===\n";
     for (auto& [sym, addr] : cgn::GlobalSymbol::symbol_table)
         std::cout << "   0x" << std::hex << addr << " " << sym << "\n";
 
@@ -57,9 +56,13 @@ int gen_asm()
     return 0;
 }
 
+// Run "tr_debug.exe T libuser_autogen.dll"
+//  to test dll with auto generated ASM trampoline
 int main(int argc, char** argv)
 {
     if (argc == 2 && argv[1][0] == 'A')
         return gen_asm();
-    return gen_asm_for_libuser();
+    if (argc == 3 && argv[1][0] == 'T')
+        return load_libuser_dll(argv[2]);
+    return load_libuser_dll("libuser_manualgen.dll");
 }

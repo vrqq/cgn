@@ -149,8 +149,8 @@ struct COFFFile
         int16_t section_no() const {
             return *(int16_t*)_sect_num;
         }
-        int16_t storage_class() const {
-            return *(int16_t*)_storage_class;
+        int8_t storage_class() const {
+            return (int8_t)_storage_class[0];
         }
     };
     static_assert(sizeof(COFFSymbolTable) == 18);

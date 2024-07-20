@@ -47,11 +47,11 @@ build edit_distance.obj     : cc ../ninjabuild/src/edit_distance.cc
 build dbg_tgt/entry0.obj   dbg_tgt/entry0.obj.txt   dbg_tgt/entry0.dll $
       dbg_tgt/base.obj     dbg_tgt/base.obj.txt     dbg_tgt/base.dll $
       dbg_tgt/objmaker.obj dbg_tgt/objmaker.obj.txt dbg_tgt/objmaker.dll $
-      : bat dbg_tgt/tgt_build.bat
+      : bat dbg_tgt\\tgt_build.bat
 
-build pefmt_debug.obj : cc pefmt_debug.cpp
+build dbg_tgt/pefmt_debug.obj : cc dbg_tgt/pefmt_debug.cpp
 
-build pe_debug.exe : link pefmt_debug.obj pe_file.obj $
+build dbg_tgt/pe_debug.exe : link dbg_tgt/pefmt_debug.obj pe_file.obj $
                     cgn_tools.obj line_printer.obj util.obj $
                     string_piece_util.obj edit_distance.obj $
             || dbg_tgt/entry0.dll dbg_tgt/base.dll dbg_tgt/objmaker.dll
@@ -65,14 +65,21 @@ build dbg_trampo/entry.obj    : cc dbg_trampo/entry.cpp
 build dbg_trampo/libfunc1.obj : cc dbg_trampo/libfunc1.cpp
 build dbg_trampo/libfunc1.dll | dbg_trampo/libfunc1.lib : linkdll dbg_trampo/libfunc1.obj
 
+# -- dll host && libuser_xxx.dll loader and tester
 build dbg_trampo/tr_debug.exe | dbg_trampo/tr_debug.lib : link dbg_trampo/entry.obj $
                 pe_file.obj msvc_trampo.obj msvc_symbol_host.obj $
                 cgn_tools.obj line_printer.obj util.obj $
                 string_piece_util.obj edit_distance.obj $
                 || dbg_trampo/libfunc1.dll
-                
+
+# -- asm manual gen                
 build dbg_trampo/libuser.obj : cc dbg_trampo/libuser.cpp
 build dbg_trampo/libuser_trampo.obj : masm dbg_trampo/libuser_trampo.asm
-build dbg_trampo/libuser.dll : linkdll dbg_trampo/libuser.obj dbg_trampo/libuser_trampo.obj dbg_trampo/libfunc1.lib dbg_trampo/tr_debug.lib
+build dbg_trampo/libuser_manualgen.dll : linkdll dbg_trampo/libuser.obj dbg_trampo/libuser_trampo.obj dbg_trampo/libfunc1.lib dbg_trampo/tr_debug.lib
 
-default pe_debug.exe dbg_trampo/libuser.dll
+# -- asm auto gen
+build dbg_trampo/libuser_trampo_autogen.asm : bat dbg_trampo\\make_autogen_asm.bat | dbg_trampo/tr_debug.exe
+build dbg_trampo/libuser_trampo_autogen.obj : masm dbg_trampo/libuser_trampo_autogen.asm
+build dbg_trampo/libuser_autogen.dll : linkdll dbg_trampo/libuser.obj dbg_trampo/libuser_trampo_autogen.obj dbg_trampo/libfunc1.lib dbg_trampo/tr_debug.lib
+
+default dbg_tgt/pe_debug.exe dbg_trampo/libuser_manualgen.dll dbg_trampo/libuser_autogen.dll

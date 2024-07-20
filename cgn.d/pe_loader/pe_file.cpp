@@ -135,7 +135,7 @@ COFFFile::extract_somedata(std::istream &in)
         if (symrow.section_no() == COFFSymbolTable::IMAGE_SYM_UNDEFINED_) {
             devout<<" 0x"<<std::hex<<in.tellg()<<" "<<i<<"-th | ";
             if (symrow.storage_class() == 105 && aux_count == 1) {
-                devout<<" | HAVE_WEAK_EXTERNAL "; // IMAGE_SYM_CLASS_WEAK_EXTERNAL
+                devout<<"HAVE_WEAK_EXTERNAL "; // IMAGE_SYM_CLASS_WEAK_EXTERNAL
             }else if (selname.first.size()) {
                 devout<<selname.first<<" ";
                 rv.undef_symbols.insert(selname.first);
@@ -148,7 +148,7 @@ COFFFile::extract_somedata(std::istream &in)
                 <<","<<strhex(symrow._type[1])
                 <<" StorClass="<<strhex(symrow._storage_class[0])<<"\n";
             if (aux_count)
-                devout<<std::hex<<"0x"<<in.tellg()<<"          - skip "
+                devout<<std::hex<<" 0x"<<in.tellg()<<"          - skip "
                     <<std::dec<<aux_count<<" AUX fields"<<"\n";
         }
         
