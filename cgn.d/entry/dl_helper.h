@@ -1,30 +1,17 @@
 #include <string>
 
-
-
 #ifdef _WIN32
-
-    #ifndef NOMINMAX
-        #define NOMINMAX
-        #define NOMINMAX_DEFINED_OUTSIDE_DLLLOADER
-    #endif
-    #include <Libloaderapi.h>
-    #include <errhandlingapi.h>
-    // #include <winbase.h>
-    #ifndef NOMINMAX_DEFINED_OUTSIDE_DLLLOADER
-        #undef NOMINMAX
-    #endif
-
+    #include "../pe_loader/pe_file.h"
     namespace cgn {
     struct DLHelper {
         DLHelper(const std::string &file);
         ~DLHelper();
 
-        bool valid() const { return m_ptr != 0; }
-        operator bool() const { return m_ptr != 0; }
+        bool valid() const { return hnd; }
+        operator bool() const { return hnd; }
         
     private:
-        HMODULE m_ptr = 0;
+        GlobalSymbol::DllHandle hnd;
     };
     }
 

@@ -57,6 +57,7 @@ private:
     std::filesystem::path cell_lnk_path;
     std::filesystem::path obj_main_ninja;
     std::string script_cc;
+    std::string cgnapi_winimp;
     bool scriptcc_debug_mode = false;
 
     std::unordered_set<std::string> adep_cycle_detection;

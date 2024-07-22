@@ -139,7 +139,7 @@ struct COFFFile
 
         std::pair<std::string, std::size_t> name() const {
             if (_name[0]==0 && _name[1]==0 && _name[2]==0 && _name[3]==0)
-                return {"", *(uint16_t*)(_name + 4)};
+                return {"", *(uint32_t*)(_name + 4)};
             return {std::string{_name, strnlen(_name, 8)}, 0};
         }
 
@@ -180,6 +180,7 @@ struct MSVCTrampo
     static std::unordered_set<std::string> sys_libs, msvcrt_symbols;
 
     static void add_msvcrt_lib(std::string libname);
+    static void add_lib(std::string libname);
 
     std::unordered_set<std::string> undef_syms;
 

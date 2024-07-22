@@ -5,14 +5,7 @@
 #include "entry/configuration.h"
 #include "entry/ninja_file.h"
 #include "provider.h"
-
-// #ifndef CGN_EXPORT
-    #ifdef _WIN32
-        #define CGN_EXPORT __declspec(dllexport)
-    #else
-        #define CGN_EXPORT __attribute__((visibility("default")))
-    #endif
-// #endif
+#include "api_export.h"
 
 namespace cgn {
 
@@ -144,8 +137,11 @@ struct CGN_EXPORT Tools {
 
     static void print_debug(const std::string &text, bool verbose_level = false);
 
-    std::string absolute_label(const std::string &p, std::string base);
+    static std::string absolute_label(const std::string &p, std::string base);
 
+    static bool setenv(const std::string &key, const std::string &value);
+
+    static std::string getenv(const std::string &key);
 }; //struct Tools
 
 class CGN_EXPORT CGN : public Tools {
@@ -203,7 +199,7 @@ private:
     );
 };
 
-} //nemspace
+} //namespace
 
 // cgn_init functions
 // ------------------

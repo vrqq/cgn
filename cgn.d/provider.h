@@ -5,7 +5,7 @@
 #include <vector>
 #include <unordered_set>
 #include <unordered_map>
-#include "cgn.h"
+#include "api_export.h"
 
 namespace cgn {
 
@@ -92,7 +92,7 @@ private:
 };
 
 // BaseInfo[] table
-class TargetInfos
+class CGN_EXPORT TargetInfos
 {
 public:
     using list_type = std::unordered_map<std::string, std::shared_ptr<BaseInfo>>;

@@ -8,6 +8,7 @@
 #include "cgn_impl.h"
 #include "ninja_file.h"
 #include "debug.h"
+#include "../pe_loader/pe_file.h"
 
 // header from ninja-build src
 #include "../ninjabuild/src/clparser.h"
@@ -15,7 +16,7 @@
 
 #ifdef _WIN32
 // extern void __declspec(selectany) cgn_setup(CGNInitSetup &x);
-extern void cgn_setup(CGNInitSetup &x);
+// CGN_EXPORT void cgn_setup(CGNInitSetup &x);
 #else
 extern void cgn_setup(CGNInitSetup &x) __attribute__((weak));
 #endif
@@ -25,6 +26,7 @@ extern void cgn_setup(CGNInitSetup &x) __attribute__((weak));
 
 namespace cgn {
 
+std::string self_realpath();
 
 static void loop_dir(std::vector<std::string> *out, std::filesystem::path p)
 {
@@ -176,6 +178,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
         CLParser clpar;
         std::unordered_set<std::string> dfcoll;
         std::string linker_in;
+        MSVCTrampo  win_trampo;
         for (auto it : script_srcs) {
             std::filesystem::path pt = it;
             auto ext = pt.extension();
@@ -212,12 +215,15 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
             logger.print(logger.color("ScriptCC ") + outname);
             // logger.printer.SetConsoleLocked(true);
             auto build_rv = raymii::Command::exec(
-                script_cc + " @" + rspname
+                "\"" + script_cc + "\" @" + rspname
             );
             // logger.printer.SetConsoleLocked(false);
             if (build_rv.exitstatus != 0)
                 throw std::runtime_error{outname + " " + build_rv.output};
             
+            // (windows only) parse .obj and find UNDEFINED symbol
+            win_trampo.add_objfile(outname);
+
             //header dep
             std::string errmsg;
             std::string dummy_arg;
@@ -247,7 +253,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
             frsp << linker_in << arg;
             frsp.close();
             logger.print(logger.color("ScriptCC ") + s.sofile);
-            auto link_rv = raymii::Command::exec(script_cc + " @"+ s.sofile + ".rsp");
+            auto link_rv = raymii::Command::exec("\"" + script_cc + "\" @" + s.sofile + ".rsp");
             if (link_rv.exitstatus != 0)
                 throw std::runtime_error{link_rv.output};
         };
@@ -255,8 +261,26 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
         std::vector<std::string> node_vals;
         node_vals.push_back(s.sofile);
         if (is_msvc && is_win) {
+            // add cgn.lib
+            win_trampo.add_lib(cgnapi_winimp);
+
+            // generate .asm trampoline
+            std::string asm_in  = s.sofile + "_asmplugin.asm";
+            std::string asm_obj = s.sofile + "_asmplugin.obj";
+            win_trampo.make_asmfile(asm_in);
+
+            // compile .asm to .obj
+            logger.print(logger.color("ScriptCC(ml64) ") + asm_obj);
+            auto build_rv = raymii::Command::exec(
+                "\"ml64.exe\" /nologo /c /Cx /Fo " + asm_obj + " " + asm_in
+            );
+            if (build_rv.exitstatus != 0)
+                throw std::runtime_error{asm_obj + " " + build_rv.output};
+            linker_in += asm_obj + " ";
+
+            // linking
             std::string dbg_flag = scriptcc_debug_mode?" /DEBUG":"";
-            run_link(dbg_flag + " /nologo /utf-8 /link /DLL /FORCE:UNRESOLVED /OUT:\"" + s.sofile + "\" ");
+            run_link(dbg_flag + " /nologo /utf-8 /link /DLL " + cgnapi_winimp + " /OUT:\"" + s.sofile + "\" /PDB:\"" + s.sofile + ".pdb\"");
             clpar.includes_.insert(script_srcs.begin(), script_srcs.end());
             node_vals.insert(node_vals.end(), clpar.includes_.begin(), 
                              clpar.includes_.end());
@@ -563,6 +587,15 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
     cell_lnk_path = cgn_out / "cell_include";
     obj_main_ninja = cgn_out / "obj" / "main.ninja";
 
+    // replace path\to\cgn.exe => path\to\cgn.lib (win only)
+    #ifdef _WIN32
+    cgnapi_winimp = self_realpath();
+    if (cgnapi_winimp.size() > 4)
+        cgnapi_winimp = cgnapi_winimp.substr(0, cgnapi_winimp.size()-4) + ".lib";
+    if (!std::filesystem::is_regular_file(cgnapi_winimp))
+        throw std::runtime_error{"Cannot locate cgn.lib"};
+    #endif //_WIN32
+
     if (std::filesystem::exists(cgn_out)) {
         if (!std::filesystem::is_directory(cgn_out))
             throw std::runtime_error{cgn_out.string() + "is not folder."};
@@ -574,6 +607,25 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
 
     std::ofstream stamp_file(cgn_out / ".cgn_out_root.stamp");
     stamp_file.close();
+
+    // run vcvars64.bat if necessary
+    #ifdef _WIN32
+    if (cmd_kvargs.count("winenv")) {
+        auto resp = raymii::Command::exec("\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" 2>&1 >NUL && set");
+        if (resp.exitstatus)
+            throw std::runtime_error{"cannot run vcvars64.bat"};
+        for (std::size_t b = 0, fdnext; b < resp.output.size(); b = fdnext+1) {
+            fdnext = resp.output.find('\n', b);
+            if (fdnext == resp.output.npos)
+                fdnext = resp.output.size();
+            std::string exp = resp.output.substr(b, fdnext-b);
+            if (auto fd = exp.find('='); fd != exp.npos)
+                Tools::setenv(exp.substr(0, fd).c_str(), exp.substr(fd+1).c_str());
+            else
+                throw std::runtime_error{"setenv failure: " + exp};
+        }
+    }
+    #endif //win32
 
     // scriptcc variable
     #ifdef _WIN32
@@ -650,7 +702,15 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
 
     active_script("//" + cgn_setup_filename);
     CGNInitSetup x;
-    cgn_setup(x);
+    #ifndef _WIN32
+        cgn_setup(x);
+    #else
+        using FnSetup = void(*)(CGNInitSetup&);
+        FnSetup fn_setup = (FnSetup)GlobalSymbol::find("?cgn_setup@@YAXAEAUCGNInitSetup@@@Z");
+        if (!fn_setup)
+            throw std::runtime_error{"cgn_setup() not found, not exported?"};
+        fn_setup(x);
+    #endif
     if (x.log_message.size())
         logger.paragraph(x.log_message);
     for (auto &[name, cfg] : x.configs){

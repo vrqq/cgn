@@ -25,7 +25,7 @@ void MSVCTrampo::add_msvcrt_lib(std::string libname)
         libname += + ".lib";
 
     static std::vector<std::string> libpath = [](){
-        std::string estr = std::getenv("LIB");
+        std::string estr = cgn::Tools::getenv("LIB");
         if (estr.empty()) {
             logger.paragraph("cannot get environment 'LIB'");
             throw std::runtime_error{"getenv('LIB')"};
@@ -57,13 +57,18 @@ void MSVCTrampo::add_msvcrt_lib(std::string libname)
     if (path_found.empty())
         throw std::runtime_error{libname + " not found."};
     
-    std::ifstream fin(path_found, std::ios::binary);
+    add_lib(path_found);
+} // MSVCTrampo::add_msvcrt_lib()
+
+void MSVCTrampo::add_lib(std::string libname)
+{
+    std::ifstream fin(libname, std::ios::binary);
     auto [rv, error_log] = cgn::LibraryFile::extract_exported_symbols(fin);
     if (error_log.size())
-        throw std::runtime_error{"Load library " + path_found + ": " + error_log};
+        throw std::runtime_error{"Load library " + libname + ": " + error_log};
     
     msvcrt_symbols.insert(rv.begin(), rv.end());
-} // MSVCTrampo::add_msvcrt_lib()
+}
 
 void MSVCTrampo::add_objfile(const std::string &filename)
 {
@@ -104,7 +109,15 @@ void MSVCTrampo::make_asmfile(const std::string &file_out)
     fout << ".const\n";
     for (auto &sym : undef_syms) {
         std::string varname = "msvc_trampo_" + std::to_string(i++);
-        fout << "  " << varname << " DB \"" + sym + "\",0\n";
+        std::string symstring;
+        for (std::size_t i=0, j=200; i<sym.size(); i=j, j=j+200) {
+            if (j > sym.size())
+                j = sym.size();
+            if (symstring.size())
+                symstring += ",\n   ";
+            symstring = " DB \"" + sym.substr(i, j-i) + "\"";
+        }
+        fout << "  " << varname << symstring + ",0\n";
         code_section +=
             "  " + sym + " PROC\n"
             "    push " + varname + "\n"

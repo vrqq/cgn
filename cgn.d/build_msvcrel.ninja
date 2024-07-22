@@ -10,7 +10,7 @@ builddir = build_win
 rule cc
     deps    = msvc
     rspfile = ${out}.d
-    rspfile_content = /nologo /showIncludes /std:c++17 /I. /errorReport:prompt /DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_CONSOLE /D_AMD64_ /GL /Gy /O2 /Oi /MD /EHsc /utf-8 /EHs /c ${in} /Fo:${out}
+    rspfile_content = /nologo /showIncludes /std:c++17 /I. /errorReport:prompt /DCGN_EXE_IMPLEMENT /DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_CONSOLE /D_AMD64_ /GL /Gy /O2 /Oi /MD /EHsc /utf-8 /EHs /c ${in} /Fo:${out}
     command = cl.exe @${out}.d
 
 rule ar

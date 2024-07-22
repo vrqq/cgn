@@ -2,6 +2,12 @@
 #include <string>
 #include <unordered_set>
 
+#if defined(CGN_SETUP_IMPL) && defined(_WIN32)
+    #define CGN_SETUP_IF __declspec(dllexport)
+#else
+    #define CGN_SETUP_IF
+#endif
+
 inline std::string extract(
     std::unordered_set<std::string> &in, std::initializer_list<std::string> opts
 ) {

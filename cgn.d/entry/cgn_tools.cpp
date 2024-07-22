@@ -383,4 +383,29 @@ void Tools::print_debug(const std::string &text, bool verbose_level)
         logger.paragraph(text);
 }
 
+
+bool Tools::setenv(const std::string &key, const std::string &value)
+{
+#ifdef _WIN32
+    return SetEnvironmentVariable(key.c_str(), value.c_str());
+#else
+    return ::setenv(key.c_str(), value.c_str(), true) == 0;
+#endif
+}
+
+std::string Tools::getenv(const std::string &key)
+{
+    // return std::getenv(key.c_str());
+    #ifdef _WIN32
+        char lpBuffer[32768];
+        auto len = GetEnvironmentVariable(key.c_str(), lpBuffer, sizeof(lpBuffer));
+        if (len > 0)
+            return std::string{lpBuffer, len};
+        return "";
+    #else
+        return ::getenv(key.c_str());
+    #endif
+}
+
+
 } //namespace

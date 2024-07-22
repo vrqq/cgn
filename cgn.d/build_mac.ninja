@@ -5,7 +5,7 @@ builddir = build_mac
 
 cflags = -I. -g -std=c++17 -fsanitize=address -fcolor-diagnostics $
          -fshow-column -fshow-source-location -fcaret-diagnostics $
-         -fstandalone-debug -fno-limit-debug-info
+         -fstandalone-debug -fno-limit-debug-info -DCGN_EXE_IMPLEMENT
 
 rule cc
     deps    = gcc

@@ -24,22 +24,22 @@ LibraryFile::extract_exported_symbols(std::istream &in)
     if (in.eof() || file_signature != "!<arch>\n")
         return {{}, "Invalid signature: "+ file_signature};
     
-    devout<<"LibraryFile\n";
+    // devout<<"LibraryFile\n";
 
     // FirstLinkerMember
     MemberHeader hdr;
     in.read((char*)&hdr, sizeof(hdr));
-    if (in.eof() || hdr.name() != IMAGE_ARCHIVE_LINKER_MEMBER)
+    if (in.eof() || hdr.name() != IMAGE_ARCHIVE_LINKER_MEMBER_)
         return {{}, "Header of FirstLinkerMember"};
     
-    devout<<" 0x"<<std::hex<<in.tellg()<<std::dec
-        <<" | FirstLinkerMember Body: body_size="<<hdr.body_size();
+    // devout<<" 0x"<<std::hex<<in.tellg()<<std::dec
+    //     <<" | FirstLinkerMember Body: body_size="<<hdr.body_size();
     
     uint32_t sym_count;
     in.read((char*)&sym_count, sizeof(sym_count));
     sym_count = Tools::u32be_to_host(sym_count);
 
-    devout<<" sym_count="<<sym_count<<std::endl;
+    // devout<<" sym_count="<<sym_count<<std::endl;
 
     in.seekg(sym_count*4, in.cur);
 
@@ -57,6 +57,8 @@ LibraryFile::extract_exported_symbols(std::istream &in)
     return {rv, ""};
 } //LibraryFile::extract_exported_symbols()
 
+
+// The undefined variable won't expose here.
 std::pair<COFFFile::SomeData, std::string>
 COFFFile::extract_somedata(std::istream &in)
 {
@@ -132,8 +134,10 @@ COFFFile::extract_somedata(std::istream &in)
         auto selname = symrow.name();
 
         std::size_t aux_count = (std::size_t)symrow._num_of_auxsym[0];
-        if (symrow.section_no() == COFFSymbolTable::IMAGE_SYM_UNDEFINED_) {
-            devout<<" 0x"<<std::hex<<in.tellg()<<" "<<i<<"-th | ";
+        if (symrow.section_no() == COFFSymbolTable::IMAGE_SYM_UNDEFINED_ 
+            && symrow._type[0] == 0x20  // notype ()
+        ) {
+            devout<<" 0x"<<std::hex<<hdr_off<<" "<<i<<"-th | ";
             if (symrow.storage_class() == 105 && aux_count == 1) {
                 devout<<"HAVE_WEAK_EXTERNAL "; // IMAGE_SYM_CLASS_WEAK_EXTERNAL
             }else if (selname.first.size()) {

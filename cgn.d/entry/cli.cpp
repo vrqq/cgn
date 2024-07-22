@@ -23,7 +23,9 @@ int show_helper(const char *arg0) {
              <<"  Options:\n"
              <<"     -C / --cgn-out + <dir_name>\n"
              <<"     -V / --verbose\n"
-             <<"     --regeneration\n"
+             <<"     --winenv\n"
+             <<"     --scriptcc_debug\n"
+             <<"     --scriptcc + xxx.exe\n"
              <<std::endl;
     return 1;
 }
@@ -86,7 +88,7 @@ int main(int argc, char **argv)
 {
     //parse input cmdline
     std::unordered_set<std::string> single_options{
-        "scriptcc_debug", "verbose"
+        "scriptcc_debug", "verbose", "winenv"
     };
     std::vector<std::string> args;
     std::unordered_map<std::string, std::string> args_kv;
