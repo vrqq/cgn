@@ -744,4 +744,9 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
     // }
 } //CGNImpl::init()
 
+void CGNImpl::release()
+{
+    scripts.clear();
+} //CGNImpl::release()
+
 } //namespace

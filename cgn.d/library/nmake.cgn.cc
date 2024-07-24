@@ -1,3 +1,4 @@
+#define NMAKE_CGN_IMPL
 #include <cassert>
 #include "../std_operator.hpp"
 #include "nmake.cgn.h"

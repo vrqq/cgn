@@ -18,6 +18,15 @@
 ## interpreter 接受的 config
 见 cgn.d/README.md
 
+**ROADMAP**
+* MacOS cxx_toolchain == xcode : XCode.app/clang and OS bsd linker  (UP!)
+* MacOS cxx_toolchain == llvm  : clang and llvm-linker
+* Linux cxx_toolchain == llvm : clang and llvm linker (ld.lld)  (UP!)
+* Linux cxx_toolchain == gcc  : gcc and binutil-ld  (UP!)
+* Win   cxx_toolchain == llvm : VS-Inside clang-cl.exe and lld-link.exe  (UP!)
+* Win   cxx_toolchain == msvc : VS-Inside cl.exe and link.exe  (UP!)
+* Win   cxx_toolchain == gcc  : gcc.exe and ld.exe
+
 ## interpreter 输出规范
 * 所有 target 均直接在 `out_prefix` 中输出 .o / .a / .so / .lib 等
 * 仅 cxx_executable() 才将 `deps_info[BuildAndRunInfo].runtime` 复制到 `out_prefix` 中

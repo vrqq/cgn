@@ -1,3 +1,13 @@
+#ifdef _WIN32
+    #ifdef NMAKE_CGN_IMPL
+        #define NMAKE_CGN_API  __declspec(dllexport)
+    #else
+        #define NMAKE_CGN_API
+    #endif
+#else
+    #define NMAKE_CGN_API __attribute__((visibility("default")))
+#endif
+
 #include "../cgn.h"
 #include "../rule_marco.h"
 #include "../provider_dep.h"
@@ -27,7 +37,7 @@ struct NMakeContext : cgn::TargetInfoDep<true>
     std::string install_target_name = "install";
     std::string clean_target_name   = "clean";
 
-    NMakeContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt);
+    NMAKE_CGN_API NMakeContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt);
     friend class NMakeInterpreter;
 };
 
@@ -39,7 +49,7 @@ struct NMakeInterpreter
         return {"@cgn.d//library/cxx.cgn.bundle",
                 "@cgn.d//library/nmake.cgn.cc"};
     }
-    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    NMAKE_CGN_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 };
 
 #define nmake(name, x) CGN_RULE_DEFINE(::NMakeInterpreter, name, x)

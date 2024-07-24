@@ -202,7 +202,8 @@ struct GlobalSymbol
         HMODULE m_ptr;
         operator bool() const { return m_ptr; }
     };
-    static std::unordered_map<std::string, void*> symbol_table;
+    
+    static std::unordered_map<std::string, void*> *get_symbol_table();
 
     // get the address for 'jmp xxx' instruction in .asm file
     __declspec(dllexport) static void* find(const char *sym);
@@ -213,6 +214,8 @@ struct GlobalSymbol
     // replace for WINAPI UnloadLibrary()
     static void WinUnloadLibrary(DllHandle &handle);
 };
+#else
+struct GlobalSymbol {};
 
 #endif
 

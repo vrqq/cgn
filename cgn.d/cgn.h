@@ -186,6 +186,15 @@ public:
     // The init function must be called before others.
     void init(const std::unordered_map<std::string, std::string> &kvargs);
 
+    // Make sure to call this function prior to ~CGN(), as the CGN API is an 
+    // exported global variable that will be automatically deleted when the 
+    // main-exe exits. Even though there are still many DLLs loaded, the static
+    // variables within them can still call the API and SymbolTable during DLL
+    // auto unload. 
+    // Since the destruction order is not guaranteed, it is necessary to call 
+    // release() in order to unload all DLLs before the program exits.
+    void release();
+
     // Return kvargs assigned from init().
     const std::unordered_map<std::string, std::string> &get_kvargs() const;
 

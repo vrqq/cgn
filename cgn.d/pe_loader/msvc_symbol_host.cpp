@@ -7,6 +7,7 @@
 #ifndef NOMINMAX
     #define NOMINMAX
 #endif
+#include <iostream>
 #include <Windows.h>
 #include <imagehlp.h>
 #include <Libloaderapi.h>
@@ -81,12 +82,31 @@ static std::vector<std::string> EnumerateExportedFunctions(HMODULE hModule)
     return slListOfDllFunctions;
 }
 
-std::unordered_map<std::string, void*> GlobalSymbol::symbol_table;
+// std::unordered_map<std::string, void*> GlobalSymbol::symbol_table;
+
+std::unordered_map<std::string, void*> *GlobalSymbol::get_symbol_table()
+{
+    static std::unordered_map<std::string, void*> symbol_table;
+    return &symbol_table;
+    // using T = std::unordered_map<std::string, void*>;
+    // static bool valid = true;
+    // static std::shared_ptr<T>
+    //     tbl = std::shared_ptr<T>(new T, [](T *ptr) {
+    //         std::cout<<"Table delete !"<<std::endl;
+    //         delete ptr;
+    //         valid = false;
+    //     });
+    
+    // if (valid && tbl)
+    //     return tbl.get();
+    // return nullptr;
+}
 
 void* GlobalSymbol::find(const char *sym)
 {
-    if (auto fd = symbol_table.find(sym); fd != symbol_table.end())
-        return fd->second;
+    if (auto tbl = get_symbol_table(); tbl)
+        if (auto fd = tbl->find(sym); fd != tbl->end())
+            return fd->second;
     
     throw std::runtime_error{"GlobalSymbol::find(" + std::string{sym} +") not found."};
     return nullptr;
@@ -105,6 +125,11 @@ GlobalSymbol::DllHandle GlobalSymbol::WinLoadLibrary(const std::string& dllpath)
     //auto [exp, elog] = LibraryFile::extract_exported_symbols(fin);
     //if (elog.size())
     //    throw std::runtime_error{ "Parse failure " + libpath };
+    
+    auto *tbl = get_symbol_table();
+    if (tbl == nullptr)
+        throw std::runtime_error{"GlobalSymbol::symbol_table destroyed."};
+
     std::vector<std::string> exp = ListDLLFunctions(dllpath.c_str());
     // 
     // Load .dll and GetProcAddress() for all exported symbols
@@ -114,7 +139,7 @@ GlobalSymbol::DllHandle GlobalSymbol::WinLoadLibrary(const std::string& dllpath)
     if (rv.m_ptr) {
         for (auto& sym : exp)
             if (auto ptr = ::GetProcAddress(rv.m_ptr, sym.c_str()); ptr) {
-                symbol_table[sym] = ptr;
+                (*tbl)[sym] = ptr;
                 rv.sym_exports.push_back(sym);
             }
             else
@@ -128,9 +153,9 @@ GlobalSymbol::DllHandle GlobalSymbol::WinLoadLibrary(const std::string& dllpath)
 
 void GlobalSymbol::WinUnloadLibrary(DllHandle &handle)
 {
-    if (handle.m_ptr) {
+    if (auto tbl = get_symbol_table(); tbl && handle.m_ptr) {
         for (auto &it : handle.sym_exports)
-            symbol_table.erase(it);
+            tbl->erase(it);
         ::FreeLibrary(handle.m_ptr);
     }
 }

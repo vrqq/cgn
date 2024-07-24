@@ -148,12 +148,14 @@ try{
         auto rv = api.analyse_target(args[1], *api.query_config("DEFAULT"));
         if (rv.infos.empty())
             throw std::runtime_error{"analyse: " + args[1] + " not found."};
+        api.release();
     }
     if (args[0] == "build") {
         if (args.size() != 2)
             return show_helper(argv[0]);
         api.init(args_kv);
         api.build(args[1], *api.query_config("DEFAULT"));
+        api.release();
     }
     if (args[0] == "run") {
         if (args.size() != 2)
@@ -170,6 +172,7 @@ try{
         auto *cfg = api.query_config(cfg_name);
         if (cfg == nullptr) {
             std::cerr<<"Configuration "<<cfg_name<<" not found."<<std::endl;
+            api.release();
             return 1;
         }
         auto rv = api.analyse_target(args[1], *cfg);
@@ -179,6 +182,7 @@ try{
                  <<cgn::list2str_h(*cfg, "", 999) <<std::endl;
 
         std::cout<<"\n--- Analyse Result ---\n"<<rv.infos.to_string(type)<<std::endl;
+        api.release();
         return 0;
     }
     if (args[0] == "preload")

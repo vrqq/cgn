@@ -40,6 +40,8 @@ public:
 
     void init(std::unordered_map<std::string, std::string> cmd_kvargs);
 
+    void release();
+
     std::string expand_filelabel_to_filepath(const std::string &in) const;
 
     std::unique_ptr<ConfigurationManager> cfg_mgr;
