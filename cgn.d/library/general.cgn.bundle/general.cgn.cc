@@ -1,3 +1,4 @@
+#define GENERAL_CGN_BUNDLE_IMPL
 #include "../../entry/raymii_command.hpp"
 #include "../../std_operator.hpp"
 #include "general.cgn.h"
@@ -8,7 +9,7 @@ static std::string two_escape(const std::string &in) {
 
 // Shell binary
 // ------------
-cgn::TargetInfos ShellBinary::interpret(context_type &x, cgn::CGNTargetOpt opt)
+GENERAL_CGN_BUNDLE_API cgn::TargetInfos ShellBinary::interpret(context_type &x, cgn::CGNTargetOpt opt)
 {
     // if user cmd_analysis existed
     if (x.cmd_analysis.size()) {
@@ -58,7 +59,7 @@ cgn::TargetInfos ShellBinary::interpret(context_type &x, cgn::CGNTargetOpt opt)
 
 // Copy
 // ----
-cgn::TargetInfos CopyInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
+GENERAL_CGN_BUNDLE_API cgn::TargetInfos CopyInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
 {
     if (x.from.size() != x.to.size())
         throw std::runtime_error{opt.factory_ulabel + " from[] and to[] are not same size."};
@@ -98,7 +99,7 @@ cgn::TargetInfos CopyInterpreter::interpret(context_type &x, cgn::CGNTargetOpt o
 
 // Target Alias
 // ------------
-cgn::TargetInfos AliasInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
+GENERAL_CGN_BUNDLE_API cgn::TargetInfos AliasInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
 {
     auto real = api.analyse_target(api.absolute_label(x.actual_label, opt.src_prefix), x.cfg);
     auto *definfo = real.infos.get<cgn::DefaultInfo>(true);
@@ -115,7 +116,7 @@ cgn::TargetInfos AliasInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
 } //AliasInterpreter::interpret
 
 
-cgn::CGNTarget DynamicAliasInterpreter::DynamicAliasContext::load_target(
+GENERAL_CGN_BUNDLE_API cgn::CGNTarget DynamicAliasInterpreter::DynamicAliasContext::load_target(
     const std::string &label, const cgn::Configuration &cfg
 ) {
     auto rv = api.analyse_target(label, cfg);
@@ -125,7 +126,7 @@ cgn::CGNTarget DynamicAliasInterpreter::DynamicAliasContext::load_target(
     return rv;
 } //DynamicAliasContext::load_target
 
-cgn::TargetInfos DynamicAliasInterpreter::interpret(
+GENERAL_CGN_BUNDLE_API cgn::TargetInfos DynamicAliasInterpreter::interpret(
     context_type &x, cgn::CGNTargetOpt opt
 ) {
     if (x.actual_target_infos.empty())
@@ -141,7 +142,7 @@ cgn::TargetInfos DynamicAliasInterpreter::interpret(
 
 // Target Group
 // ------------
-std::vector<cgn::TargetInfos> GroupInterpreter::GroupContext::add_deps(
+GENERAL_CGN_BUNDLE_API std::vector<cgn::TargetInfos> GroupInterpreter::GroupContext::add_deps(
     std::initializer_list<std::string> labels, const cgn::Configuration &cfg
 ) {
     std::vector<cgn::TargetInfos> rv;
@@ -150,7 +151,7 @@ std::vector<cgn::TargetInfos> GroupInterpreter::GroupContext::add_deps(
     return rv;
 }
 
-cgn::TargetInfos GroupInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
+GENERAL_CGN_BUNDLE_API cgn::TargetInfos GroupInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
 {
     auto *field = opt.ninja->append_build();
     field->rule = "phony";
@@ -167,7 +168,7 @@ cgn::TargetInfos GroupInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
 
 // LinkAndRuntimeFiles
 // -------------------
-cgn::TargetInfos LinkAndRuntimeFiles::interpret(
+GENERAL_CGN_BUNDLE_API cgn::TargetInfos LinkAndRuntimeFiles::interpret(
     context_type &x, cgn::CGNTargetOpt opt
 ) {
     cgn::TargetInfos rv;

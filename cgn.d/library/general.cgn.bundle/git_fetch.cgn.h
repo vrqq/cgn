@@ -4,6 +4,8 @@
 #include "../../rule_marco.h"
 #include "../../provider_dep.h"
 
+#include "windef.h"
+
 // Git DEPOT
 // ---------
 struct GitContext
@@ -36,7 +38,7 @@ struct GitFetcher
     constexpr static cgn::ConstLabelGroup<1> preload_labels() {
         return {"@cgn.d//library/general.cgn.bundle"};
     }
-    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 };
 
 #define git(name, x) CGN_RULE_DEFINE(GitFetcher, name, x)

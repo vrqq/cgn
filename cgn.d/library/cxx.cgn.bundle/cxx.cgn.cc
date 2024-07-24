@@ -6,6 +6,7 @@
 //      --sysroot=/project/freebsd-14.0-arm64 -fuse-ld=lld
 
 //
+#define LANGCXX_CGN_BUNDLE_IMPL
 #include <cassert>
 #include "cxx.cgn.h"
 #include "../../entry/quick_print.hpp"

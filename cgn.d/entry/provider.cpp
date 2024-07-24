@@ -4,7 +4,7 @@
 
 namespace cgn {
 
-const BaseInfo::VTable DefaultInfo::v = {
+CGN_EXPORT const BaseInfo::VTable DefaultInfo::v = {
     []() -> std::shared_ptr<BaseInfo> { 
         return std::make_shared<DefaultInfo>();
     },
@@ -35,7 +35,7 @@ static void remove_dup(std::vector<std::string> &ls)
     ls.resize(i);
 }
 
-const BaseInfo::VTable LinkAndRunInfo::v = {
+CGN_EXPORT const BaseInfo::VTable LinkAndRunInfo::v = {
     []() -> std::shared_ptr<BaseInfo> { 
         return std::make_shared<LinkAndRunInfo>();
     },

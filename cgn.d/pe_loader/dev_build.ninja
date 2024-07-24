@@ -8,17 +8,17 @@ rule link
 
 rule linkdll
     rspfile = ${out}.d
-    rspfile_content = /FORCE:UNRESOLVED /nologo /MACHINE:X64 /DEBUG /DLL /OUT:${out} ${in}
+    rspfile_content = /FORCE:UNRESOLVED /nologo /MACHINE:X64 /DEBUG /DLL /OPT:NOREF /OUT:${out} ${in}
     command = link.exe @${out}.d
 
 rule cc
     deps    = msvc
     rspfile = ${out}.d
-    rspfile_content = /nologo /showIncludes /std:c++17 /I. /errorReport:prompt /DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_CONSOLE /D_AMD64_ /Gy /Oi /MD /EHsc /utf-8 /EHs /c ${in} /Fo: ${out} /Zi /Fd: ${out}.pdb
+    rspfile_content = /nologo /showIncludes /std:c++17 /I. /errorReport:prompt /DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_CONSOLE /D_AMD64_ ${def} /Gy /Oi /MD /EHsc /utf-8 /EHs /c ${in} /Fo: ${out} /Zi /Fd: ${out}.pdb
     command = cl.exe @${out}.d
 
 rule masm
-    command = ml64.exe /c /Cx /Fo ${out} ${in}
+    command = cmd.exe /c "ml64.exe /c /Cx /Fo ${out} ${in}" && dumpbin /all ${out} > ${out}.txt
 
 
 rule bat
@@ -31,9 +31,13 @@ build clean : bat clear.bat
 ## =========================
 
 build pe_file.obj           : cc pe_file.cpp
+    def = /DCGN_EXE_IMPLEMENT
 build msvc_trampo.obj       : cc msvc_trampo.cpp
+    def = /DCGN_EXE_IMPLEMENT
 build msvc_symbol_host.obj  : cc msvc_symbol_host.cpp
+    def = /DCGN_EXE_IMPLEMENT
 build cgn_tools.obj         : cc ../entry/cgn_tools.cpp
+    def = /DCGN_EXE_IMPLEMENT
 build line_printer.obj      : cc ../ninjabuild/src/line_printer.cc
 build util.obj              : cc ../ninjabuild/src/util.cc
 build string_piece_util.obj : cc ../ninjabuild/src/string_piece_util.cc
@@ -74,12 +78,12 @@ build dbg_trampo/tr_debug.exe | dbg_trampo/tr_debug.lib : link dbg_trampo/entry.
 
 # -- asm manual gen                
 build dbg_trampo/libuser.obj : cc dbg_trampo/libuser.cpp
-build dbg_trampo/libuser_trampo.obj : masm dbg_trampo/libuser_trampo.asm
-build dbg_trampo/libuser_manualgen.dll : linkdll dbg_trampo/libuser.obj dbg_trampo/libuser_trampo.obj dbg_trampo/libfunc1.lib dbg_trampo/tr_debug.lib
+build dbg_trampo/libuser_trampo_manul.obj : masm dbg_trampo/libuser_trampo_manul.asm
+build dbg_trampo/libuser_manualgen.dll : linkdll dbg_trampo/libuser.obj dbg_trampo/libuser_trampo_manul.obj dbg_trampo/tr_debug.lib
 
 # -- asm auto gen
 build dbg_trampo/libuser_trampo_autogen.asm : bat dbg_trampo\\make_autogen_asm.bat | dbg_trampo/tr_debug.exe
 build dbg_trampo/libuser_trampo_autogen.obj : masm dbg_trampo/libuser_trampo_autogen.asm
-build dbg_trampo/libuser_autogen.dll : linkdll dbg_trampo/libuser.obj dbg_trampo/libuser_trampo_autogen.obj dbg_trampo/libfunc1.lib dbg_trampo/tr_debug.lib
+build dbg_trampo/libuser_autogen.dll : linkdll dbg_trampo/libuser.obj dbg_trampo/libuser_trampo_autogen.obj dbg_trampo/tr_debug.lib
 
 default dbg_tgt/pe_debug.exe dbg_trampo/libuser_manualgen.dll dbg_trampo/libuser_autogen.dll

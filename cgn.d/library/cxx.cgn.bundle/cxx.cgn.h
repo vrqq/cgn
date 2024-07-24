@@ -42,6 +42,7 @@
 #include "../../cgn.h"
 #include "../../provider_dep.h"
 #include "../../rule_marco.h"
+#include "windef.h"
 
 namespace cxx {
 
@@ -93,7 +94,7 @@ struct CxxInfo : cgn::BaseInfo {
     CxxInfo() : BaseInfo{&_glb_cxx_vtable()} {}
 
 private:
-    const static cgn::BaseInfo::VTable &_glb_cxx_vtable();
+    LANGCXX_CGN_BUNDLE_API const static cgn::BaseInfo::VTable &_glb_cxx_vtable();
 };
 
 struct CxxContext : CxxInfo
@@ -113,17 +114,17 @@ struct CxxContext : CxxInfo
 
     // add_dep() would not change (CxxInfo*)this / this.pub 
     // whether flag == priv_dep / inherit / order_only
-    cgn::TargetInfos add_dep(
+    LANGCXX_CGN_BUNDLE_API cgn::TargetInfos add_dep(
         const std::string &label, cgn::Configuration cfg, DepType flag
     );
     cgn::TargetInfos add_dep(const std::string &label, DepType flag) {
         return add_dep(label, this->cfg, flag);
     }
 
-    void set_runtime(const std::string &rout, const std::string &src);
+    // void set_runtime(const std::string &rout, const std::string &src);
 
 protected:
-    CxxContext(char role, const cgn::Configuration &cfg, cgn::CGNTargetOpt opt);
+    LANGCXX_CGN_BUNDLE_API CxxContext(char role, const cgn::Configuration &cfg, cgn::CGNTargetOpt opt);
 
 private: friend struct CxxInterpreter; // field for interpreter
     const cgn::CGNTargetOpt opt;  //self opt
@@ -168,10 +169,10 @@ struct CxxInterpreter
         return {"@cgn.d//library/cxx.cgn.bundle"};
     }
 
-    static CxxToolchainInfo test_param(const cgn::Configuration &cfg);
+    LANGCXX_CGN_BUNDLE_API static CxxToolchainInfo test_param(const cgn::Configuration &cfg);
 
-    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
-    static cgn::TargetInfos msvc_interpret(
+    LANGCXX_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    LANGCXX_CGN_BUNDLE_API static cgn::TargetInfos msvc_interpret(
         context_type &x, cgn::CGNTargetOpt opt
     );
 };
@@ -214,7 +215,7 @@ struct CxxPrebuiltInterpreter {
     constexpr static cgn::ConstLabelGroup<1> preload_labels() {
         return {"@cgn.d//library/cxx.cgn.bundle"};
     }
-    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    LANGCXX_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 };
 
 } //namespace cxx

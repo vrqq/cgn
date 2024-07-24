@@ -6,6 +6,7 @@
 #include <list>
 #include <vector>
 #include <unordered_map>
+#include "../api_export.h"
 
 namespace cgn {
 
@@ -76,31 +77,31 @@ public:
         virtual ~GlobalVariable() {}
     };
 
-    BuildSection *append_build();
-    RuleSection  *append_rule();
-    CommentSection *append_comment(const std::string &comment = "");
-    IncludeSection *append_include(const std::string &file = "");
-    Subninja       *append_subninja(const std::string &file = "");
+    CGN_EXPORT BuildSection *append_build();
+    CGN_EXPORT RuleSection  *append_rule();
+    CGN_EXPORT CommentSection *append_comment(const std::string &comment = "");
+    CGN_EXPORT IncludeSection *append_include(const std::string &file = "");
+    CGN_EXPORT Subninja       *append_subninja(const std::string &file = "");
 
     //Two variables are significant when declared in the outermost file scope.
     //builddir and ninja_required_version
-    GlobalVariable *append_variable(const std::string &k="", const std::string &v="");
+    CGN_EXPORT GlobalVariable *append_variable(const std::string &k="", const std::string &v="");
 
-    void flush();
+    CGN_EXPORT void flush();
 
-    static std::string parse_ninja_str(const std::string &in);
+    CGN_EXPORT static std::string parse_ninja_str(const std::string &in);
 
-    static std::string escape_path(const std::string &in);
+    CGN_EXPORT static std::string escape_path(const std::string &in);
     
-    static std::vector<std::string> escape_path(
+    CGN_EXPORT static std::vector<std::string> escape_path(
         const std::vector<std::string> &in
     );
 
     // static std::string escape(const std::vector<std::string> &in);
 
-    NinjaFile(const std::string &filepath);// : filepath(filepath) {}
+    CGN_EXPORT NinjaFile(const std::string &filepath);// : filepath(filepath) {}
 
-    ~NinjaFile();// { flush(); }
+    CGN_EXPORT ~NinjaFile();// { flush(); }
 
     // void set_builddir(const std::string &in) {
     //     builddir = in;

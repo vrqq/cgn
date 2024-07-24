@@ -191,11 +191,19 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
             std::ofstream frsp(rspname); 
 
             if (is_msvc && is_win) {
+                //TODO: Since msvc cl.exe /D cannot process '#' in command line
+                //      but filename can accept it, we consider 2 solution here
+                //      1. use /FI to insert char that can't be defined in cmd
+                //      2. use TLS to storage CGN_ULABEL_PREFIX when load_library
+                //
                 frsp<< "/c " << it <<" /nologo /showIncludes /Od /Gy "
                     "/DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
-                    "/utf-8 /EHsc /MD /Fo: " + Tools::shell_escape(outname);
+                    " /DCGN_VAR_PREFIX=" + def_var_prefix +
+                    " /D\"CGN_ULABEL_PREFIX=\"" + def_ulabel_prefix + "\"\"" + 
+                    " /I. /I" + Tools::shell_escape(cell_lnk_path.string()) +
+                    " /utf-8 /EHsc /MD /Fo: " + Tools::shell_escape(outname);
                 if (scriptcc_debug_mode)
-                    frsp<<" /Zi /Fd: " + Tools::shell_escape(outname) + ".pdb";
+                    frsp<<" /Od /Zi /Fd: " + Tools::shell_escape(outname) + ".pdb";
             }
             else if (is_unix) {
                 if (is_clang && scriptcc_debug_mode) //llvm debug (lldb)
@@ -222,7 +230,8 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
                 throw std::runtime_error{outname + " " + build_rv.output};
             
             // (windows only) parse .obj and find UNDEFINED symbol
-            win_trampo.add_objfile(outname);
+            if (is_win)
+                win_trampo.add_objfile(outname);
 
             //header dep
             std::string errmsg;
@@ -279,8 +288,8 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
             linker_in += asm_obj + " ";
 
             // linking
-            std::string dbg_flag = scriptcc_debug_mode?" /DEBUG":"";
-            run_link(dbg_flag + " /nologo /utf-8 /link /DLL " + cgnapi_winimp + " /OUT:\"" + s.sofile + "\" /PDB:\"" + s.sofile + ".pdb\"");
+            std::string dbg_flag = scriptcc_debug_mode?"/DEBUG ":"";
+            run_link("/nologo /utf-8 /link /DLL " + dbg_flag + cgnapi_winimp + " /OUT:\"" + s.sofile + "\" /PDB:\"" + s.sofile + ".pdb\"");
             clpar.includes_.insert(script_srcs.begin(), script_srcs.end());
             node_vals.insert(node_vals.end(), clpar.includes_.begin(), 
                              clpar.includes_.end());
@@ -463,9 +472,14 @@ CGNTarget CGNImpl::analyse_target(
     }
 
     // insert into main_subninja if interpreter successed.
-    if (main_subninja.insert(ninja_path).second) {
+    // subninja command enforce '/' path-sep
+    std::string ninja_path_unix = ninja_path;
+    #ifdef _WIN32
+        std::replace(ninja_path_unix.begin(), ninja_path_unix.end(), '\\', '/');
+    #endif
+    if (main_subninja.insert(ninja_path_unix).second) {
         std::ofstream fout(obj_main_ninja, std::ios::app);
-        fout<<"subninja "<<NinjaFile::escape_path(ninja_path)<<"\n";
+        fout<<"subninja "<<NinjaFile::escape_path(ninja_path_unix)<<"\n";
     }
 
     // release ninja file handle to write build.ninja down to disk

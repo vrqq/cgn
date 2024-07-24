@@ -72,7 +72,7 @@ struct DefaultInfo : BaseInfo
     static const char *name() { return "DefaultInfo"; }
 
 private:
-    static const VTable v;
+    CGN_EXPORT static const VTable v;
 };
 
 struct LinkAndRunInfo : BaseInfo {
@@ -88,7 +88,7 @@ struct LinkAndRunInfo : BaseInfo {
     static const char *name() { return "LinkAndRunInfo"; }
 
 private:
-    static const VTable v;
+    CGN_EXPORT static const VTable v;
 };
 
 // BaseInfo[] table

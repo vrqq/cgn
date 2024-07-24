@@ -83,10 +83,12 @@ static std::vector<std::string> EnumerateExportedFunctions(HMODULE hModule)
 
 std::unordered_map<std::string, void*> GlobalSymbol::symbol_table;
 
-void* __cdecl GlobalSymbol::find(const char *sym)
+void* GlobalSymbol::find(const char *sym)
 {
     if (auto fd = symbol_table.find(sym); fd != symbol_table.end())
         return fd->second;
+    
+    throw std::runtime_error{"GlobalSymbol::find(" + std::string{sym} +") not found."};
     return nullptr;
 }
 

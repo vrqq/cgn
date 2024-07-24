@@ -38,7 +38,7 @@ struct CGNScript
 //       for Interpreter (add .out_prefix .ninja field)
 class NinjaFile;
 struct CGNTargetOpt {
-    static std::string path_separator;
+    CGN_EXPORT static std::string path_separator;
 
     // target BUILD_ENTRY
     // In the build.ninja file, a ‘target’ might be associated with an extensive 

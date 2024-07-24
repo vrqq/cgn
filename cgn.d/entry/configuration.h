@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <functional>
 #include <stdexcept>
+#include "../api_export.h"
 
 namespace cgn {
 
@@ -137,7 +138,7 @@ private: friend class ConfigurationManager;
     int  hash_hlp = 0;       // the helper of hash function
     std::string hashid;      // the name of current configuration
     std::unordered_map<std::string, std::string> data;
-    static std::string empty_string;
+    CGN_EXPORT static std::string empty_string;
     
     std::string *detect_value(const std::string &key) {
         auto fd = data.find(key);
@@ -160,15 +161,15 @@ public:
         std::vector<std::string> opt_values;
     };
 
-    void set_name(const std::string &name, const ConfigurationID &hash);
-    const Configuration *get(const std::string name) const;
+    CGN_EXPORT void set_name(const std::string &name, const ConfigurationID &hash);
+    CGN_EXPORT const Configuration *get(const std::string name) const;
 
     //Save configuration and write into .cfg file.
     // @return: the configuration unique_hash
-    ConfigurationID commit(Configuration cfg);
+    CGN_EXPORT ConfigurationID commit(Configuration cfg);
 
     // @param storage_dir: cgn-out/configurations
-    ConfigurationManager(const std::string &storage_dir);
+    CGN_EXPORT ConfigurationManager(const std::string &storage_dir);
 
 private:
     using CfgData = std::unordered_map<std::string, std::string>;
@@ -201,7 +202,7 @@ private:
 
     const std::string storage_dir;
 
-    std::string get_hash(size_t want);
+    CGN_EXPORT std::string get_hash(size_t want);
 
 }; //class ConfigurationManager
 

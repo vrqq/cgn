@@ -19,8 +19,12 @@ int load_libuser_dll(const std::string &userdll) {
     if (rv2.sym_exports.empty()) {
         std::cerr << "Cannot load " << userdll << std::endl;
         return 1;
+    }else {
+        std::cout << "\n=== Library "<< userdll <<" Exports ===\n";
+        for (auto sym : rv2.sym_exports)
+            std::cout<<"  "<<sym<<"\n";
     }
-    std::cout << "\n=== "<< userdll <<" Exported symbols ===\n";
+    std::cout << "\n=== AfterLoad "<< userdll <<" Global Symbols ===\n";
     for (auto& [sym, addr] : cgn::GlobalSymbol::symbol_table)
         std::cout << "   0x" << std::hex << addr << " " << sym << "\n";
 

@@ -18,7 +18,7 @@ rule ar
 
 rule link
     rspfile = ${out}.d
-    rspfile_content = /FORCE:UNRESOLVED /nologo /MACHINE:X64 /DEBUG /OUT:${out} ${in}
+    rspfile_content = /nologo /MACHINE:X64 /DEBUG /OUT:${out} ${in}
     command = link.exe @${out}.d
 
 include buildpart_ninjaport.ninja

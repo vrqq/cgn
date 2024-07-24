@@ -1,8 +1,13 @@
 #include "@cgn.d/library/general.cgn.bundle/general.cgn.h"
 #include "@cgn.d/library/cxx.cgn.bundle/cxx.cgn.h"
 
+// for linux
 // #pragma message "VALUE: " STR(CGN_VAR_PREFIX)
 // #pragma message "VALUE: " CGN_ULABEL_PREFIX
+
+// for windows
+// #pragma message("VALUE: " STR(CGN_VAR_PREFIX) )
+// #pragma message("VALUE: " CGN_ULABEL_PREFIX )
 
 sh_binary("demo", x) {
     x.cmd_build = {"echo", "hello-world"};
@@ -10,13 +15,21 @@ sh_binary("demo", x) {
 
 // expand the define below
 // =======================
-// void _tf_demo(shell::ShellBinary::context_type &x);
-// std::shared_ptr<void> _tfreg_demo = api.bind_target_factory<shell::ShellBinary>(
+// void _tf_demo(ShellBinary::context_type &x);
+// std::shared_ptr<void> _tfreg_demo = api.bind_target_factory<ShellBinary>(
 //     "//hello:", "demo", &_tf_demo
 // );
-// void _tf_demo(shell::ShellBinary::context_type &x) {
-//     x.main = "echo";
-//     x.args = {"hello-world"};
+// void _tf_demo(ShellBinary::context_type &x) {
+//     x.cmd_build = {"echo", "hello-world"};
+// }
+
+// msvc expand test 2
+// ==================
+// void CGN_RULE_TITLE(_tf, CGN_VAR_PREFIX, 28)(ShellBinary::context_type&);
+// std::shared_ptr<void> CGN_RULE_TITLE(_tfreg, CGN_VAR_PREFIX, 28)
+//     = api.bind_target_factory<ShellBinary>(CGN_ULABEL_PREFIX, "demo", &CGN_RULE_TITLE(_tf, CGN_VAR_PREFIX, 28));
+// void CGN_RULE_TITLE(_tf, CGN_VAR_PREFIX, 28)(ShellBinary::context_type& CtxD) {
+//     CtxD.cmd_build = {"echo", "hello-world"};
 // }
 
 cxx_executable("cpp0", x) {

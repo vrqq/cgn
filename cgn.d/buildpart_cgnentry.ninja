@@ -41,7 +41,7 @@ build $output/cgn_entry.a : ar $output/cgn.o $output/cgn_impl.o $output/cli.o $
     $output/graph.o $output/ninja_file.o $output/provider.o $
     $output/dev_helper.o $output/wincp.o
 
-build $output/cgn: link link $
+build $output/cgn: link $
     $output/cgn.o        $output/cgn_impl.o    $output/cli.o      $
     $output/graph.o      $output/ninja_file.o  $output/provider.o $
     $output/cgn_tools.o  $output/cgn_tools_fileglob.o             $

@@ -21,8 +21,8 @@
 #endif
 
 // #ifdef __GNUC__
-//     # define _STR(x) #x
-//     # define STR(x) _STR(x)
+    # define _STR(x) #x
+    # define STR(x) _STR(x)
 // #else
 //     # define STR(x) x
 // #endif

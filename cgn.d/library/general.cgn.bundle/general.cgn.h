@@ -11,6 +11,8 @@
 #include "../../rule_marco.h"
 #include "../../provider_dep.h"
 
+#include "windef.h"
+
 //Generate a ninja target which run command in shell
 struct ShellBinary
 {
@@ -41,7 +43,7 @@ struct ShellBinary
         return {"@cgn.d//library/general.cgn.bundle"};
     }
 
-    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 }; //ShellBinary
 
 struct CopyInterpreter
@@ -60,7 +62,7 @@ struct CopyInterpreter
     };
 
     using context_type = Context;
-    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 };
 
 
@@ -113,7 +115,7 @@ struct AliasInterpreter
         return {"@cgn.d//library/general.cgn.bundle"};
     }
 
-    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 }; //AliasInterpreter
 
 struct DynamicAliasInterpreter
@@ -126,7 +128,8 @@ struct DynamicAliasInterpreter
         cgn::CGNTarget load_target(const std::string &label) { 
             return load_target(label, last_cfg);
         }
-        cgn::CGNTarget load_target(const std::string &label, const cgn::Configuration &cfg);
+        GENERAL_CGN_BUNDLE_API cgn::CGNTarget 
+        load_target(const std::string &label, const cgn::Configuration &cfg);
 
         DynamicAliasContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
         : name(opt.factory_name), last_cfg(cfg) {}
@@ -140,7 +143,7 @@ struct DynamicAliasInterpreter
         return {"@cgn.d//library/general.cgn.bundle"};
     }
 
-    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 }; //DynamicAliasInterpreter
 
 
@@ -153,7 +156,7 @@ struct GroupInterpreter
             std::initializer_list<std::string> labels
         ) { return add_deps(labels, this->cfg); }
 
-        std::vector<cgn::TargetInfos> add_deps(
+        GENERAL_CGN_BUNDLE_API std::vector<cgn::TargetInfos> add_deps(
             std::initializer_list<std::string> labels,
             const cgn::Configuration &cfg
         );
@@ -169,7 +172,7 @@ struct GroupInterpreter
         return {"@cgn.d//library/general.cgn.bundle"};
     }
     
-    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 }; //GroupInterpreter
 
 
@@ -185,7 +188,7 @@ struct LinkAndRuntimeFiles {
         : name(opt.factory_name), cfg(cfg) {}
     };
 
-    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 };
 
 #define sh_binary(name, x)  CGN_RULE_DEFINE(ShellBinary, name, x)
@@ -195,6 +198,6 @@ struct LinkAndRuntimeFiles {
 #define group(name, x) CGN_RULE_DEFINE(GroupInterpreter, name, x)
 #define link_and_runtime_files(name, x) CGN_RULE_DEFINE(LinkAndRuntimeFiles, name, x)
 
-#ifdef CGN_PCH_MODE
-    CGN_SPECIALIZATION_PCH(shell::ShellBinary)
-#endif
+// #ifdef CGN_PCH_MODE
+//     CGN_SPECIALIZATION_PCH(shell::ShellBinary)
+// #endif
