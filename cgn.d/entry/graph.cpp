@@ -196,18 +196,22 @@ void Graph::clear_file0_mtime_cache(GraphNode *p)
 
 
 // void remove_mtime_cache(const std::filesystem::path &filepath)
-int64_t Graph::stat_and_cache(const std::filesystem::path &fp)
+int64_t Graph::stat_and_cache(std::filesystem::path fp)
 {
 #ifdef _WIN32
     // (windows only)
     // if file in current folder not stated 
     // (no subfolder and its file included)
+    fp = fp.make_preferred();
     std::filesystem::path basedir = fp.has_parent_path()?fp.parent_path():".";
-    if (win_mtime_cache.count(basedir.string()) == 0) {
+    if (win_mtime_folder_exist.count(basedir.string()) == 0) {
         auto tmap = Tools::win32_stat_folder(basedir.string());
-        for (auto &[path, mtime] : tmap)
-            win_mtime_cache.insert_or_assign(path, mtime);
-        win_mtime_cache[basedir.string()] = -1; //-1 meanless
+        for (auto &[path, mtime] : tmap) {
+            win_mtime_cache.insert_or_assign(
+                fp.has_parent_path()? (basedir/path).string():path, mtime);
+        }
+        win_mtime_folder_exist.insert(basedir.string());
+        // win_mtime_cache[basedir.string()] = -1; //-1 for dir 
     }
     
     auto fd = win_mtime_cache.find(fp.string());

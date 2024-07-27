@@ -4,89 +4,12 @@
 //      --sysroot=/project/freebsd-14.0-amd64 -fuse-ld=lld
 // clang++ ./hello.cpp -o hello.fbsd --target=aarch64-pc-freebsd 
 //      --sysroot=/project/freebsd-14.0-arm64 -fuse-ld=lld
-
 //
 #define LANGCXX_CGN_BUNDLE_IMPL
 #include <cassert>
 #include "cxx.cgn.h"
+#include "../../std_operator.hpp"
 #include "../../entry/quick_print.hpp"
-
-//start vector_set_calculator
-#include <vector>
-#include <string>
-#include <unordered_set>
-using StrList = std::vector<std::string>;
-using StrSet  = std::unordered_set<std::string>;
-StrList operator+(const StrList &lhs, const StrList &rhs) {
-    StrList rv{lhs};
-    rv.insert(rv.end(), rhs.begin(), rhs.end());
-    return rv;
-}
-StrList operator+(const StrList &lhs, StrList &&rhs) {
-    StrList rv{lhs};
-    rv.insert(rv.end(), 
-        std::make_move_iterator(rhs.begin()), 
-        std::make_move_iterator(rhs.end()));
-    rhs.clear();
-    return rv;
-}
-StrList &operator+=(StrList &lhs, const StrList &rhs) {
-    lhs.insert(lhs.end(), rhs.begin(), rhs.end());
-    return lhs;
-}
-StrList &operator+=(StrList &lhs, StrList &&rhs) {
-    lhs.insert(lhs.end(), 
-        std::make_move_iterator(rhs.begin()), 
-        std::make_move_iterator(rhs.end()));
-    rhs.clear();
-    return lhs;
-}
-
-StrSet operator+(const StrSet &lhs, const StrSet &rhs) {
-    StrSet rv{lhs};
-    rv.insert(rhs.begin(), rhs.end());
-    return rv;
-}
-StrSet operator+(const StrSet &lhs, StrSet &&rhs) {
-    StrSet rv{lhs};
-    rv.insert(std::make_move_iterator(rhs.begin()), 
-              std::make_move_iterator(rhs.end()));
-    rhs.clear();
-    return rv;
-}
-
-StrSet &operator+=(StrSet &lhs, const StrSet &rhs) {
-    lhs.insert(rhs.begin(), rhs.end());
-    return lhs;
-}
-StrSet &operator+=(StrSet &lhs, StrSet &&rhs) {
-    lhs.insert(std::make_move_iterator(rhs.begin()), 
-               std::make_move_iterator(rhs.end()));
-    rhs.clear();
-    return lhs;
-}
-
-// template<typename T> StrList 
-// operator+(const StrList &lhs, T&& rhs) {
-//     StrList rv{lhs};
-//     rv.insert(rv.end(), rhs.begin(), rhs.end());
-//     return rv;
-// }
-template<typename T> StrList&
-operator+=(StrList &lhs, std::initializer_list<T> &&rhs) {
-    lhs.insert(lhs.end(), 
-        std::make_move_iterator(rhs.begin()), 
-        std::make_move_iterator(rhs.end()));
-    return lhs;
-}
-template<typename T> StrSet&
-operator+=(StrSet &lhs, std::initializer_list<T> &&rhs) {
-    lhs.insert(std::make_move_iterator(rhs.begin()), 
-               std::make_move_iterator(rhs.end()));
-    return lhs;
-}
-//end vector_set_calculator
-
 
 // CxxInterpreter
 // ------------- -------------
@@ -180,20 +103,128 @@ static void remove_dup(std::vector<std::string> &ls)
     ls.resize(i);
 }
 
-cgn::TargetInfos CxxInterpreter::msvc_interpret(
-    CxxInterpreter::context_type &x, cgn::CGNTargetOpt opt
+// get substr and convert to lowercase
+static std::string lower_substr(
+    const std::string &in, std::size_t b, std::size_t e = std::string::npos
 ) {
-    std::vector<std::string> cflags_cc{"/std:c++17"}, cflags_c{"/std:c17"};
+    if (e == std::string::npos)
+        e = in.size();
+    std::string rv;
+    rv.reserve(e-b);
+    for (std::size_t i=b; i<e; i++)
+        rv.push_back( ('A'<=in[i] && in[i]<='Z')? (in[i]-'A'+'a'): in[i]);
+    return rv;
+}
 
-    CxxInfo &arg = x;
-    arg.defines += {
+// case for path_out: xxx.so / .lib may have same name with folder-name 
+//                    in src folder, so we have to add '_' before path_out.
+// case for path_out: cgn-out/.../ in same folder of current interpreter
+//                    add '__' (two underline) before path_out.
+// @param IN  file1   : filename in context.src
+// @param IN  opt     : opt from interpreter
+// @param OUT path_in : "input file relpath"
+// @param OUT path_out: "output file relpath"
+// @return type of src: A/+/C/0 (asm, c++, c, 0:igonre)
+static char src_path_convert(
+    const std::string &file1, const cgn::CGNTargetOpt &opt,
+    std::string *path_in, std::string *path_out 
+) {
+    // get extension
+    auto fd_slash = file1.rfind('/');
+    auto fd = file1.rfind('.');
+    if (fd == file1.npos || (fd_slash != file1.npos && fd < fd_slash))
+        return 0;  // no extension, cpp header
+    std::string left = file1.substr(0, fd);
+    std::string ext = lower_substr(file1, fd+1);
+
+    auto gen = [&]() {
+        *path_in = cgn::Tools::locale_path(opt.src_prefix + file1);
+        std::string probe1 = api.rebase_path(*path_in, opt.out_prefix);
+        if (probe1[0] != '.' && probe1[1] != '.') {// path_in is inside out_prefix
+            left = probe1.substr(0, probe1.rfind('.'));
+            *path_out = opt.out_prefix + "__" + left + ".o";
+        }
+        else
+            *path_out = cgn::Tools::locale_path(opt.out_prefix + "_" + left + ".o");
+    };
+    
+    // check current file is c/cpp source file
+    if (ext == "def") {
+        *path_in = cgn::Tools::locale_path(opt.src_prefix + file1);
+        return 'D';
+    }
+    if (ext == "cc" || ext == "cpp" || ext == "cxx" || ext == "c++")
+        return gen(), '+';
+    if (ext == "c")
+        return gen(), 'C';
+    if (ext == "s" || ext == "asm")
+        return gen(), 'A';
+    return 0;
+}
+
+
+struct TargetWorker
+{
+    // Step0: input
+    CxxContext &x;
+    cgn::CGNTargetOpt &opt;
+    TargetWorker(CxxContext &x, cgn::CGNTargetOpt &opt) : x(x), opt(opt) {};
+
+    // step1: generate CxxInfo by interperter
+    // exe_cc, exe_cxx... : two escaped
+    // interp_arg: data has been processed by two_escape()
+    // interp_arg 内数据均经 两次转义过(two_escape) 或用户保证无需转义
+    //            参数前半段为编译器参数 通常不需转义 (例如 --sysroot= ) 
+    //            一般仅后段需转义 (例如 $ORIGIN => \$ORIGIN )
+    CxxInfo interp_arg;
+    std::string exe_cc, exe_cxx, exe_asm, exe_solink, exe_xlink, exe_ar;
+    std::vector<std::string> cflags_cpp, cflags_c, cflags_asm;
+    void step1_linux_gcc();
+    void step1_linuxllvm_and_xcode();
+    void step1_win_msvc();
+
+    // step2: merge args from target(x), deps, interpreter
+    CxxInfo carg;  // arg for self target (step 3)
+    void step2_arg_merge();
+
+    // step3: make ninja file and return value
+    // interpreter would return 'rv'
+    cgn::TargetInfos *rv;
+    CxxInfo             *rvcxx;  // point to entry inside 'rv'
+    cgn::DefaultInfo    *rvdef;  // point to entry inside 'rv'
+    cgn::LinkAndRunInfo *rvlnr;  // point to entry inside 'rv'
+    std::string escaped_ninja_entry;
+    void step30_prepare_rv();
+    void step31_unix();
+    void step31_win();
+    void _entry_postprocess(const std::vector<std::string> &to);
+};
+
+
+void TargetWorker::step1_win_msvc()
+{
+    bool target_x86 = (x.cfg["cpu"] == "x86");
+    bool target_x64 = (x.cfg["cpu"] == "x86_64");
+
+    std::string exe_prefix = x.cfg["cxx_prefix"];
+    exe_cc     = two_escape(exe_prefix + "cl.exe");
+    exe_cxx    = two_escape(exe_prefix + "cl.exe");
+    exe_asm    = two_escape(exe_prefix + (target_x64?"ml64.exe":"ml.exe"));
+    exe_ar     = two_escape(exe_prefix + "lib.exe");
+    exe_solink = two_escape(exe_prefix + "link.exe") + " /DLL";
+    exe_xlink  = two_escape(exe_prefix + "link.exe");
+    cflags_cpp = {"/std:c++17"};
+    cflags_c   = {"/std:c17"};
+
+    interp_arg.defines += {
         //"UNICODE", "_UNICODE",   // default for NO unicode WidthType (encoding UTF-8 only)
         "_CONSOLE",                //"WIN32",
         "_CRT_SECURE_NO_WARNINGS", //for strcpy instead of strcpy_s
         "WINVER=${mimimum_winver}",        // win10==0x0A00; win7==0x0601;
         "_WIN32_WINNT=${mimimum_winver}",  // win8.1/Server2012R2==0x0603;
     };
-    arg.cflags += {
+
+    interp_arg.cflags += {
         "/I.",
 
         // https://docs.microsoft.com/en-us/cpp/build/reference/permissive-standards-conformance?view=msvc-160
@@ -211,11 +242,13 @@ cgn::TargetInfos CxxInterpreter::msvc_interpret(
         "/utf-8", "/wd4828",   // illegal character in UTF-8
         // "/nologo",      // /nologo is in ninja file
         "/diagnostics:column",
-        "/EHs",        // Enables standard C++ stack unwinding
+        "//EHsc",      // Enables standard C++ stack unwinding
         "/FS",         // force synchoronous PDB write for parallel to serializes.
         // "/await",
     };
-    arg.ldflags += {
+
+    interp_arg.ldflags += {
+        "/MAP",
         "/NXCOMPAT",    // Compatible with Data Execution Prevention
         "/DYNAMICBASE",
         
@@ -227,28 +260,28 @@ cgn::TargetInfos CxxInterpreter::msvc_interpret(
     //["cpu"]
     // https://stackoverflow.com/questions/13545010/amd64-not-defined-in-vs2010
     if (x.cfg["cpu"] == "x86") {
-        arg.defines += {"WIN32", "_X86_"};
+        interp_arg.defines += {"WIN32", "_X86_"};
         // The /LARGEADDRESSAWARE option tells the linker that the application 
         // can handle addresses larger than 2 gigabytes.
-        arg.ldflags += {"/SAFESEH", "/MACHINE:X86", "/LARGEADDRESSAWARE"};
+        interp_arg.ldflags += {"/SAFESEH", "/MACHINE:X86", "/LARGEADDRESSAWARE"};
     }
     if (x.cfg["cpu"] == "x86_64")
-        arg.defines += {"_AMD64_"};  
-        arg.ldflags += {"/MACHINE:X64"};
+        interp_arg.defines += {"_AMD64_"};  
+        interp_arg.ldflags += {"/MACHINE:X64"};
 
     //["msvc_runtime"]
     if (x.cfg["msvc_runtime"] == "MDd") {
-        arg.defines += {"_DEBUG"};
-        arg.cflags  += {"/MDd"};
+        interp_arg.defines += {"_DEBUG"};
+        interp_arg.cflags  += {"/MDd"};
     }
     if (x.cfg["msvc_runtime"] == "MD") {
-        arg.defines += {"NDEBUG"};
-        arg.cflags  += {"/MD"};
+        interp_arg.defines += {"NDEBUG"};
+        interp_arg.cflags  += {"/MD"};
     }
 
     //["optimization"]
     if (x.cfg["optimization"] == "debug") {
-        arg.cflags += {
+        interp_arg.cflags += {
             "/JMC",   // Debug only user code with Just My Code
             // "/GR",    // Enable Run-Time Type Information (Debug only)
             // "/guard:cf",
@@ -260,13 +293,13 @@ cgn::TargetInfos CxxInterpreter::msvc_interpret(
             "/FC"     // Full Path of Source Code File in Diagnostics, and 
                       // also full path for the __FILE__ macro
         };
-        arg.ldflags += {
+        interp_arg.ldflags += {
             "/DEBUG:FULL", 
             "/INCREMENTAL"
         };
     }
     if (x.cfg["optimization"] == "release") {
-        arg.cflags += {
+        interp_arg.cflags += {
             "/GL",  // Enables whole program optimization.
             "/Gy",  // Enables function-level linking.
             "/O2",
@@ -277,7 +310,7 @@ cgn::TargetInfos CxxInterpreter::msvc_interpret(
                     // object files or executable, which makes them much smaller.
             "/guard:cf"
         };
-        arg.ldflags += {
+        interp_arg.ldflags += {
             "/OPT:ICF",
             "/DEBUG:FASTLINK",    // /Zi does imply /debug, the default is FASTLINK
             "/LTCG:incremental",  //TODO: using profile to guide optimization here (PGOptimize)
@@ -287,250 +320,150 @@ cgn::TargetInfos CxxInterpreter::msvc_interpret(
 
     //["msvc_subsystem"]
     if (x.cfg["msvc_subsystem"] == "CONSOLE")
-        arg.ldflags += {"/SUBSYSTEM:CONSOLE"};
+        interp_arg.ldflags += {"/SUBSYSTEM:CONSOLE"};
     if (x.cfg["msvc_subsystem"] == "WINDOW")
-        arg.ldflags += {"/SUBSYSTEM:WINDOW"};
-    
-    
-    //=== Section 2: make ninja file ===
-    // for msvc only
-    // TODO: implement after llvm-toolchain tested.
+        interp_arg.ldflags += {"/SUBSYSTEM:WINDOW"};
+} //TargetWorker::step1_win_msvc()
 
-    //(2) args.define => .cflags
-    //    arg.include_dirs => .cflags
-    auto def_to_cflag = [](CxxInfo &inf) {
-        for (auto &def : inf.defines)
-            inf.cflags += {"/D" + cgn::Tools::shell_escape(def)};
-        for (auto &dir : inf.include_dirs)
-            inf.cflags += {"/I" + cgn::Tools::shell_escape(dir)};
-    };
-    def_to_cflag(x);
-    // def_to_cflag(x.pub); //x.pub don't need to modify anymore.
 
-    // build.ninja : source file => .o
-    std::vector<std::string> obj_out;
-    for (auto &file : x.srcs) {
-        auto chk = file_check(file);
-        std::string path_in  = opt.src_prefix + cgn::Tools::locale_path(file);
-        std::string path_out = opt.src_prefix + cgn::Tools::locale_path(chk.first) + ".obj";
-        if (chk.second == '+' || chk.second == 'c' || chk.second == 'a') { // .c .cpp .S
-            auto *field = opt.ninja->append_build();
-            field->rule = "msvc";
-            field->inputs  = {path_in};
-            field->outputs = {path_out};
-            field->variables["cflags"] = list2str(arg.cflags) 
-                + list2str(chk.second=='+'? cflags_cc:cflags_c);
-            obj_out.push_back(path_out);
-        }
-    }
-
-    // init CxxInfo for return value
-    cgn::TargetInfos rv;
-    rv.get<cgn::DefaultInfo>()->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
-    rv.set(x.pub); // rv[CxxInfo] = x.pub
-    
-    return rv;
-}
-
-cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
+void TargetWorker::step1_linux_gcc()
 {
-    constexpr const char *rule_ninja = "@cgn.d//library/cxx.cgn.bundle/cxx_rule.ninja";
-
-    // convert file path to relpath-of-working-dir
-    for (std::string &dir : x.include_dirs)
-        dir = cgn::Tools::locale_path(opt.src_prefix + dir);
-    for (std::string &dir : x.pub.include_dirs)
-        dir = cgn::Tools::locale_path(opt.src_prefix + dir);
-
-    // preprocess "x.srcs = file_glob(*)"
-    // if the source file is not at the same/sub folder of BUILD.cgn.cc
-    // using absolutely path to locate.
-    // BUG HERE: file_glob(*) cannot found file newly added (in ninja cache)
-    //     TODO: target with file_glob() would re-analyse each time.
-    std::vector<std::string> real_srcs;
-    for (auto &ss : x.srcs) {
-        if (ss.find('*') == ss.npos) //if not file_glob
-            real_srcs += {ss};
-        else
-            real_srcs += api.file_glob(opt.src_prefix + ss, opt.src_prefix);
-    }
-    std::swap(x.srcs, real_srcs);
-    std::string dyn_def_file = [&]() -> std::string {
-        if (x.role != 'x' && x.role != 's')
-            return "";
-        std::string ext;
-        for (auto &it : x.srcs) {
-            for (auto p = it.size()-4; 0<=p && p<it.size(); p++)
-                if ('A' <= it[p] && it[p] <= 'Z')
-                    ext.push_back(it[p] - 'A' + 'a');
-                else
-                    ext.push_back(it[p]);
-            if (ext == ".def")
-                return it;
-        }
-        return "";
-    }();
-    
-    static std::string rule_path = api.get_filepath(rule_ninja);
-    opt.ninja->append_include(rule_path);
-
-    if (x.cfg["toolchain"] == "msvc")
-        return msvc_interpret(x, opt);
-
     // For toolchain gcc, the cross compiler is present by compiler filename
     // like /toolchain_X/arm-none-linux-gnueabi-gcc, and the kernel path 
     // (--sysroot) usually hard-coding inside compiler.
-    //
-    // For toolchain llvm, user should assign the target os/cpu and sysroot for 
-    // cross compile.
-    //      
-    
-    // interp_arg: data has been processed by two_escape()
-    // interp_arg 内数据均经 两次转义过(two_escape) 或用户保证无需转义
-    //            参数前半段为编译器参数 通常不需转义 (例如 --sysroot= ) 
-    //            一般仅后段需转义 (例如 $ORIGIN => \$ORIGIN )
-    CxxInfo interp_arg;
-    std::vector<std::string> interp_cflags_cc{"-std=c++17"}, interp_cflags_c{"-std=gnu17"};
     std::string prefix = x.cfg["cxx_prefix"];
-    std::string exe_cc, exe_cxx, exe_solink, exe_xlink, exe_ar;
+    exe_cc  = two_escape(prefix + "gcc");
+    exe_cxx = two_escape(prefix + "g++");
+    exe_ar  = two_escape(prefix + "gcc-ar");
+    exe_solink = two_escape(prefix + "g++") + " -shared";
+    exe_xlink  = two_escape(prefix + "g++");
 
-    // cnrrently we have 3 types of linker in unix-like world
-    //  * linux: gnu-ld (binutils)
-    //  * linux: llvm-ld
-    //  * mac:   bsd-ld (os-internal)
-    bool is_mac_bsd_linker;
-    
-    if (x.cfg["toolchain"] == "gcc") {
-        assert(x.cfg["os"] == "linux");
-        exe_cc  = two_escape(prefix + "gcc");
-        exe_cxx = two_escape(prefix + "g++");
-        exe_ar  = two_escape(prefix + "gcc-ar");
-        exe_solink = two_escape(prefix + "g++") + " -shared";
-        exe_xlink  = two_escape(prefix + "g++");
+    std::vector<std::string> cflags_1st, ldflags_1st;
+    interp_arg.cflags += {
+        "-I.",
+        "-fdiagnostics-color=always",
+        "-fvisibility=hidden",
+        "-Wl,--exclude-libs,ALL"
+    };
+    // using .def file to guide symbol expose
+    // only valid for current target
+    // if (dyn_def_file.empty())
+    //     interp_arg.cflags += {
+    //         "-fvisibility=hidden",
+    //     };
+    interp_arg.ldflags += {
+        "-L.",
+        "-Wl,--warn-common", "-Wl,-z,origin", 
+        "-Wl,--export-dynamic",  // force export from executable
+        // "-Wl,--warn-section-align", 
+        // "-Wl,-Bsymbolic", "-Wl,-Bsymbolic-functions",
+    };
 
-        std::vector<std::string> cflags_1st, ldflags_1st;
-        interp_arg.cflags += {
-            "-I.",
-            "-fdiagnostics-color=always",
-            "-fvisibility=hidden",
-            "-Wl,--exclude-libs,ALL"
-        };
-        // using .def file to guide symbol expose
-        // only valid for current target
-        // if (dyn_def_file.empty())
-        //     interp_arg.cflags += {
-        //         "-fvisibility=hidden",
-        //     };
-        interp_arg.ldflags += {
-            "-L.",
-            "-Wl,--warn-common", "-Wl,-z,origin", 
-            "-Wl,--export-dynamic",  // force export from executable
-            // "-Wl,--warn-section-align", 
-            // "-Wl,-Bsymbolic", "-Wl,-Bsymbolic-functions",
-        };
-
-        //["os"]
-        if (x.cfg["os"] == "linux") {
-            interp_arg.cflags  += {"-fPIC","-pthread"};
-            interp_arg.ldflags += {"-ldl", "-lrt", "-lpthread"};
-        }
-
-        //["optimization"]
-        if (x.cfg["optimization"] == "debug") {
-            interp_arg.defines += {"_DEBUG"};
-            interp_arg.cflags += {
-                "-Og", "-g", "-Wall", "-ggdb", "-O0",
-                "-fno-eliminate-unused-debug-symbols", 
-                "-fno-eliminate-unused-debug-types"};
-            interp_cflags_cc.push_back("-ftemplate-backtrace-limit=0");
-        }
-        if (x.cfg["optimization"] == "release")
-            interp_arg.cflags += {"-O2", "-flto", "-fwhole-program"};
-        
-        //["cxx_sysroot"]
-        if (x.cfg["cxx_sysroot"] != "")
-            interp_arg.cflags += {
-                "--sysroot=" + two_escape(x.cfg["cxx_sysroot"])
-            };
-    } //end toolchain == "gcc" && os == "linux"
-    else if (x.cfg["toolchain"] == "llvm" && (x.cfg["os"] == "linux" || x.cfg["os"] == "mac")) {
-        exe_cc  = two_escape(prefix + "clang");
-        exe_cxx = two_escape(prefix + "clang++");
-        exe_ar     = two_escape(prefix + "ar");
-        exe_solink = two_escape(prefix + "clang++") + " -shared";
-        exe_xlink  = two_escape(prefix + "clang++");
-        if (x.cfg["os"] == "linux") {
-            exe_ar     = two_escape(prefix + "llvm-ar");
-            exe_solink = two_escape(prefix + "clang++") + " -fuse-ld=lld -shared";
-            exe_xlink  = two_escape(prefix + "clang++") + " -fuse-ld=lld";
-        }
-        if (x.cfg["os"] == "mac")
-            is_mac_bsd_linker = true;
-
-        interp_arg.cflags += {
-            "-fvisibility=hidden",
-            "-fcolor-diagnostics", "-Wreturn-type", 
-            "-I.", "-fPIC", "-pthread"};
-        
-        interp_arg.ldflags += {
-            "-L.",
-            "-lpthread"
-        };
-        if (x.cfg["os"] == "linux")
-            interp_arg.ldflags += {"-Wl,--warn-common", "-Wl,--warn-backrefs", "-lrt"};
-        if (x.cfg["os"] == "mac") //for macos : using warn-commons instead of warn-common
-            interp_arg.ldflags += {"-fprofile-instr-generate", "-Wl,-warn_commons"};
-
-        interp_arg.defines += {"_GNU_SOURCE"};
-        interp_cflags_c = {"-std=c17"};
-
-        //["optimization"]
-        if (x.cfg["optimization"] == "debug") {
-            interp_arg.defines += {"_DEBUG"};
-            interp_arg.cflags += {
-                "-g", "-Wall", "-Wextra", "-Wno-unused-parameter",
-                "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls",
-                "-ftemplate-backtrace-limit=0", "-fno-limit-debug-info",
-                "-fstandalone-debug", "-fdebug-macro", "-glldb", //"-march=native",
-                "-fcoverage-mapping", "-fprofile-instr-generate", "-ftime-trace"
-                // "-flto=thin"
-            };
-        }
-        if (x.cfg["optimization"] == "release") {
-            interp_arg.cflags += {"-O3", "-flto"};
-            interp_arg.ldflags += {
-                "-flto", "-Wl,--exclude-libs=ALL", "-Wl,--discard-all",
-                // "-Wl,--thinlto-jobs=0", 
-                // "-Wl,--thinlto-cache-dir=./thinlto_cache", 
-                // "-Wl,--thinlto-cache-policy,cache_size_bytes=1g"
-            };
-        }
-
-        //["llvm_stl"]
-        if (x.cfg["llvm_stl"] == "libc++")
-            interp_arg.cflags += {"-stdlib=libc++"};
-
-        //["cxx_sysroot"]
-        if (x.cfg["cxx_sysroot"] != "")
-            interp_arg.cflags += {
-                "--sysroot=" + two_escape(x.cfg["cxx_sysroot"])};
-
-        //llvm cross compile argument
-        auto host = api.get_host_info();
-        if (x.cfg["os"] != host.os || x.cfg["cpu"] != host.cpu) {
-            std::string cpu = x.cfg["cpu"];
-            if (cpu == "x86_64")
-                cpu = "amd64";
-            if (cpu == "arm64")
-                cpu = "aarch64";
-            interp_arg.cflags += {"--target=" + cpu + "-pc-" + (std::string)x.cfg["os"]};
-        }
-    } //toolchain == "llvm" && os=="linux"/"mac"
-    else {
-        throw std::runtime_error{
-            "Unsupported toolchain " + (std::string)x.cfg["toolchain"]};
+    //["os"]
+    if (x.cfg["os"] == "linux") {
+        interp_arg.cflags  += {"-fPIC","-pthread"};
+        interp_arg.ldflags += {"-ldl", "-lrt", "-lpthread"};
     }
 
+    //["optimization"]
+    if (x.cfg["optimization"] == "debug") {
+        interp_arg.defines += {"_DEBUG"};
+        interp_arg.cflags += {
+            "-Og", "-g", "-Wall", "-ggdb", "-O0",
+            "-fno-eliminate-unused-debug-symbols", 
+            "-fno-eliminate-unused-debug-types"};
+        cflags_cpp.push_back("-ftemplate-backtrace-limit=0");
+    }
+    if (x.cfg["optimization"] == "release")
+        interp_arg.cflags += {"-O2", "-flto", "-fwhole-program"};
+    
+    //["cxx_sysroot"]
+    if (x.cfg["cxx_sysroot"] != "")
+        interp_arg.cflags += {
+            "--sysroot=" + two_escape(x.cfg["cxx_sysroot"])
+        };
+} //TargetWorker::step1_linux_gcc()
+
+
+void TargetWorker::step1_linuxllvm_and_xcode()
+{
+    // For toolchain llvm, user should assign the target os/cpu and sysroot for 
+    // cross compile.
+    std::string prefix = x.cfg["cxx_prefix"];
+    exe_cc  = two_escape(prefix + "clang");
+    exe_cxx = two_escape(prefix + "clang++");
+    exe_ar     = two_escape(prefix + "ar");
+    exe_solink = two_escape(prefix + "clang++") + " -shared";
+    exe_xlink  = two_escape(prefix + "clang++");
+    if (x.cfg["os"] == "linux") {
+        exe_ar     = two_escape(prefix + "llvm-ar");
+        exe_solink = two_escape(prefix + "clang++") + " -fuse-ld=lld -shared";
+        exe_xlink  = two_escape(prefix + "clang++") + " -fuse-ld=lld";
+    }
+
+    interp_arg.cflags += {
+        "-fvisibility=hidden",
+        "-fcolor-diagnostics", "-Wreturn-type", 
+        "-I.", "-fPIC", "-pthread"};
+    
+    interp_arg.ldflags += {
+        "-L.",
+        "-lpthread"
+    };
+    if (x.cfg["os"] == "linux")
+        interp_arg.ldflags += {"-Wl,--warn-common", "-Wl,--warn-backrefs", "-lrt"};
+    if (x.cfg["os"] == "mac") //for macos : using warn-commons instead of warn-common
+        interp_arg.ldflags += {"-fprofile-instr-generate", "-Wl,-warn_commons"};
+
+    interp_arg.defines += {"_GNU_SOURCE"};
+    cflags_c = {"-std=c17"};
+
+    //["optimization"]
+    if (x.cfg["optimization"] == "debug") {
+        interp_arg.defines += {"_DEBUG"};
+        interp_arg.cflags += {
+            "-g", "-Wall", "-Wextra", "-Wno-unused-parameter",
+            "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls",
+            "-ftemplate-backtrace-limit=0", "-fno-limit-debug-info",
+            "-fstandalone-debug", "-fdebug-macro", "-glldb", //"-march=native",
+            "-fcoverage-mapping", "-fprofile-instr-generate", "-ftime-trace"
+            // "-flto=thin"
+        };
+    }
+    if (x.cfg["optimization"] == "release") {
+        interp_arg.cflags += {"-O3", "-flto"};
+        interp_arg.ldflags += {
+            "-flto", "-Wl,--exclude-libs=ALL", "-Wl,--discard-all",
+            // "-Wl,--thinlto-jobs=0", 
+            // "-Wl,--thinlto-cache-dir=./thinlto_cache", 
+            // "-Wl,--thinlto-cache-policy,cache_size_bytes=1g"
+        };
+    }
+
+    //["llvm_stl"]
+    if (x.cfg["llvm_stl"] == "libc++")
+        interp_arg.cflags += {"-stdlib=libc++"};
+
+    //["cxx_sysroot"]
+    if (x.cfg["cxx_sysroot"] != "")
+        interp_arg.cflags += {
+            "--sysroot=" + two_escape(x.cfg["cxx_sysroot"])};
+
+    //llvm cross compile argument
+    auto host = api.get_host_info();
+    if (x.cfg["os"] != host.os || x.cfg["cpu"] != host.cpu) {
+        std::string cpu = x.cfg["cpu"];
+        if (cpu == "x86_64")
+            cpu = "amd64";
+        if (cpu == "arm64")
+            cpu = "aarch64";
+        interp_arg.cflags += {"--target=" + cpu + "-pc-" + (std::string)x.cfg["os"]};
+    }
+} //TargetWorker::step1_linuxllvm_and_xcode()
+
+
+void TargetWorker::step2_arg_merge()
+{
     //=== Section 2: merge args from target(x), deps, interpreter ===
     CxxInfo carg; //compile arg
     carg.cflags = interp_arg.cflags + two_escape(x._cxx_to_self.cflags) 
@@ -542,48 +475,199 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
                       + interp_arg.include_dirs;
     carg.defines = x.defines + x._cxx_to_self.defines + interp_arg.defines;
 
+    // auto def_to_cflag = [](CxxInfo &inf) {
+    //     for (auto &def : inf.defines)
+    //         inf.cflags += {"/D" + cgn::Tools::shell_escape(def)};
+    //     for (auto &dir : inf.include_dirs)
+    //         inf.cflags += {"/I" + cgn::Tools::shell_escape(dir)};
+    // };
+    // def_to_cflag(x);
+    // def_to_cflag(x.pub); //x.pub don't need to modify anymore.
+
     // clear duplicate include folder, .obj files from dep
     remove_dup(carg.include_dirs);
     remove_dup(x._lnr_to_self.object_files);
     remove_dup(x._lnr_to_self.static_files);
     remove_dup(x._lnr_to_self.shared_files);
+} //TargetWorker::step2_arg_merge()
 
+
+void TargetWorker::step30_prepare_rv()
+{
+    // init CxxInfo for return value
+    rv = &x._pub_infos_fromdep;
+    
+    rvcxx = rv->get<CxxInfo>();
+    rvcxx->cflags  += x.pub.cflags;
+    rvcxx->ldflags += x.pub.ldflags;
+    rvcxx->defines += x.pub.defines;
+    rvcxx->include_dirs = x.pub.include_dirs + rvcxx->include_dirs;
+    
+    rvdef = rv->get<cgn::DefaultInfo>(true);
+    rvdef->target_label = opt.factory_ulabel;
+    rvdef->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
+
+    rvlnr = rv->get<cgn::LinkAndRunInfo>(true);
+    remove_dup(rvlnr->object_files);
+    
+    escaped_ninja_entry = cgn::NinjaFile::escape_path(
+                          opt.out_prefix + opt.BUILD_ENTRY);
+} //TargetWorker::step30_prepare_rv()
+
+
+void TargetWorker::step31_win()
+{
+    std::string dyn_def_file;
+
+    // build.ninja : source file => .o
+    std::vector<std::string> obj_out;
+    std::vector<std::string> obj_out_ninja_esc;
+    for (auto &file : x.srcs) {
+        std::string path_in, path_out;
+        auto file_type = src_path_convert(file, opt, &path_in, &path_out);
+        if (file_type == 0)
+            continue;
+        auto *field = opt.ninja->append_build();
+        field->inputs  = {cgn::NinjaFile::escape_path(path_in)};
+        field->outputs = {cgn::NinjaFile::escape_path(path_out)};
+        field->order_only = x.phony_order_only;
+        if (file_type == 'D') {
+            dyn_def_file = path_in;
+        }else if (file_type == 'A') {
+            field->rule = "msvc_ml";
+            field->variables["cc"] = cgn::NinjaFile::escape_path(exe_asm);
+            field->variables["cflags"] = list2str(cflags_asm);
+        }else {
+            field->rule = "msvc_cl";
+            field->variables["cc"] = cgn::NinjaFile::escape_path(exe_cxx);
+            field->variables["cflags"] = 
+                list2str(file_type=='+'? cflags_cpp:cflags_c) 
+                + list2str(carg.cflags)
+                + list2str(carg.include_dirs, "/I")
+                + list2str(carg.defines, "/D");
+        }
+        obj_out.push_back(path_out);
+        obj_out_ninja_esc.push_back(field->outputs[0]);
+    }
+
+    // build.ninja : cxx_sources()
+    // cxx_sources() cannot process any field of LinkAndRunInfo
+    // so add the .obj file generated by itself then return
+    if (x.role == 'o') {
+        _entry_postprocess(obj_out_ninja_esc);
+        rvlnr->object_files = obj_out + rvlnr->object_files;
+        return ;
+    }
+
+    // build.ninja : cxx_static()
+    //  deps.obj + self.srcs.o => rv[LRinfo].a
+    //  deps.rt / deps.so / deps.a => rv[LRinfo]
+    if (x.role == 'a') {
+        std::string outfile = opt.out_prefix + x.name + ".a";
+        std::string outfile_njesc = cgn::NinjaFile::escape_path(outfile);
+        auto *field = opt.ninja->append_build();
+        field->rule = "msvc_lib";
+        field->inputs = obj_out_ninja_esc
+                      + cgn::NinjaFile::escape_path(x._lnr_to_self.object_files);
+        field->outputs = {outfile_njesc};
+        field->variables["libexe"] = exe_ar;
+
+        _entry_postprocess(field->outputs);
+        rvlnr->static_files = std::vector<std::string>{outfile} + rvlnr->static_files;
+        return ;
+    }
+    
+    // build.ninja : cxx_shared() / cxx_executable()
+    //   deps.object + deps.static + self.srcs.o => self.so / self.exe
+    //   with carg.ldflags and -wholearchive:x._wholearchive_a
+    //   self.so + {so from deps} => rv[LRinfo].so
+    if (x.role == 's' || x.role == 'x') {
+        std::string outfile;
+        std::string outfile_njesc;
+        std::string outfile_implib;
+        if (x.role == 's')
+            outfile = opt.out_prefix + x.name + ".dll";
+        else
+            outfile = opt.out_prefix + x.name + ".exe";
+        outfile_implib = opt.out_prefix + x.name + ".lib";
+        outfile_njesc  = opt.ninja->escape_path(outfile);
+
+        //prepare rpath argument
+        //  this is seen as target ldflags, so put on the tail of cargs.ldflags
+        //TODO: manifest and .runtime
+
+        //generate ninja section
+        // --start-group   : {all.obj} {dep.static without whole} -l{dep.shared}
+        // --whole-archive : {static_files from inherit dep}
+        auto *field = opt.ninja->append_build();
+        field->rule = "msvc_link";
+        field->inputs = obj_out_ninja_esc 
+                      + opt.ninja->escape_path(x._lnr_to_self.object_files)
+                      + opt.ninja->escape_path(x._lnr_to_self.static_files) 
+                      + opt.ninja->escape_path(x._lnr_to_self.shared_files)
+                      + opt.ninja->escape_path(x._wholearchive_a);
+        field->outputs = {outfile_njesc};
+        field->variables["link"] = opt.ninja->escape_path(
+                                    x.role=='s'? exe_solink:exe_xlink);
+        field->variables["ldflags"] = list2str(carg.ldflags)
+                + list2str(two_escape(x._wholearchive_a), "/WHOLEARCHIVE:");
+                   
+        // generate entry
+        _entry_postprocess(field->outputs);
+
+        // copy runtime when cxx_executable()
+        if (x.role == 'x')
+            for (auto &one_entry : x._lnr_to_self.runtime_files) {
+                auto dst  = opt.out_prefix + one_entry.first;
+                auto &src = one_entry.second;
+                auto *cpfield = opt.ninja->append_build();
+                //TODO: copy runtime by custom command (like symbolic-link)
+                cpfield->rule    = "win_cp";
+                cpfield->inputs  = {cgn::NinjaFile::escape_path(src)};
+                cpfield->outputs = {cgn::NinjaFile::escape_path(dst)};
+                field->order_only += cpfield->outputs;
+                // entry->order_only += cpfield->outputs;
+            }
+
+        // put front
+        rvlnr->shared_files = std::vector<std::string>{outfile_implib} 
+                            + rvlnr->shared_files;
+
+        rvdef->outputs = {outfile};
+    } // if (role=='s' or 'x')
+
+} //TargetWorker::step31_win()
+
+
+void TargetWorker::step31_unix()
+{
     //=== Section 3: make ninja file ===
     // common for both GCC and LLVM
     // build.ninja : source file => .o
     // field.input and field.output : need ninja escape, instead of shell esacpe
     // carg.cflags and carg.ldflags : already two escaped
-    //
-    // case for path_out: xxx.so / .lib may have same name with folder-name 
-    //                    in src folder, so we have to add '_' before path_out.
-    // case for path_out: cgn-out/.../ in same folder of current interpreter
-    //                    add '__' (two underline) before path_out.
     std::vector<std::string> obj_out;
     std::vector<std::string> obj_out_ninja_esc;
+    std::string dyn_def_file;
     for (auto &ss : x.srcs) {
         // if (ss[0] == '.' && ss[1] == '.')
         //     ss = api.abspath(ss);  // using abspath to present file outside project
-        auto chk = file_check(ss);
-        std::string path_in  = cgn::Tools::locale_path(opt.src_prefix + ss);
-        std::string path_out;
-        std::string probe1 = api.rebase_path(path_in, opt.out_prefix);
-        if (probe1[0] != '.' && probe1[1] != '.') {// path_in is inside out_prefix
-            chk = file_check(probe1);
-            path_out = opt.out_prefix + "__" + chk.first + ".o";
-        }
-        else
-            path_out = cgn::Tools::locale_path(opt.out_prefix + "_" + chk.first + ".o");
-        // if (chk.second == '!')//special file : .def
-        //     dyn_def_file = path_in;
-        if (chk.second) {
+        std::string path_in, path_out;
+        auto file_type = src_path_convert(ss, opt, &path_in, &path_out);
+        if (file_type == 0)
+            continue;
+
+        if (file_type == 'D') {
+            dyn_def_file = path_in;
+        }else {
             auto *field = opt.ninja->append_build();
             field->rule = "gcc";
             field->inputs  = {cgn::NinjaFile::escape_path(path_in)};
             field->outputs = {cgn::NinjaFile::escape_path(path_out)};
             field->order_only = x.phony_order_only;
-            field->variables["cc"] = (chk.second=='+'?exe_cxx:exe_cc);
+            field->variables["cc"] = (file_type=='+'?exe_cxx:exe_cc);
             field->variables["cflags"] = 
-                list2str(chk.second=='+'? interp_cflags_cc:interp_cflags_c) 
+                list2str(file_type=='+'? cflags_cpp:cflags_c) 
                 + list2str(carg.cflags)
                 + list2str(carg.include_dirs, "-I")
                 + list2str(carg.defines, "-D");
@@ -592,36 +676,13 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         }
     }
 
-    // init CxxInfo for return value
-    cgn::TargetInfos &rv = x._pub_infos_fromdep;
-    
-    CxxInfo *rvcxx = rv.get<CxxInfo>();
-    rvcxx->cflags  += x.pub.cflags;
-    rvcxx->ldflags += x.pub.ldflags;
-    rvcxx->defines += x.pub.defines;
-    rvcxx->include_dirs = x.pub.include_dirs + rvcxx->include_dirs;
-    
-    cgn::DefaultInfo *rvdef = rv.get<cgn::DefaultInfo>(true);
-    rvdef->target_label = opt.factory_ulabel;
-    rvdef->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
-
-    cgn::LinkAndRunInfo *rvlnr = rv.get<cgn::LinkAndRunInfo>(true);
-    remove_dup(rvlnr->object_files);
-
     // build.ninja : cxx_sources()
     // cxx_sources() cannot process any field of LinkAndRunInfo
     // so add the .obj file generated by itself then return
-    std::string escaped_ninja_entry = cgn::NinjaFile::escape_path(
-                                    opt.out_prefix + opt.BUILD_ENTRY);
     if (x.role == 'o') {
-        auto *stamp = opt.ninja->append_build();
-        stamp->rule = "phony";
-        stamp->outputs = {escaped_ninja_entry};
-        stamp->inputs  = obj_out_ninja_esc;
-        stamp->order_only = x.phony_order_only;
-
+        _entry_postprocess(obj_out_ninja_esc);
         rvlnr->object_files = obj_out + rvlnr->object_files;
-        return rv;
+        return ;
     }
 
     // build.ninja : cxx_static()
@@ -637,15 +698,15 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         field->outputs = {outfile_njesc};
         field->variables["exe"] = exe_ar;
 
-        auto *entry = opt.ninja->append_build();
-        entry->rule = "phony";
-        entry->inputs = field->outputs;
-        entry->outputs = {escaped_ninja_entry};
-        entry->order_only = x.phony_order_only;
-
+        _entry_postprocess(field->outputs);
         rvlnr->static_files = std::vector<std::string>{outfile} + rvlnr->static_files;
-        return rv;
+        return ;
     }
+    
+    // currently we have 3 types of linker in unix-like world
+    //  * linux: gnu-ld (binutils)
+    //  * linux: llvm-ld
+    //  * mac:   bsd-ld (os-internal)
 
     // build.ninja : cxx_shared() / cxx_executable()
     //   deps.object + deps.static + self.srcs.o => self.so / self.exe
@@ -684,9 +745,6 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
                 carg.ldflags += {"-Wl,--export-dynamic-symbol-list=" + dyn_def_file};
                 // carg.ldflags += {"-Wl,-exported_symbols_list,\"" + dyn_def_file + "\""};
         }
-        if (x.cfg["os"] == "win") {
-            //TODO: manifest and .runtime
-        }
 
         //generate ninja section
         // --start-group   : {all.obj} {dep.static without whole} -l{dep.shared}
@@ -703,7 +761,7 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
                                     x.role=='s'? exe_solink:exe_xlink);
         
         std::string buildstr_a, buildstr_start_group, buildstr_end_group;
-        if (is_mac_bsd_linker)
+        if (x.cfg["cxx_toolchain"] == "xcode")
             buildstr_a = " " + list2str(two_escape(x._wholearchive_a), "-Wl,-force_load ");
         else{
             buildstr_a = " -Wl,--whole-archive " 
@@ -724,11 +782,7 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         field->variables["desc"] = "LINK " + outfile_njesc;
         
         // generate entry
-        auto *entry = opt.ninja->append_build();
-        entry->rule = "phony";
-        entry->outputs = {escaped_ninja_entry};
-        entry->inputs += field->outputs;
-        entry->order_only = x.phony_order_only;
+        _entry_postprocess(field->outputs);
 
         // copy runtime when cxx_executable()
         if (x.role == 'x')
@@ -748,13 +802,82 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         rvlnr->shared_files = std::vector<std::string>{outfile} + rvlnr->shared_files;
 
         rvdef->outputs = {outfile};
-        return rv;
+        return ;
     } // if (role=='s' or 'x')
+} //TargetWorker::step31_unix()
 
-    return {};
+
+void TargetWorker::_entry_postprocess(const std::vector<std::string> &to)
+{
+    auto *entry = opt.ninja->append_build();
+    entry->rule = "phony";
+    entry->inputs = to;
+    entry->outputs = {escaped_ninja_entry};
+    entry->order_only = x.phony_order_only;
 }
 
-// struct CxxInfo
+
+cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
+{
+    constexpr const char *rule_ninja = "@cgn.d//library/cxx.cgn.bundle/cxx_rule.ninja";
+
+    // convert file path to relpath-of-working-dir
+    for (std::string &dir : x.include_dirs)
+        dir = cgn::Tools::locale_path(opt.src_prefix + dir);
+    for (std::string &dir : x.pub.include_dirs)
+        dir = cgn::Tools::locale_path(opt.src_prefix + dir);
+
+    // preprocess "x.srcs = file_glob(*)"
+    // if the source file is not at the same/sub folder of BUILD.cgn.cc
+    // using absolutely path to locate.
+    // BUG HERE: file_glob(*) cannot found file newly added (in ninja cache)
+    //     TODO: target with file_glob() would re-analyse each time.
+    std::vector<std::string> real_srcs;
+    for (auto &ss : x.srcs) {
+        if (ss.find('*') == ss.npos) //if not file_glob
+            real_srcs += {ss};
+        else
+            real_srcs += api.file_glob(opt.src_prefix + ss, opt.src_prefix);
+    }
+    std::swap(x.srcs, real_srcs);
+
+    // include rule.ninja    
+    static std::string rule_path = api.get_filepath(rule_ninja);
+    opt.ninja->append_include(rule_path);
+
+    // start interpret
+    TargetWorker w(x, opt);
+    if (x.cfg["toolchain"] == "msvc") {
+        assert(api.get_host_info().os == "win");
+        w.step1_win_msvc();
+        w.step2_arg_merge();
+        w.step30_prepare_rv();
+        w.step31_win();
+    }
+    else if (x.cfg["toolchain"] == "gcc" && api.get_host_info().os == "linux") {
+        w.step1_linux_gcc();
+        w.step2_arg_merge();
+        w.step30_prepare_rv();
+        w.step31_unix();
+    }
+    else if (
+        (x.cfg["toolchain"] == "xcode" && api.get_host_info().os == "mac") ||
+        (x.cfg["toolchain"] == "llvm"  && api.get_host_info().os == "linux")
+    ) {
+        w.step1_linuxllvm_and_xcode();
+        w.step2_arg_merge();
+        w.step30_prepare_rv();
+        w.step31_unix();
+    }
+    else {
+        throw std::runtime_error{
+            "Unsupported toolchain " + (std::string)x.cfg["toolchain"]};
+    }
+
+    return *w.rv;
+}
+
+
 
 CxxContext::CxxContext(char role, const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
 : role(role), name(opt.factory_name), cfg(cfg), opt(opt) {}

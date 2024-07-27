@@ -65,8 +65,8 @@ void CGN::init(const std::unordered_map<std::string, std::string> &kvargs)
 
 void CGN::release()
 {
-    pimpl = new CGNImpl;
-    pimpl->release();
+    if (pimpl)
+        pimpl->release();
 }
 
 const std::unordered_map<std::string, std::string> &CGN::get_kvargs() const

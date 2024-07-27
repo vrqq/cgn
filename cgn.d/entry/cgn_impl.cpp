@@ -129,12 +129,12 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
         graph.test_status(s.adep = graph.get_node(ulabel));
 
     if (s.sofile.empty()) {
-        std::filesystem::path fpath{labe2};
+        auto fpath = std::filesystem::path{labe2}.make_preferred();
         #ifdef _WIN32
-            s.sofile = (analysis_path / fpath.parent_path() 
+            s.sofile = (analysis_path / fpath.parent_path().make_preferred()
                         / (fpath.stem().string() + ".dll")).string();
         #else
-            s.sofile = analysis_path / fpath.parent_path() 
+            s.sofile = analysis_path / fpath.parent_path().make_preferred()
                         / ("lib" + fpath.stem().string() + ".so");
         #endif
     }
@@ -143,7 +143,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
     //        prepare CGNScript and GraphNode fields if necessary,
     //        then build cgn script and goto case 4 if build successful.
     if (s.adep->files.empty() || s.adep->status == GraphNode::Stale) {
-        std::filesystem::path fpath{labe2};
+        auto fpath = std::filesystem::path{labe2}.make_preferred();
 
         //(re)generate GraphNode.files[]
         // script_srcs: file in fetched bundle or .rsp
@@ -387,12 +387,20 @@ CGNTarget CGNImpl::analyse_target(
         last = fdbs + 1;
     }
 
-    std::filesystem::path escaped_mid, src_dir;
+    std::string OSSEP = {std::filesystem::path::preferred_separator};
+    std::string out_prefix_ossep   = cgn_out.string() + OSSEP + "obj";
+    std::string out_prefix_unixsep = cgn_out.string() + "/obj";
+
+    std::filesystem::path escaped_mid;
     std::string last_dir;
     for (std::size_t i=0, fd=0; fd<stem.size(); i=fd+1) {
         if (fd = stem.find('/', i); fd == stem.npos)
             fd = stem.size();
-        escaped_mid /= (last_dir = stem.substr(i, fd-i)) + "_";
+        last_dir = stem.substr(i, fd-i);
+        out_prefix_ossep += OSSEP + last_dir + "_";
+        out_prefix_unixsep += "/" + last_dir + "_";
+
+        // escaped_mid /= (last_dir = stem.substr(i, fd-i)) + "_";
     }
     if (facty_name.empty()){
         if (last_dir.empty())
@@ -401,10 +409,14 @@ CGNTarget CGNImpl::analyse_target(
     }
     std::string factory_label = "//" + stem + ":" + facty_name;
     std::string tgt_label = factory_label + "#" + cfg_id;
-    auto out_prefix_path = cgn_out / "obj" / escaped_mid / (facty_name + "_" + cfg_id);
-    std::string out_prefix = out_prefix_path.string();
-    out_prefix.push_back(std::filesystem::path::preferred_separator);
-    
+
+    out_prefix_ossep += OSSEP + facty_name + "_" + cfg_id + OSSEP;
+    out_prefix_unixsep += "/" + facty_name + "_" + cfg_id + "/";
+
+    // auto out_prefix_path = cgn_out / "obj" / escaped_mid / (facty_name + "_" + cfg_id);
+    // std::string out_prefix = out_prefix_path.string();
+    // out_prefix.push_back(std::filesystem::path::preferred_separator);
+
     if (adep_cycle_detection.insert(tgt_label).second == false)
         throw std::runtime_error{"analyse: cycle-dependency " + tgt_label};
     auto adep_pop = [&](){ adep_cycle_detection.erase(tgt_label); };
@@ -413,11 +425,11 @@ CGNTarget CGNImpl::analyse_target(
     //  check the stat of target ninja file
     //  return empty if Latest existed, otherwise enter normal analyse
     if (adep_test != nullptr) {
-        GraphNode *node = graph.get_node(out_prefix);
+        GraphNode *node = graph.get_node(out_prefix_ossep);
         if (node->files.size()) { //if existed in db (generate by previous analyse)
             graph.test_status(node);
             if (node->status == GraphNode::Latest) {
-                *adep_test = out_prefix + CGNTargetOpt::BUILD_ENTRY;
+                *adep_test = out_prefix_ossep + CGNTargetOpt::BUILD_ENTRY;
                 adep_pop();
                 return {};
             }
@@ -436,14 +448,14 @@ CGNTarget CGNImpl::analyse_target(
     // case 3: active_script() and interpreter()
 
     //prepare CGNTarget return value and CGNTargetOpt interpret parameter
-    std::string ninja_path = out_prefix + CGNTargetOpt::BUILD_NINJA;
+    std::string ninja_file_ossep   = out_prefix_ossep + CGNTargetOpt::BUILD_NINJA;
+    std::string ninja_file_unixsep = out_prefix_unixsep + CGNTargetOpt::BUILD_NINJA;
     CGNTarget rv;
     CGNTargetOpt opt;
     opt.factory_ulabel = factory_label;
     opt.factory_name   = facty_name;
-    opt.src_prefix = stem;
-    opt.src_prefix.push_back(std::filesystem::path::preferred_separator);
-    opt.out_prefix = out_prefix;
+    opt.src_prefix = stem + OSSEP;
+    opt.out_prefix = out_prefix_ossep;
     rv.cgn_script = &active_script("//" + stem + "/BUILD.cgn.cc");
 
     // find factories after acrive_script
@@ -453,12 +465,12 @@ CGNTarget CGNImpl::analyse_target(
     else  //return immediately if factory not found
         return adep_pop(), cgn::CGNTarget{};
 
-    rv.adep = opt.adep = graph.get_node(opt.out_prefix);
+    rv.adep = opt.adep = graph.get_node(out_prefix_ossep);
     graph.remove_inbound_edges(opt.adep);
-    graph.set_node_files(opt.adep, {ninja_path});
+    graph.set_node_files(opt.adep, {ninja_file_ossep});
     graph.add_edge(rv.cgn_script->adep, rv.adep);
 
-    std::unique_ptr<NinjaFile> nj = std::make_unique<NinjaFile>(ninja_path);
+    std::unique_ptr<NinjaFile> nj = std::make_unique<NinjaFile>(ninja_file_ossep);
     opt.ninja = nj.get();
 
     //call interpreter()
@@ -473,13 +485,9 @@ CGNTarget CGNImpl::analyse_target(
 
     // insert into main_subninja if interpreter successed.
     // subninja command enforce '/' path-sep
-    std::string ninja_path_unix = ninja_path;
-    #ifdef _WIN32
-        std::replace(ninja_path_unix.begin(), ninja_path_unix.end(), '\\', '/');
-    #endif
-    if (main_subninja.insert(ninja_path_unix).second) {
+    if (main_subninja.insert(ninja_file_unixsep).second) {
         std::ofstream fout(obj_main_ninja, std::ios::app);
-        fout<<"subninja "<<NinjaFile::escape_path(ninja_path_unix)<<"\n";
+        fout<<"subninja "<<NinjaFile::escape_path(ninja_file_unixsep)<<"\n";
     }
 
     // release ninja file handle to write build.ninja down to disk
@@ -494,7 +502,7 @@ CGNTarget CGNImpl::analyse_target(
     //special case:
     if (adep_test) {
         assert(opt.adep->status == GraphNode::Latest);
-        *adep_test = out_prefix + CGNTargetOpt::BUILD_ENTRY;
+        *adep_test = out_prefix_ossep + CGNTargetOpt::BUILD_ENTRY;
     }
     
     if (!rv.infos.no_store)
@@ -569,7 +577,7 @@ std::string CGNImpl::_expand_cell(const std::string &ss) const
 
         std::string cellname = ss.substr(0, fd);
         if (cells.count(cellname))
-            return (cell_lnk_path / cellname / ss.substr(fd+2)).string();
+            return cell_lnk_path_unixsep +  "/" + cellname + "/" + ss.substr(fd+2);
         // std::string cellname = ss.substr(1, fd-1);
         // if (auto fd2 = cells.find(cellname); fd2 != cells.end())
         //     return fd2->second + "/" + ss.substr(fd+2);
@@ -597,9 +605,15 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
     //init path
     std::string dsuffix = (scriptcc_debug_mode? "d":"");
     cgn_out = cmd_kvargs.at("cgn-out");
+    cgn_out_unixsep = cgn_out.string();
+    #ifdef _WIN32
+    std::replace(cgn_out_unixsep.begin(), cgn_out_unixsep.end(), '/', '\\');
+    #endif
     analysis_path = cgn_out / ("analysis_" + Tools::get_host_info().os + dsuffix);
     cell_lnk_path = cgn_out / "cell_include";
+    cell_lnk_path_unixsep = cgn_out_unixsep + "/cell_include";
     obj_main_ninja = cgn_out / "obj" / "main.ninja";
+
 
     // replace path\to\cgn.exe => path\to\cgn.lib (win only)
     #ifdef _WIN32
@@ -661,14 +675,24 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
     std::ifstream fin(obj_main_ninja, std::ios::in);
     if (!fin) //create if not existed
         std::ofstream{obj_main_ninja};
-    else
+    else {
+        bool need_rebuild = false;
         for (std::string ln; !fin.eof() && std::getline(fin, ln);)
             if (ln.size() > SUBNINJA.size()) {
                 auto subfile = NinjaFile::parse_ninja_str(
                                 ln.substr(SUBNINJA.size()));
                 if (std::filesystem::is_regular_file(subfile))
                     main_subninja.insert(subfile);
+                else //some .ninja files missing
+                    need_rebuild = true;
             }
+        if (fin.close(); need_rebuild) {
+            std::ofstream fout{obj_main_ninja};
+            for (auto ln : main_subninja)
+                fout<<"subninja " + ln + "\n";
+            fout.close();
+        }
+    }
         
     // graph init (load previous one)
     logger.print("Loading fileDB");
@@ -746,6 +770,8 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
 
 void CGNImpl::release()
 {
+    targets.clear();
+    factories.clear();
     scripts.clear();
 } //CGNImpl::release()
 

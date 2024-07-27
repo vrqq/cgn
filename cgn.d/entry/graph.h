@@ -60,7 +60,9 @@ public:
     // set p->files = in and set p and dfs(p)->status = Stale 
     void set_node_files(GraphNode *p, std::vector<std::string> in);
 
-    void clear_mtime_cache() { win_mtime_cache.clear(); }
+    void clear_mtime_cache() { 
+        win_mtime_folder_exist.clear(); win_mtime_cache.clear();
+    }
 
     void clear_file0_mtime_cache(GraphNode *p);
 
@@ -86,10 +88,11 @@ private:
     // * win_mtime_cache[filepath] = mtime
     // (no windows) get file mtime directly then cache?
     // * keep cache until this->clear_mtime_cache() called?
+    std::unordered_set<std::string> win_mtime_folder_exist;
     std::unordered_map<std::string, int64_t> win_mtime_cache;
 
     // void remove_mtime_cache(const std::filesystem::path &filepath);
-    int64_t stat_and_cache(const std::filesystem::path &filepath);
+    int64_t stat_and_cache(std::filesystem::path filepath);
 
     // DB index saved in 3 places:
     //  nodes[].dbfile_xx, db_strings[].dbfile_xx and db_recovery

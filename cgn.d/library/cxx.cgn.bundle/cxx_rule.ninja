@@ -4,10 +4,22 @@ rule gcc
     depfile = ${out}.d
     deps = gcc
 
-rule msvc
-    command = cl.exe /nologo /showIncludes ${cflags} /c ${in} /Fo"${out}" /Fd"${out}.pdb"
+rule msvc_cl
+    command = ${cc} /nologo /showIncludes ${cflags} /c ${in} /Fo"${out}" /Fd"${out}.pdb"
     description = CXX ${out}
     deps = msvc
+
+rule msvc_ml
+    command = ${cc} /nologo ${cflags} /Fo ${out} ${in}
+
+rule msvc_lib
+    command = ${libexe} /nologo /OUT:${out} ${in}
+
+rule msvc_link
+    command = ${link} /nologo @${out}.rsp
+    rspfile = ${out}.rsp
+    rspfile_content = /OUT:${out} ${ldflags} ${in}
+    description = LINK ${out}
 
 rule gcc_ar
     command = rm -f ${out} && ${exe} rcs ${out} ${in}

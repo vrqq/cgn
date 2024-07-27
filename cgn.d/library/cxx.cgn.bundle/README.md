@@ -19,12 +19,12 @@
 见 cgn.d/README.md
 
 **ROADMAP**
-* MacOS cxx_toolchain == xcode : XCode.app/clang and OS bsd linker  (UP!)
+* MacOS cxx_toolchain == xcode : XCode.app/clang and OS bsd linker       (UP!)
 * MacOS cxx_toolchain == llvm  : clang and llvm-linker
-* Linux cxx_toolchain == llvm : clang and llvm linker (ld.lld)  (UP!)
-* Linux cxx_toolchain == gcc  : gcc and binutil-ld  (UP!)
+* Linux cxx_toolchain == llvm : clang and llvm linker (ld.lld)  		 (UP!)
+* Linux cxx_toolchain == gcc  : gcc and binutil-ld  					 (UP!)
 * Win   cxx_toolchain == llvm : VS-Inside clang-cl.exe and lld-link.exe  (UP!)
-* Win   cxx_toolchain == msvc : VS-Inside cl.exe and link.exe  (UP!)
+* Win   cxx_toolchain == msvc : VS-Inside cl.exe and link.exe  			 (UP!)
 * Win   cxx_toolchain == gcc  : gcc.exe and ld.exe
 
 ## interpreter 输出规范

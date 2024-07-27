@@ -10,7 +10,10 @@
 // #pragma message("VALUE: " CGN_ULABEL_PREFIX )
 
 sh_binary("demo", x) {
-    x.cmd_build = {"echo", "hello-world"};
+    if (x.cfg["os"] == "win")
+        x.cmd_build = {"cmd.exe", "/c", "echo", "hello-world"};
+    else
+        x.cmd_build = {"echo", "hello-world"};
 }
 
 // expand the define below

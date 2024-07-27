@@ -13,6 +13,10 @@ namespace cgn
 class CGNImpl {
 public:
 
+    //@param label : factory label like '//hello/cpp1'
+    //@param cfg   : configuration on specific target_factory
+    //@param OUT adep_test : .ninja entry filename only for build_target()
+    //                       (OS specific path-sep)
     CGNTarget analyse_target(
         const std::string &label, 
         const Configuration &cfg,
@@ -56,8 +60,10 @@ private:
 
     std::filesystem::path cgn_out;
     std::filesystem::path analysis_path;
-    std::filesystem::path cell_lnk_path;
+    std::filesystem::path cell_lnk_path; //for cc include
     std::filesystem::path obj_main_ninja;
+    std::string cgn_out_unixsep;
+    std::string cell_lnk_path_unixsep; //for expand '@cell//label'
     std::string script_cc;
     std::string cgnapi_winimp;
     bool scriptcc_debug_mode = false;

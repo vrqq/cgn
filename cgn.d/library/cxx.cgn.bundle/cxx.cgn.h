@@ -5,7 +5,8 @@
 //   LinkAndRunInfo:
 //      link.exe <ldflags_interpreter> <ldflags_deps> <ldflags_current>
 //   CxxInfo:
-//      gcc.exe <cflags_interpreter> <cflags_deps> <cflags_current>
+//      gcc.exe / cl.exe
+//              <cflags_interpreter> <cflags_deps> <cflags_current>
 //              <incdir_current> <incdir_deps> <incdir_interpreter>
 //              <defines_any_order>
 //
@@ -127,6 +128,7 @@ protected:
     LANGCXX_CGN_BUNDLE_API CxxContext(char role, const cgn::Configuration &cfg, cgn::CGNTargetOpt opt);
 
 private: friend struct CxxInterpreter; // field for interpreter
+    friend struct TargetWorker;
     const cgn::CGNTargetOpt opt;  //self opt
 
     // collection from deps, as the part of interpreter return value.
@@ -159,6 +161,11 @@ struct CxxToolchainInfo
 {
     std::string c_exe, cxx_exe;
     
+    // MSVC143 : Visual C++ 2022 (aka Visual C++ 14.3)
+    // MSVC142 : Visual C++ 2019 (aka Visual C++ 14.2)
+    // MSVC141 : Visual C++ 2017 (aka Visual C++ 14.1)
+    // MSVC140 : Visual C++ 2015 (aka Visual C++ 14.0)
+    std::string msvc_ver1;
 };
 
 struct CxxInterpreter
@@ -169,12 +176,11 @@ struct CxxInterpreter
         return {"@cgn.d//library/cxx.cgn.bundle"};
     }
 
-    LANGCXX_CGN_BUNDLE_API static CxxToolchainInfo test_param(const cgn::Configuration &cfg);
+    LANGCXX_CGN_BUNDLE_API static CxxToolchainInfo 
+    test_param(const cgn::Configuration &cfg);
 
-    LANGCXX_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
-    LANGCXX_CGN_BUNDLE_API static cgn::TargetInfos msvc_interpret(
-        context_type &x, cgn::CGNTargetOpt opt
-    );
+    LANGCXX_CGN_BUNDLE_API static cgn::TargetInfos 
+    interpret(context_type &x, cgn::CGNTargetOpt opt);
 };
 
 template<typename TypeContext>
