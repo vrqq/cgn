@@ -244,7 +244,7 @@ Graph::~Graph() {
 void Graph::db_load(const std::string &filename)
 {
     constexpr const char version[DB_VERSION_FIELD_SIZE] = "CGN-demo";
-    std::ifstream fin(filename);
+    std::ifstream fin(filename, std::ios::binary);
 
     auto fn_create_new = [&](std::size_t err_offset = 0) {
         if (fin)
