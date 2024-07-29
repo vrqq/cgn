@@ -76,9 +76,9 @@ static std::string two_escape(const std::string &in) {
     return cgn::NinjaFile::escape_path(cgn::CGN::shell_escape(in));
 }
 
-static std::vector<std::string> two_escape(std::vector<std::string> &in) {
+static std::vector<std::string> two_escape(std::vector<std::string> in) {
     for (auto &it : in)
-        two_escape(it);
+        it = two_escape(it);
     return in;
 }
 
@@ -216,12 +216,13 @@ void TargetWorker::step1_win_msvc()
     cflags_cpp = {"/std:c++17"};
     cflags_c   = {"/std:c17"};
 
+    std::string mimimum_winver = "0x0603";
     interp_arg.defines += {
         //"UNICODE", "_UNICODE",   // default for NO unicode WidthType (encoding UTF-8 only)
         "_CONSOLE",                //"WIN32",
         "_CRT_SECURE_NO_WARNINGS", //for strcpy instead of strcpy_s
-        "WINVER=${mimimum_winver}",        // win10==0x0A00; win7==0x0601;
-        "_WIN32_WINNT=${mimimum_winver}",  // win8.1/Server2012R2==0x0603;
+        "WINVER=" + mimimum_winver,        // win10==0x0A00; win7==0x0601;
+        "_WIN32_WINNT=" + mimimum_winver,  // win8.1/Server2012R2==0x0603;
     };
 
     interp_arg.cflags += {
@@ -242,13 +243,12 @@ void TargetWorker::step1_win_msvc()
         "/utf-8", "/wd4828",   // illegal character in UTF-8
         // "/nologo",      // /nologo is in ninja file
         "/diagnostics:column",
-        "//EHsc",      // Enables standard C++ stack unwinding
+        "/EHsc",       // Enables standard C++ stack unwinding
         "/FS",         // force synchoronous PDB write for parallel to serializes.
         // "/await",
     };
 
     interp_arg.ldflags += {
-        "/MAP",
         "/NXCOMPAT",    // Compatible with Data Execution Prevention
         "/DYNAMICBASE",
         
@@ -465,7 +465,6 @@ void TargetWorker::step1_linuxllvm_and_xcode()
 void TargetWorker::step2_arg_merge()
 {
     //=== Section 2: merge args from target(x), deps, interpreter ===
-    CxxInfo carg; //compile arg
     carg.cflags = interp_arg.cflags + two_escape(x._cxx_to_self.cflags) 
                 + two_escape(x.cflags);
     carg.ldflags = interp_arg.ldflags + two_escape(x._cxx_to_self.ldflags) 
@@ -535,11 +534,11 @@ void TargetWorker::step31_win()
             dyn_def_file = path_in;
         }else if (file_type == 'A') {
             field->rule = "msvc_ml";
-            field->variables["cc"] = cgn::NinjaFile::escape_path(exe_asm);
+            field->variables["cc"] = exe_asm;
             field->variables["cflags"] = list2str(cflags_asm);
         }else {
             field->rule = "msvc_cl";
-            field->variables["cc"] = cgn::NinjaFile::escape_path(exe_cxx);
+            field->variables["cc"] = exe_cxx;
             field->variables["cflags"] = 
                 list2str(file_type=='+'? cflags_cpp:cflags_c) 
                 + list2str(carg.cflags)
@@ -590,7 +589,7 @@ void TargetWorker::step31_win()
         else
             outfile = opt.out_prefix + x.name + ".exe";
         outfile_implib = opt.out_prefix + x.name + ".lib";
-        outfile_njesc  = opt.ninja->escape_path(outfile);
+        // outfile_njesc  = opt.ninja->escape_path(outfile);
 
         //prepare rpath argument
         //  this is seen as target ldflags, so put on the tail of cargs.ldflags
@@ -606,9 +605,10 @@ void TargetWorker::step31_win()
                       + opt.ninja->escape_path(x._lnr_to_self.static_files) 
                       + opt.ninja->escape_path(x._lnr_to_self.shared_files)
                       + opt.ninja->escape_path(x._wholearchive_a);
-        field->outputs = {outfile_njesc};
-        field->variables["link"] = opt.ninja->escape_path(
-                                    x.role=='s'? exe_solink:exe_xlink);
+        field->outputs = {opt.ninja->escape_path(outfile)};
+        if (x.role == 's') //only add .lib for .dll
+            field->implicit_outputs = {opt.ninja->escape_path(outfile_implib)};
+        field->variables["link"] = (x.role=='s'? exe_solink:exe_xlink);
         field->variables["ldflags"] = list2str(carg.ldflags)
                 + list2str(two_escape(x._wholearchive_a), "/WHOLEARCHIVE:");
                    
@@ -633,7 +633,7 @@ void TargetWorker::step31_win()
         rvlnr->shared_files = std::vector<std::string>{outfile_implib} 
                             + rvlnr->shared_files;
 
-        rvdef->outputs = {outfile};
+        rvdef->outputs = {outfile, outfile_implib};
     } // if (role=='s' or 'x')
 
 } //TargetWorker::step31_win()
@@ -774,7 +774,7 @@ void TargetWorker::step31_unix()
             + "-o " + api.shell_escape(field->outputs[0])
             + buildstr_a + " "
             + buildstr_start_group + " "
-            + list2str(obj_out_ninja_esc)
+            + list2str(two_escape(obj_out))
             + list2str(two_escape(x._lnr_to_self.object_files))
             + list2str(two_escape(x._lnr_to_self.static_files))
             + list2str(two_escape(x._lnr_to_self.shared_files), "-l:")
@@ -847,22 +847,22 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
 
     // start interpret
     TargetWorker w(x, opt);
-    if (x.cfg["toolchain"] == "msvc") {
+    if (x.cfg["cxx_toolchain"] == "msvc") {
         assert(api.get_host_info().os == "win");
         w.step1_win_msvc();
         w.step2_arg_merge();
         w.step30_prepare_rv();
         w.step31_win();
     }
-    else if (x.cfg["toolchain"] == "gcc" && api.get_host_info().os == "linux") {
+    else if (x.cfg["cxx_toolchain"] == "gcc" && api.get_host_info().os == "linux") {
         w.step1_linux_gcc();
         w.step2_arg_merge();
         w.step30_prepare_rv();
         w.step31_unix();
     }
     else if (
-        (x.cfg["toolchain"] == "xcode" && api.get_host_info().os == "mac") ||
-        (x.cfg["toolchain"] == "llvm"  && api.get_host_info().os == "linux")
+        (x.cfg["cxx_toolchain"] == "xcode" && api.get_host_info().os == "mac") ||
+        (x.cfg["cxx_toolchain"] == "llvm"  && api.get_host_info().os == "linux")
     ) {
         w.step1_linuxllvm_and_xcode();
         w.step2_arg_merge();
@@ -871,12 +871,11 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
     }
     else {
         throw std::runtime_error{
-            "Unsupported toolchain " + (std::string)x.cfg["toolchain"]};
+            "Unsupported cxx_toolchain " + (std::string)x.cfg["cxx_toolchain"]};
     }
 
     return *w.rv;
 }
-
 
 
 CxxContext::CxxContext(char role, const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
@@ -949,11 +948,11 @@ CxxToolchainInfo CxxInterpreter::test_param(const cgn::Configuration &cfg)
 {
     CxxToolchainInfo rv;
     std::string prefix = cfg["cxx_prefix"];
-    if (cfg["toolchain"] == "gcc") {
+    if (cfg["cxx_toolchain"] == "gcc") {
         rv.c_exe = prefix + "gcc";
         rv.cxx_exe = prefix + "g++";
     }
-    if (cfg["toolchain"] == "llvm") {
+    if (cfg["cxx_toolchain"] == "llvm") {
         rv.c_exe = prefix + "clang";
         rv.cxx_exe = prefix + "clang++";
     }

@@ -137,6 +137,9 @@ struct CGN_EXPORT Tools {
 
     static void print_debug(const std::string &text, bool verbose_level = false);
 
+    //@param p : label like ':lib1', "../:lib1", "//other_part", "../../pkg"
+    //@param base : unixsep relpath of working-root (like "hello/cpp1/")
+    //@return : <base><p> (like //hello/cpp1:lib1)
     static std::string absolute_label(const std::string &p, std::string base);
 
     static bool setenv(const std::string &key, const std::string &value);

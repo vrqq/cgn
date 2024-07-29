@@ -182,12 +182,17 @@ try{
                  <<cgn::list2str_h(*cfg, "", 999) <<std::endl;
 
         std::cout<<"\n--- Analyse Result ---\n"<<rv.infos.to_string(type)<<std::endl;
+        rv.infos.data().clear();
         api.release();
         return 0;
     }
     if (args[0] == "preload")
         return cgn_preload_all();
     if (args[0] == "tool") {
+        if (args.size() == 4 && args[1] == "abslabel") {
+            std::cout<<api.absolute_label(args[2], args[3])<<"\n";
+            return 0;
+        }
         if (args.size() == 2 && args[1] == "dev")
             return dev_helper();
         if (args.size() == 4 && args[1] == "wincp")
@@ -213,6 +218,7 @@ try{
 }catch(std::exception &e) { //windows CRT won't show anything for unhandled exception.
     std::cerr<<"\n---EXCEPTION---\n"
              <<e.what()<<std::endl;
+    api.release();
     return 1;
 }
 

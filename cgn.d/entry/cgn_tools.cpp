@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <sstream>
 #include <fstream>
+#include <iostream>
 #include <array>
 
 #include <cassert>
@@ -340,11 +341,36 @@ std::string Tools::absolute_label(
 ) {
     assert(p.size() || base.size());
     if (p.size() && (p[0] == '@' || p[0] == '/'))
-        return p;
-    auto rv = (std::filesystem::path{base} / p).lexically_normal();
-    if (auto ss = rv.filename().string(); ss[0] == ':')
-        return "//" + rv.parent_path().string() + ss;
-    return "//" + rv.string();
+        return p; //return if p is an abs-label
+
+    std::string raw = base + p, name_part;
+
+    // if the latest block is starting with ':' like ":lib"
+    // remove the slash before ':'
+    if (auto fdcolon = raw.rfind(':'); fdcolon != raw.npos)
+        name_part = raw.substr(fdcolon), raw.resize(fdcolon);
+
+    std::string rv;
+    std::vector<std::size_t> rvpos = { 0 };
+    // std::cout<<raw<<"\n";
+    for (std::size_t i=0, fd; i < raw.size(); i = fd+1) {
+        if (fd = raw.find('/', i); fd == raw.npos)
+            fd = raw.size();
+        // std::cout<<"i:"<<i<<" "<<"fd:"<<fd<<" => "<<raw.substr(i, fd-i)<<"\n";
+        if (fd == i + 2 && raw[i] == '.' && raw[i + 1] == '.') {
+            rvpos.pop_back();
+            if (rvpos.empty())
+                throw std::runtime_error{"Invalid label : " + base + " " + p};
+            rv.resize(rvpos.back());
+            continue;
+        }
+        else if (fd == i || (fd == i + 1 && raw[i] == '.'))
+            continue;
+        rv += (rv.size()?"/":"") + raw.substr(i, fd-i);
+        rvpos.push_back(rv.size());
+    }
+
+    return "//" + rv + name_part;
 }
 
 std::unordered_map<std::string, std::string> 

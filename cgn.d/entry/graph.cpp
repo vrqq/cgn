@@ -185,10 +185,10 @@ void Graph::clear_file0_mtime_cache(GraphNode *p)
     assert(p->_file_blocks.size());
     const std::string *key = p->_file_blocks[0]->strkey;
     #ifdef _WIN32
-        std::filesystem::path fp{*key};
+        auto fp = std::filesystem::path{*key}.make_preferred();
         std::filesystem::path basedir = fp.has_parent_path()?fp.parent_path():".";
         win_mtime_cache.erase(*key);
-        win_mtime_cache.erase(basedir.string());
+        win_mtime_folder_exist.erase(basedir.string());
     #else
         win_mtime_cache.erase(*key);
     #endif

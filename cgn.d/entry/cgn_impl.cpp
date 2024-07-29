@@ -454,7 +454,7 @@ CGNTarget CGNImpl::analyse_target(
     CGNTargetOpt opt;
     opt.factory_ulabel = factory_label;
     opt.factory_name   = facty_name;
-    opt.src_prefix = stem + OSSEP;
+    opt.src_prefix = stem + "/";
     opt.out_prefix = out_prefix_ossep;
     rv.cgn_script = &active_script("//" + stem + "/BUILD.cgn.cc");
 

@@ -60,13 +60,13 @@ inline cgn::Configuration config_guessor(std::unordered_set<std::string> &argls)
     if ((cfg["cpu"] = extract(argls, {"x86", "x86_64", "arm64", "ia64", "mips64"})) == "")
         cfg["cpu"] = host.cpu;
     
-    if ((cfg["toolchain"] = extract(argls, {"gcc", "llvm", "msvc"})) == "") {
+    if ((cfg["cxx_toolchain"] = extract(argls, {"gcc", "llvm", "msvc"})) == "") {
         if (cfg["os"] == "win")
-            cfg["toolchain"] = "msvc";
+            cfg["cxx_toolchain"] = "msvc";
         else if (cfg["os"] == "mac")
-            cfg["toolchain"] = "llvm";
+            cfg["cxx_toolchain"] = "llvm";
         else
-            cfg["toolchain"] = "gcc";
+            cfg["cxx_toolchain"] = "gcc";
     }
 
     if ((cfg["optimization"] = extract(argls, {"debug", "release"})) == "")

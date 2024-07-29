@@ -7,5 +7,5 @@ cxx_shared("lib1", x) {
 
 cxx_executable("cpp1", x) {
     x.srcs = {"main.cc"};    
-    x.add_dep(":lib1", cxx::private_dep);
+    x.add_dep("././anyfolder/../:lib1", cxx::private_dep);
 }
