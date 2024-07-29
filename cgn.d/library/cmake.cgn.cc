@@ -10,6 +10,7 @@
 // [Case] normal mode
 // run cmake -B -S in ninja command then run cmake install to deploy
 // 
+#define CMAKE_CGN_IMPL
 #include "../entry/raymii_command.hpp"
 #include "cmake.cgn.h"
 
@@ -141,13 +142,13 @@ cgn::TargetInfos CMakeInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
     if (x.enforce_havedep_mode || x.ninja_target_dep.size()) {
         // rule to run custom command
         auto *rule = opt.ninja->append_rule();
-        rule->name = "run";
+        rule->name = "quick_run";
         rule->command = "${cmd}";
         rule->variables["description"] = "${desc}";
 
         // target cmake gen
         auto *gen = opt.ninja->append_build();
-        gen->rule    = "run";
+        gen->rule    = "quick_run";
         gen->inputs  = {api.locale_path(src_dir + "/CMakeLists.txt")};
         gen->implicit_inputs = x.ninja_target_dep;
         gen->outputs = {api.locale_path(build_dir + "/CMakeCache.txt")};
@@ -157,11 +158,17 @@ cgn::TargetInfos CMakeInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
         // target cmake build && install
         std::string logfile = two_escape(opt.out_prefix + ".log");
         auto *build = opt.ninja->append_build();
-        build->rule    = "run";
+        build->rule    = "quick_run";
         build->inputs  = gen->outputs;
         build->outputs = cmake_out_njesc;
+        #ifdef _WIN32
+        build->variables["cmd"] = "cmd.exe /c \"ninja -C " + two_escape(build_dir)
+                                + " install\" 1> " + two_escape(logfile) + " 2>&1";
+        #else
         build->variables["cmd"] = "ninja -C " + two_escape(build_dir)
                                 + " install 1> " + two_escape(logfile) + " 2>&1";
+        #endif
+        
         // build->variables["cmd"] = "cmake --build " + two_escape(build_dir)
         //                       + " && " + "cmake --install " 
         //                       + two_escape(build_dir)

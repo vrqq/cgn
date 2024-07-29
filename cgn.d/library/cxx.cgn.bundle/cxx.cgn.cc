@@ -956,6 +956,14 @@ CxxToolchainInfo CxxInterpreter::test_param(const cgn::Configuration &cfg)
         rv.c_exe = prefix + "clang";
         rv.cxx_exe = prefix + "clang++";
     }
+    if (cfg["cxx_toolchain"] == "xcode") {
+        rv.c_exe = prefix + "clang";
+        rv.cxx_exe = prefix + "clang++";
+    }
+    if (cfg["cxx_toolchain"] == "msvc") {
+        rv.c_exe = prefix + "cl.exe";
+        rv.cxx_exe = prefix + "cl.exe";
+    }
 
     return rv;
 }

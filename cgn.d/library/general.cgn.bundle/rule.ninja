@@ -13,6 +13,12 @@ rule run_rsp
     rspfile = ${out}.rsp
     rspfile_content = ${in} ${args}
 
+# rule run_rsp
+#     command = ${exe_prefix} @${rspfile}.rsp ${exe_suffix}
+#     description = ${desc}
+#     rspfile = ${out}.rsp
+#     rspfile_content = ${in} ${args}
+
 rule unix_stamp
     command = touch ${out}
     description = STAMP ${out}

@@ -2,6 +2,15 @@
 // return value : LinkAndRunInfo[], CxxInfo[]
 // depend on    : cxx.cgn.h
 //
+#ifdef _WIN32
+    #ifdef CMAKE_CGN_IMPL
+        #define CMAKE_CGN_API  __declspec(dllexport)
+    #else
+        #define CMAKE_CGN_API
+    #endif
+#else
+    #define CMAKE_CGN_API __attribute__((visibility("default")))
+#endif
 #pragma once
 #include <vector>
 #include <unordered_map>
@@ -47,7 +56,7 @@ struct CMakeContext : cgn::TargetInfoDep<true> {
 
     cxx::CxxInfo pub;
 
-    CMakeContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt);
+    CMAKE_CGN_API CMakeContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt);
 
     // user should read return value then fill into vars manually.
     using cgn::TargetInfoDep<true>::add_dep;
@@ -62,7 +71,8 @@ struct CMakeInterpreter {
         return {"@cgn.d//library/cxx.cgn.bundle",
                 "@cgn.d//library/cmake.cgn.cc"};
     }
-    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    CMAKE_CGN_API static cgn::TargetInfos 
+    interpret(context_type &x, cgn::CGNTargetOpt opt);
 }; //CMakeInterpreter
 
 // struct CMakeMultiContext : CMakeContext {

@@ -26,15 +26,29 @@ struct NMakeContext : cgn::TargetInfoDep<true>
 {
     const std::string &name;
 
-    std::string makefile;
+    //the file path base on 'cwd'
+    std::string makefile = "Makefile";
+
+    //the path where to run nmake.exe
+    std::string cwd;
+
+    // input files
     std::vector<std::string> inputs;
+
+    // nmake output files
     std::vector<std::string> outputs;
 
+    // A variable inside Makefile to present 'INSTALL_PREFIX'
     std::string install_prefix_varname;
+
+    // some vars defined to nmake.exe
     std::unordered_map<std::string, std::string> predef_vars;
     std::unordered_map<std::string, std::string> override_vars;
 
+    // the nmake target which to install
     std::string install_target_name = "install";
+
+    // the nmake target which to clear build
     std::string clean_target_name   = "clean";
 
     NMAKE_CGN_API NMakeContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt);
