@@ -1,0 +1,30 @@
+## CGN Development bootstrap
+## builddir : the output folder
+## ============================
+builddir = build_linux
+
+cflags = -I. -g -std=c++17 -fsanitize=address -fcolor-diagnostics $
+         -fshow-column -fshow-source-location -fcaret-diagnostics $
+         -fstandalone-debug -fno-limit-debug-info -fsanitize=address -DCGN_EXE_IMPLEMENT
+
+rule cc
+    deps    = gcc
+    depfile = $out.d
+    command = clang++ -MMD -MF $out.d $cflags -c $in -o $out
+
+rule ar
+    command = ar rcs ${out} ${in}
+
+## -Wl,--undefined=_Z9cgn_setupR12CGNInitSetup $
+##
+rule link
+    deps    = gcc
+    depfile = $out.d
+    command = clang++ -fuse-ld=lld -Wl,--warn-unresolved-symbols $
+              -Wl,--export-dynamic -fvisibility=default -fsanitize=address $
+              -Wl,-rpath=$$ORIGIN -MMD -MF $out.d $cflags $in -o $out
+
+include buildpart_ninjaport.ninja
+include buildpart_cgnentry.ninja
+
+default $output/cgn

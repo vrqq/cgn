@@ -1,0 +1,1 @@
+del /S *.lib *.lib.txt *.obj *.obj.txt *.dll *.dll.txt *.exe *.exp *.pdb

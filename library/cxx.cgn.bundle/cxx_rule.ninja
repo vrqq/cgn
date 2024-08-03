@@ -1,0 +1,37 @@
+rule gcc
+    command = ${cc} -MMD -MF ${out}.d ${cflags} -c ${in} -o ${out}
+    description = CXX ${out}
+    depfile = ${out}.d
+    deps = gcc
+
+rule msvc_cl
+    command = ${cc} /nologo /showIncludes ${cflags} /c ${in} /Fo"${out}" /Fd"${out}.pdb"
+    description = CXX ${out}
+    deps = msvc
+
+rule msvc_ml
+    command = ${cc} /nologo ${cflags} /Fo ${out} ${in}
+
+rule msvc_lib
+    command = ${libexe} /nologo /OUT:${out} ${in}
+
+rule msvc_link
+    command = ${link} /nologo @${out}.rsp
+    rspfile = ${out}.rsp
+    rspfile_content = /OUT:${out} ${ldflags} ${in}
+    description = LINK ${out}
+
+rule gcc_ar
+    command = rm -f ${out} && ${exe} rcs ${out} ${in}
+    description = AR ${out}
+
+rule crun
+    command = ${cmd}
+    description = ${desc}
+
+rule crun_rsp
+    command = ${exe} @${out}.rsp
+    description = ${desc}
+    rspfile = ${out}.rsp
+    rspfile_content = ${args}
+

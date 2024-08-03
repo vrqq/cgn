@@ -1,0 +1,36 @@
+
+rule quick_run
+    command = ${cmd}
+    description = ${desc}
+
+rule run
+    command = ${exe} ${in} ${args}
+    description = ${desc}
+
+rule run_rsp
+    command = ${exe} @${out}.rsp
+    description = ${desc}
+    rspfile = ${out}.rsp
+    rspfile_content = ${in} ${args}
+
+# rule run_rsp
+#     command = ${exe_prefix} @${rspfile}.rsp ${exe_suffix}
+#     description = ${desc}
+#     rspfile = ${out}.rsp
+#     rspfile_content = ${in} ${args}
+
+rule unix_stamp
+    command = touch ${out}
+    description = STAMP ${out}
+
+rule win_stamp
+    command = cmd /c \"type nul > ${out}"
+    description = STAMP ${out}
+
+rule unix_cp
+    command = mkdir -p `dirname ${out}` && cp ${in} ${out}
+    description = COPY ${in} => ${out}
+
+rule win_cp
+    command = xcopy ${in} ${out}
+    description = COPY ${in} => ${out}
