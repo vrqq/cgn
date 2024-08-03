@@ -1,7 +1,16 @@
 cgn-out
+.vs
 .vscode
 .backup
 .ninja_deps
 .ninja_log
-cgn.d/build
-cgn.d/build_msvcrel.ninja
+@cgn.d/build
+@cgn.d/build_linux
+@cgn.d/build_win
+@cgn.d/build_mac
+
+._.DS_Store
+.DS_Store
+
+# Still in dev
+@cgn.d/git_depot

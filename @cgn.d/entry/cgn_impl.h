@@ -60,10 +60,8 @@ private:
 
     std::filesystem::path cgn_out;
     std::filesystem::path analysis_path;
-    std::filesystem::path cell_lnk_path; //for cc include
     std::filesystem::path obj_main_ninja;
     std::string cgn_out_unixsep;
-    std::string cell_lnk_path_unixsep; //for expand '@cell//label'
     std::string script_cc;
     std::string cgnapi_winimp;
     bool scriptcc_debug_mode = false;

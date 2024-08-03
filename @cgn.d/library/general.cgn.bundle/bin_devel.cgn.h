@@ -12,7 +12,7 @@ struct BinDevelInfo : cgn::BaseInfo {
     std::string lib_dir;
 
     static const char *name() { return "BinDevelInfo"; }
-    BinDevelInfo() : BinDevelInfo{*_glb_bindevel_vtable()} {}
+    BinDevelInfo() : cgn::BaseInfo{_glb_bindevel_vtable()} {}
 
 private:
     GENERAL_CGN_BUNDLE_API const static cgn::BaseInfo::VTable *_glb_bindevel_vtable();

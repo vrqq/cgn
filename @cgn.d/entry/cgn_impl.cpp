@@ -200,8 +200,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
                     "/DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
                     " /DCGN_VAR_PREFIX=" + def_var_prefix +
                     " /D\"CGN_ULABEL_PREFIX=\"" + def_ulabel_prefix + "\"\"" + 
-                    " /I. /I" + Tools::shell_escape(cell_lnk_path.string()) +
-                    " /utf-8 /EHsc /MD /Fo: " + Tools::shell_escape(outname);
+                    " /I. /utf-8 /EHsc /MD /Fo: " + Tools::shell_escape(outname);
                 if (scriptcc_debug_mode)
                     frsp<<" /Od /Zi /Fd: " + Tools::shell_escape(outname) + ".pdb";
             }
@@ -212,8 +211,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
                 if (!is_clang && scriptcc_debug_mode) //gcc debug
                     frsp<<"-g ";
                 frsp<<"-c " << it << " -MMD -MF " + Tools::shell_escape(depname) +
-                        " -fPIC -fdiagnostics-color=always -std=c++11"
-                        " -I. -I " + Tools::shell_escape(cell_lnk_path.string()) + 
+                        " -fPIC -fdiagnostics-color=always -std=c++11 -I. " + 
                         " -DCGN_VAR_PREFIX=" + Tools::shell_escape(def_var_prefix) +
                         " -DCGN_ULABEL_PREFIX=" + Tools::shell_escape(def_ulabel_prefix) + 
                         " -o " + Tools::shell_escape(outname);
@@ -571,7 +569,7 @@ std::string CGNImpl::_expand_cell(const std::string &ss) const
     // ss: @cell//project:nameA
     // => rv: cell_folder/project:nameA
     
-    if (ss[0]=='/' && ss[1]=='/')
+    if (ss[0]=='/' && ss[1]=='/' && ss[2] != '@')
         return ss.substr(2);
     else if (ss[0] == '@') {
         auto fd = ss.find('/', 1);
@@ -580,7 +578,7 @@ std::string CGNImpl::_expand_cell(const std::string &ss) const
 
         std::string cellname = ss.substr(0, fd);
         if (cells.count(cellname))
-            return cell_lnk_path_unixsep +  "/" + cellname + "/" + ss.substr(fd+2);
+            return cellname + "/" + ss.substr(fd+2);
         // std::string cellname = ss.substr(1, fd-1);
         // if (auto fd2 = cells.find(cellname); fd2 != cells.end())
         //     return fd2->second + "/" + ss.substr(fd+2);
@@ -613,8 +611,6 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
     std::replace(cgn_out_unixsep.begin(), cgn_out_unixsep.end(), '/', '\\');
     #endif
     analysis_path = cgn_out / ("analysis_" + Tools::get_host_info().os + dsuffix);
-    cell_lnk_path = cgn_out / "cell_include";
-    cell_lnk_path_unixsep = cgn_out_unixsep + "/cell_include";
     obj_main_ninja = cgn_out / "obj" / "main.ninja";
 
 
@@ -702,17 +698,15 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
     graph.db_load((analysis_path / ".cgn_deps").string());
 
     //CGN cell init
-    //load cell-path map from .cgn_init
-    // cells = Tools::read_kvfile(".cgn_init");
-
-    if (std::filesystem::is_directory(cell_lnk_path) == false)
-        throw std::runtime_error{cell_lnk_path.string() + " is not a folder."};
-    for (auto it : std::filesystem::directory_iterator(cell_lnk_path)) {
+    // scan folder starting with '@' at working-root
+    for (auto it : std::filesystem::directory_iterator(".")) {
         // name: string like "@base"
         std::string name = it.path().filename().string();
-        cells.insert(name);
-        if (logger.verbose)
-            logger.paragraph("Cell " + name + " detected.");
+        if (it.is_directory() && name[0] == '@') {
+            cells.insert(name);
+            if (logger.verbose)
+                logger.paragraph("Cell " + name + " detected.");
+        }
     }
 
     //create folder symbolic link

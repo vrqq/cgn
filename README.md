@@ -1,7 +1,7 @@
 # Announcement
 [Why Not Recommand](WHY_NOT_RECOMMAND.md)
 
-这是改动 `@cell` 之前的最后一次bump version
+目前正在改动 `@cell` 以及 configuration 处理：拟增加 remove unnecessary entry in cfg[] for interpreter
 
 # CGN
 受GN和bazel/buck启发，用 C++11 编写编译脚本(BUILD.cgn.cc)，并由cgn.exe扫描目录并自动将每一个`BUILD.cgn.cc` 编译为独立dll，然后由cgn.exe依次dlopen后，自动解析target然后生成ninja脚本。 
@@ -71,6 +71,17 @@
 * `@third_party//nasm`
 
 ## 从这里开始
+**working-root**
+整个project的根目录
+
+**cell**
+一个独立的package例如 `@cgn.d`，名称以 `@`开头，外部库通常以 cell 的形式引入。所有cell必须要在`working-root`下，无论是直接放置还是mklink。
+* 某个文件也可以不属于任何cell，这样的话就不能供给其他cell调用，例如`//hello/cpp1/main.cpp`。
+* 跨cell引用必须使用带`@cell`的label，例如`@third_party//spdlog`。
+* 接上一条，不允许出现`//@`开头的label，也就是说working-root下所有以@开头的文件夹都是imported cell，working-root下不允许出现以@开头的普通文件。
+* 如果`@`出现在label的中段，则认为他是普通的folder_name，例如 `//proj1/@folderX/fileY`
+* cgn为monorepo设计，通常建议任何新开工程都有自己的project folder。
+
 **BUILD**
 `ninja -C cgn.d` 编译输出到 cgn.d/build/cgn
 

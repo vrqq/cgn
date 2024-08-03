@@ -1,4 +1,4 @@
-#include "cgn.d/library/cmake.cgn.h"
+#include "@cgn.d/library/cmake.cgn.h"
 
 cmake("zlib", x) {
     x.sources_dir = "zlib";
