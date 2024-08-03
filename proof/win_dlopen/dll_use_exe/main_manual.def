@@ -1,0 +1,13 @@
+
+; the LIBRARY section must exist
+; otherwise the default 'LIBRARY NAME' would assigned by lib.exe (main_manual.dll)
+;
+; If don't assign this section or set this section to 'main_manual.exe'
+; The Loadlibary() would make LastError==126 failure
+;
+; So only 'main.exe' accepted here.
+;;;
+LIBRARY main_manual.exe
+
+EXPORTS
+    ?get_global@@YAHXZ

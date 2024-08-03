@@ -1,11 +1,21 @@
 #pragma once
 #include "../../cgn.h"
 #include "../../provider_dep.h"
+#include "windef.h"
 
-struct BinDevelInfo {
+// Usually as parameter for external-build-system input,
+//  like cmake -DZLIB_INCLUDE=... -DZSTD_LIBS=...
+// It cannot be merged.
+struct BinDevelInfo : cgn::BaseInfo {
     std::string base;
     std::string include_dir;
     std::string lib_dir;
+
+    static const char *name() { return "BinDevelInfo"; }
+    BinDevelInfo() : BinDevelInfo{*_glb_bindevel_vtable()} {}
+
+private:
+    GENERAL_CGN_BUNDLE_API const static cgn::BaseInfo::VTable *_glb_bindevel_vtable();
 };
 
 struct BinDevelContext : cgn::TargetInfoDep<true>

@@ -4,7 +4,9 @@
 //  Therefore, code_seg cannot make a UNDEF symbol with the same declspec 
 //  together. For instance, func2(), func3(), and strlen would in same place.
 #pragma section("cgndef", read, execute, shared)
+#pragma comment(lib, "ws2_32.lib")
 #include <string>
+#include <winsock2.h>
 
 __declspec(code_seg("cgndef")) extern int func2();
 int func3();
@@ -22,6 +24,9 @@ CLA ext_cla;
 // extern int func1(); 
 
 __declspec(dllexport, code_seg("cgndef")) int func1() { 
+    WSAData wsa_data;
+    WSAStartup(MAKEWORD(2,2), &wsa_data);
+
     // return 101 + func2() + func3() + ext_cla.funcX();
     std::string tmp = "AABBCCD";
     return tmp.size() + strlen(tmp.c_str()) + 101 + func2() + func3() + ext_cla.funcX(); 

@@ -94,7 +94,7 @@ std::string CGNImpl::expand_filelabel_to_filepath(const std::string &in) const
     return _expand_cell(in);
 }
 
-// NodeName == unique_label
+// NodeName == unique_label (like //cgn.d/library/cxx.cgn.bundle)
 // case1: script loaded && stat(files[]) == Latest
 //        return ;
 // case2: script loaded && stat(files[]) == Stale
@@ -446,25 +446,28 @@ CGNTarget CGNImpl::analyse_target(
     }
 
     // case 3: active_script() and interpreter()
+    CGNTarget rv;
+
+    // active_script and find factories 
+    rv.cgn_script = &active_script("//" + stem + "/BUILD.cgn.cc");
+    cgn::CGNFactoryLoader fn_loader;
+    if (auto fd = factories.find(factory_label); fd != factories.end())
+        fn_loader = fd->second;
+    else {//return immediately if factory not found
+        rv.errmsg = "Target_Factory not found.";
+        return adep_pop(), rv;
+    }
 
     //prepare CGNTarget return value and CGNTargetOpt interpret parameter
     std::string ninja_file_ossep   = out_prefix_ossep + CGNTargetOpt::BUILD_NINJA;
     std::string ninja_file_unixsep = out_prefix_unixsep + CGNTargetOpt::BUILD_NINJA;
-    CGNTarget rv;
+
     CGNTargetOpt opt;
     opt.factory_ulabel = factory_label;
     opt.factory_name   = facty_name;
     opt.src_prefix = stem + "/";
     opt.out_prefix = out_prefix_ossep;
-    rv.cgn_script = &active_script("//" + stem + "/BUILD.cgn.cc");
-
-    // find factories after acrive_script
-    cgn::CGNFactoryLoader fn_loader;
-    if (auto fd = factories.find(factory_label); fd != factories.end())
-        fn_loader = fd->second;
-    else  //return immediately if factory not found
-        return adep_pop(), cgn::CGNTarget{};
-
+    
     rv.adep = opt.adep = graph.get_node(out_prefix_ossep);
     graph.remove_inbound_edges(opt.adep);
     graph.set_node_files(opt.adep, {ninja_file_ossep});

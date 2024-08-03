@@ -82,6 +82,7 @@ cgn::TargetInfos CMakeInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
 
     // prepare return value
     cgn::TargetInfos &rv = x.merged_info;
+    rv.set<BinDevelInfo>(x.output_bin_devel);
 
     auto *lrinfo = rv.get<cgn::LinkAndRunInfo>(true);
     std::unordered_set<std::string> dllstem;

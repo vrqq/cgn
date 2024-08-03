@@ -1,0 +1,6 @@
+
+rule exe
+    command = echo "HELLO"
+
+build .target: exe
+

@@ -2,12 +2,12 @@
 
 git("spdlog.git", x) {
     x.repo = "https://github.com/gabime/spdlog.git";
-    x.
+    x.dest_dir = "repo";
     x.commit_id = "27cb4c76708608465c413f6d0e6b8d99a4d84302";
 }
 
 cxx_static("spdlog", x) {
-    const static std::string base = "src";
+    const static std::string base = "repo";
 
     x.include_dirs = x.pub.include_dirs = {base + "/include"};
     x.include_dirs += {base + "/src"};

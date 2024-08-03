@@ -18,6 +18,7 @@
 #include "../rule_marco.h"
 #include "../provider_dep.h"
 #include "cxx.cgn.bundle/cxx.cgn.h"
+#include "general.cgn.bundle/bin_devel.cgn.h"
 
 // namespace cmake{
 
@@ -48,6 +49,7 @@ struct CMakeContext : cgn::TargetInfoDep<true> {
     std::unordered_map<std::string, std::string> vars;
 
     std::vector<std::string> outputs;
+    BinDevelInfo    output_bin_devel;
 
     // the CxxInfo and LinkAndRunInfo return value would be filled from 
     // CMAKE_INSTALL_BINDIR, CMAKE_INSTALL_LIBDIR and CMAKE_INSTALL_INCLUDEDIR,

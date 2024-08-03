@@ -1,0 +1,18 @@
+digraph ninja {
+rankdir="LR"
+node [fontsize=10, shape=box, height=0.25]
+edge [fontsize=10]
+"0x5558dfa82dc0" [label="all"]
+"0x5558dfa82c30" -> "0x5558dfa82dc0" [label=" phony"]
+"0x5558dfa82c30" [label="yyy"]
+"0x5558dfa82bc0" [label="cp", shape=ellipse]
+"0x5558dfa82bc0" -> "0x5558dfa82c30"
+"0x5558dfa828c0" -> "0x5558dfa82bc0" [arrowhead=none]
+"0x5558dfa82a60" -> "0x5558dfa82bc0" [arrowhead=none style=dotted]
+"0x5558dfa828c0" [label="xx"]
+"0x5558dfa82810" [label="touch", shape=ellipse]
+"0x5558dfa82810" -> "0x5558dfa828c0"
+"0x5558dfa82a60" [label="zz"]
+"0x5558dfa829d0" [label="touch", shape=ellipse]
+"0x5558dfa829d0" -> "0x5558dfa82a60"
+}

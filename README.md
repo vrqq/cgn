@@ -1,43 +1,18 @@
-## 写在最前面
-这是一个比较失败的项目: 无论gcc还是clang 编译dll的速度实在太慢(0.5秒)，若一个小型项目(几十个BUILD文件) 每次修改几个 都需要数秒analyze，首次生成甚至需要数十秒analyze 很难接受。几个改进方向:  
-* 增加一个 test-build 在首次运行时尝试编译所有扫描到的cgn-script
-* JIT: llvm IR
-* PCH: instantiate member function 
-* 去C++ STL / 二次封装 减少模板解析时间
-* 保留其思想 使用python/js/starlark重写
+# Announcement
+[Why Not Recommand](WHY_NOT_RECOMMAND.md)
 
-**原因猜测**
-以 `//hello:demo` 为例，使用 `clang++ -ftime-trace` 分析，单文件最快能到100ms
-* compiler - frontend 190ms
-    * 其中 debug信息 55ms 可省略
-    * 其中模板展开 `unordered_set<string> / vector<string>` 等共90ms
-* compiler - backend 20ms
-* 其他耗时? 60ms
-    * 或许使用任意c++ JIT (LLVM-IR / mmap + asm / ...) 能省掉
-
-或许C++并不适合，c++和JIT语言的编译器发展方向不是一个思路，对于c++ 前端慢也不是问题。
-
-* cpp编译器认为的快 = 编译后的程序运行快
-* JIT语言认为的快(例如python) = frontend+运行 总体快
-
-也就是说, GO Rust 什么的都不适合做编译脚本语言，因为他们的编译器 都不把frontent快 当首要目标，并且认为frontend的速度可以为了 代码优化而牺牲一些
-
-之前用过腾讯的blade-build ( https://github.com/chen3feng/blade-build/ )，基于python的 我在很久之前试过，analyze慢，我想这也是bazel要推starlark的原因。(starlark = 精简版python)
-
-用过了bazel / buck我觉得都有问题：舍弃了类似gn的just-in-time-analyze，使用一大堆interface约定整个buildtools的代码流程，创造了一堆概念，语言越写越乱。这也是我开这个project的原因：和GN一样, `TargetDeclaration => Interpreter => 生成ninja文件`, 只不过其中每一步都变成了`c++ function`，gn是"不完全的function"。
-
-回到GN，再向上扩展 或许作者也考虑到 语法解释器迅速膨胀，最后扩展成新的一门语言，那不如基于python或其他脚本语言重写框架。同时向上扩展又面临算力有限 frontend速度慢（像这个项目一样 无法被优化），想获得舒服的全面语法 就承受缓慢的frontend。
-
-而Bazel像是从cmake进化来的，调用函数完成定义，把cmake的 单个函数单个作用 变成了 单个函数多个入参控制。
+这是改动 `@cell` 之前的最后一次bump version
 
 # CGN
-受GN和bazel/buck启发，用 C++11 编写编译脚本(BUILD.cgn)，并由cgn.exe扫描目录并自动将每一个BUILD.cgn编译为独立dll，然后由cgn.exe依次dlopen后，自动解析target然后生成ninja脚本。 
+受GN和bazel/buck启发，用 C++11 编写编译脚本(BUILD.cgn.cc)，并由cgn.exe扫描目录并自动将每一个`BUILD.cgn.cc` 编译为独立dll，然后由cgn.exe依次dlopen后，自动解析target然后生成ninja脚本。 
 之后使用`cgn build @cell//folder:target`编译  
+
 **conceptions**  
 * factory label: `@third_party//protobuf:protoc`
+    * 
 * script label: `@cgn.d//library/cxx.cgn.bundle`
     * CGN支持3种script表述方式: 以.bundle结尾的文件夹, 以.rsp结尾的文件, 和以 .cc结尾的单脚本文件
-    * CGN利用类似ninja的 `/showIncludes` 处理 .h的引入 (TODO)
+    * CGN利用类似ninja的 `/showIncludes` 处理 .h的引入
 * WorkingRoot: CWD where to run cgn.exe
 * cgn-out: CGN的输出位置 含build.ninja，compile_commands.json等
 * Target输出路径:    `cgn-out/obj/<FOLDER-NAME>_/<FACTORY-NAME>_<ConfigID>`
@@ -147,3 +122,53 @@ rust_library("mylib", x) {
 **named config**
 * DEFAULT: 应由 `cgn_setup()` 生成, 作为默认的编译参数
 * host_release: 建议由 `cgn_setup()` 生成, 通常在跨平台时编译本地toolchain
+
+## Configurations
+* os(win, mac, linux)
+* cpu(x86, x86_64, arm64, ia64, mips64)
+* optimization(debug, release)
+* msvc_subsystem(UNDEFINED, WINDOW, CONSOLE), msvc_runtime(UNDEFINED, MD, MDd), llvm_stl(UNDEFINED, libstdc++, libc++), march(UNDEFINED, skylake, skylake-avx512, native, ...)
+* c/c++: toolchain(gcc, llvm, msvc), asan(T, F), msan(T, F), ubsan(T, F), cxx_prefix(STRING), cxx_sysroot(STRING)
+
+**Configuration Generator**
+* default entry: //cgn.d/library/cgn_default_setup.cgn.cc
+* user can create custom entry and include the default entry to prepare custom config.
+
+## TargetInfos (Provider)
+
+**DefaultInfo**
+* .outputs[] 仅当前target的输出文件 例如 a.exe b.dll c.so d.txt
+* User: Package() target 会收集指定target的 outputs[] 并打包到当前输出
+
+**LinkAndRunInfo**
+* 由于接近系统的语言为c/cpp系列 此处暂不考虑其他语言的中间输出
+* .object 编译半成品 通常 windows下.obj(PE-format)  linux下.o(ELF)
+* .shared 动态库 windows下.lib(COFF) 注意不含.dll(PE), linux下.so(ELF)
+* .static 静态库 windows下.lib(COFF), linux下.a
+* .runtime 运行时 例如 win动态库带的.dll, exe需要读取的配置文件.ini
+    * win动态库.dll/.exe等等 默认情况放在'/' 和exe同位置, 他们会根据例如 cfg['pkg-mode'] 改变输出的位置
+* dll不放shared原因: 这个info给编译器看的，若target-os是windows, 即使gcc.exe可以直接链接dll 但我们选择遵循windows习惯. 注意这个习惯面向target-os, 故不包含例如arduino的cross-compile情况.
+
+**CxxInfo**
+* .ldflags 仅针对由 cxx_toolchain linking时用的flag，若有其他interpreter的linker 需要在其 lang_toolchain 额外选择。.so / .dll / .lib / .obj 在各个语言有可能通用，也可以使用cxx_interpeter支持的linker链接其他的语言编译出的中间文件，但这里的.ldflags 也只针对 cxx_interpreter，我们可以有很多个interpreter 都带各种各样的linker，他们的linker侧重点也不同，虽然他们的input/output可以重合。
+
+**BinDevelInfo**
+收集文件至 `include_dir`, `lib_dir`，而非CxxInfo内散落的路径，一般按照xxx-devel install后的目录样子。给例如 cmake() nmake() 引入依赖用，这些外部project编译时指定某个第三方库的include_dir只能指定一个目录，不能指定多个。当然也可以把所有路径都加到INCLUDE_DIR中假装是默认的。
+
+## 常用rules说明 (所有cgn.d/library的rule)
+简易使用说明/目录再此更新，dev-implement说明在bundle内README
+部分rule开发中
+
+**dir_package()**
+`@cgn.d//library/general.cgn.bundle`
+将其内部提到的target的outputs[]全部copy到当前target的输出文件夹
+
+**zip_package()**
+`@cgn.d//library/general.cgn.bundle`
+与dir_package()类似 将其输出的文件夹打包成zip，需要依赖系统zip.exe 或者在target内部指定archiver，可指定例如 `@third_party//zlib:exe`
+支持 zip, 7z, gzip, bzip2, tar, tar.gz
+
+**git_fetch()**
+`@cgn.d//library/general.cgn.bundle`
+从git拉指定版本的repo，需要依赖系统git.exe 亦可指定 `@third_party//libgit2:exe` 但此处涉及鸡生蛋蛋生鸡问题。
+

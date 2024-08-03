@@ -1,0 +1,17 @@
+
+rule cp
+    command = cp ${in} ${out}
+
+rule touch
+    command = touch ${out}
+
+rule cc
+    command = gcc ${in} -o ${out}
+
+build xx : touch
+
+build zz : touch
+
+build yyy : cp xx || zz
+
+build all : phony yyy
