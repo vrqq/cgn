@@ -101,7 +101,7 @@ GENERAL_CGN_BUNDLE_API cgn::TargetInfos CopyInterpreter::interpret(context_type 
 // ------------
 GENERAL_CGN_BUNDLE_API cgn::TargetInfos AliasInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
 {
-    auto real = api.analyse_target(api.absolute_label(x.actual_label, opt.src_prefix), x.cfg);
+    auto real = api.analyse_target(api.absolute_label(x.actual_label, opt.factory_ulabel), x.cfg);
     auto *definfo = real.infos.get<cgn::DefaultInfo>(true);
     api.add_adep_edge(real.adep, opt.adep);
 

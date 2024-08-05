@@ -505,6 +505,7 @@ void TargetWorker::step30_prepare_rv()
     rvdef = rv->get<cgn::DefaultInfo>(true);
     rvdef->target_label = opt.factory_ulabel;
     rvdef->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
+    rvdef->enforce_keep_order = x._enforce_self_order_only;
 
     rvlnr = rv->get<cgn::LinkAndRunInfo>(true);
     remove_dup(rvlnr->object_files);
@@ -885,7 +886,7 @@ cgn::TargetInfos CxxContext::add_dep(
     const std::string &label, cgn::Configuration new_cfg, DepType flag
 ) {
     auto rhs = api.analyse_target(
-        api.absolute_label(label, opt.src_prefix), new_cfg);
+        api.absolute_label(label, opt.factory_ulabel), new_cfg);
     if (rhs.infos.empty())
         return {};
     api.add_adep_edge(rhs.adep, opt.adep);
@@ -906,8 +907,13 @@ cgn::TargetInfos CxxContext::add_dep(
     //   cxx::inherit : append to interpreter_rv[CxxInfo] as is, 
     //                  and also apply on current target.
     //   cxx::private : save to _cxx_to_self to use for current target only.
-    if ((flag & cxx::inherit))
+    if ((flag & cxx::inherit)) {
         _pub_infos_fromdep.get<CxxInfo>(true)->merge_from(rhs.infos.get<CxxInfo>());
+
+        // if dep::inherit have EnforceKeepOrder flag, then make this flag up
+        if (r_def->enforce_keep_order)
+            _enforce_self_order_only = true;
+    }
     _cxx_to_self.merge_from(rhs.infos.get<CxxInfo>());
 
     // rhs[LinkAndRunInfo]

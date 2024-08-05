@@ -19,6 +19,7 @@ CGN_EXPORT const BaseInfo::VTable DefaultInfo::v = {
         return std::string{"{\n"}
             + "   label: " + self->target_label + "\n"
             + "   entry: " + self->build_entry_name + "\n"
+            + "  kepord: " + (self->enforce_keep_order?"True":"False") + "\n"
             + "  output: " + list2str_h(self->outputs, "          ", len) + "\n"
             + "}";
     }
@@ -115,7 +116,7 @@ TargetInfos TargetInfoDep<ConstCfg>::add_dep(
     const std::string &label, Configuration cfg
 ) {
     auto rv = api.analyse_target(
-        api.absolute_label(label, opt.src_prefix), this->cfg);
+        api.absolute_label(label, opt.factory_ulabel), this->cfg);
     ninja_target_dep.push_back(rv.infos. template get<DefaultInfo>()->build_entry_name);
     merged_info.merge_from(rv.infos);
     

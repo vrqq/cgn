@@ -178,10 +178,13 @@ try{
         auto rv = api.analyse_target(args[1], *cfg);
 
         char type = api.get_kvargs().count("verbose")?'H':'h';
+        std::cout<<"\n--- Target: "<<args[1]<<" #"<<cfg->get_id()<<" ---";
         std::cout<<"\n--- Configuration ---\n"
                  <<cgn::list2str_h(*cfg, "", 999) <<std::endl;
 
         std::cout<<"\n--- Analyse Result ---\n"<<rv.infos.to_string(type)<<std::endl;
+        if (rv.errmsg.size())
+            std::cout<<rv.errmsg<<std::endl;
         rv.infos.data().clear();
         api.release();
         return 0;

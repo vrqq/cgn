@@ -48,7 +48,9 @@ struct CMakeContext : cgn::TargetInfoDep<true> {
 
     std::unordered_map<std::string, std::string> vars;
 
+    // *.a *.so *.dll, no .h required.
     std::vector<std::string> outputs;
+    
     BinDevelInfo    output_bin_devel;
 
     // the CxxInfo and LinkAndRunInfo return value would be filled from 

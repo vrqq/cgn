@@ -84,6 +84,10 @@ cgn::TargetInfos CMakeInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
     cgn::TargetInfos &rv = x.merged_info;
     rv.set<BinDevelInfo>(x.output_bin_devel);
 
+    // The 'include file' usually not appear in output
+    // 
+    rv.get<cgn::DefaultInfo>()->enforce_keep_order = true;
+
     auto *lrinfo = rv.get<cgn::LinkAndRunInfo>(true);
     std::unordered_set<std::string> dllstem;
     std::vector<std::pair<std::string,std::string>> dotlib;

@@ -146,6 +146,10 @@ private: friend struct CxxInterpreter; // field for interpreter
     // target name in build.ninja when cxx::order_dep
     //   build current_cxx : ... || <phony_order_only...>
     std::vector<std::string> phony_order_only;
+
+    // got TargetInfos[DefaultInfo].enforce_keep_order 
+    // from add_dep(..., cxx::inherit) then transport this flag
+    bool _enforce_self_order_only = false;
 };
 
 template <char ROLE> struct CxxContextType : CxxContext {
