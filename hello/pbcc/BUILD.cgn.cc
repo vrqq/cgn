@@ -2,6 +2,7 @@
 
 protobuf("pb1", x) {
     x.lang = x.Cxx;
+    x.include_dirs = {"."};
     x.srcs = {"hello.proto"};
 }
 

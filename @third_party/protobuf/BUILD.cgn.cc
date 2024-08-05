@@ -80,6 +80,7 @@ cxx_static("libprotoc", x) {
     x.cflags  = COPTS(x.cfg);
     x.srcs = add_prefix(libprotoc_srcs, "repo");
     x.add_dep(":libprotobuf", cxx::private_dep);
+    x.add_dep("@third_party//abseil-cpp", cxx::inherit);
 }
 
 cxx_executable("protoc", x) {

@@ -131,6 +131,8 @@ struct CGN_EXPORT Tools {
     static std::unordered_map<std::string, int64_t> win32_stat_folder(
         const std::string &folder_path);
 
+    static bool is_regular_file(const std::string &path);
+
     static bool win32_long_paths_enabled();
 
     static bool is_win7_or_later();
@@ -138,7 +140,7 @@ struct CGN_EXPORT Tools {
     static void print_debug(const std::string &text, bool verbose_level = false);
 
     //@param p : label like ':lib1', "../:lib1", "//other_part", "../../pkg"
-    //@param base : unixsep relpath of working-root (like "hello/cpp1/")
+    //@param base : label based on (like "//hello/cpp1")
     //@return : <base><p> (like //hello/cpp1:lib1)
     static std::string absolute_label(const std::string &p, std::string base);
 

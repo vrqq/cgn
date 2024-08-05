@@ -94,7 +94,7 @@ std::string CGNImpl::expand_filelabel_to_filepath(const std::string &in) const
     return _expand_cell(in);
 }
 
-// NodeName == unique_label (like //cgn.d/library/cxx.cgn.bundle)
+// NodeName == unique_label (like @cgn.d//library/cxx.cgn.bundle)
 // case1: script loaded && stat(files[]) == Latest
 //        return ;
 // case2: script loaded && stat(files[]) == Stale
@@ -107,13 +107,13 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
 {
     logger.print(logger.color("ActiveScript ") + label);
     std::string labe2 = _expand_cell(label);
-    std::string ulabel = "//" + labe2;
+    // std::string ulabel = "//" + labe2;
     if (std::string_view{labe2.data(), 3} == "../")
         throw std::runtime_error{"Invalid label " + label};
     
     CGNScript s; //the next value of scripts[label]
 
-    if (auto fd = scripts.find(ulabel); fd != scripts.end()) {
+    if (auto fd = scripts.find(label); fd != scripts.end()) {
         graph.test_status(fd->second.adep);
         if (fd->second.adep->status == GraphNode::Latest)
             return fd->second; // case1: scripts existed, graph Latest
@@ -126,7 +126,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
         scripts.erase(fd);
     }
     else
-        graph.test_status(s.adep = graph.get_node(ulabel));
+        graph.test_status(s.adep = graph.get_node("S" + label));
 
     if (s.sofile.empty()) {
         auto fpath = std::filesystem::path{labe2}.make_preferred();
@@ -152,11 +152,22 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
         std::unordered_set<std::string> script_all;
         script_all.insert(script_srcs.begin(), script_srcs.end());
 
-        //start build
+        //start build, cases of "label => factory_prefix (string format)"
+        //                //BUILD.cgn.cc  =>  "//:"
+        //          //hello/BUILD.cgn.cc  =>  "//hello:"
+        //        //my_script.cgn.bundle  =>  "//my_script.cgn.bundle:"
+        //  @cgn.d//library/cmake.cgn.cc  =>  "@cgn.d//library/cmake.cgn.cc:"
         std::string def_var_prefix = mangle_var_prefix(labe2);
-        std::string def_ulabel_prefix = "//:";
-        if (auto fd = labe2.rfind('/'); fd != labe2.npos)
-            def_ulabel_prefix = "\"//" + labe2.substr(0, fd) + ":\"";
+        std::string def_ulabel_prefix = "\"//:\"";
+        if (auto fd = label.rfind('/'); fd != label.npos) {
+            std::string_view file_name{label.c_str() + fd + 1};
+            if (file_name == "BUILD.cgn.cc")
+                def_ulabel_prefix = "\"" + label.substr(0, fd) + ":\"";
+            else
+                def_ulabel_prefix = "\"" + label + ":\"";
+        }
+        // if (auto fd = labe2.rfind('/'); fd != labe2.npos) 
+        //     def_ulabel_prefix = "\"//" + labe2.substr(0, fd) + ":\"";
 
         auto cc_end_with = [&](const std::string &want) {
             if (script_cc.size() >= want.size())
@@ -314,7 +325,7 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
                 content += it;
             }
             logger.paragraph("CGNScript "
-                + ulabel +" rebuilt with files[]: " + content + "\n");
+                + label +" rebuilt with files[]: " + content + "\n");
         }
         graph.set_node_files(s.adep, node_vals);
         graph.clear_file0_mtime_cache(s.adep);
@@ -326,12 +337,12 @@ const CGNScript &CGNImpl::active_script(const std::string &label)
     s.sohandle = std::make_unique<DLHelper>(s.sofile);
     if (!s.sohandle->valid())
         throw std::runtime_error{"cannot load cgn script."};
-    return scripts.emplace(ulabel, std::move(s)).first->second;
+    return scripts.emplace(label, std::move(s)).first->second;
 } //CGNImpl::active_script()
 
 void CGNImpl::offline_script(const std::string &label)
 {
-    std::string ulabel = "//" + _expand_cell(label);
+    // std::string ulabel = "//" + _expand_cell(label);
     
     // WARN: status只标注文件变动 和当前node对应的 Target/Script 在CGN系统里的状态无关
     //       若文件修改 需要用户单独调用set_node_status_to_unknown() 重置状态
@@ -341,7 +352,7 @@ void CGNImpl::offline_script(const std::string &label)
     // if (auto fd = scripts.find(ulabel); fd != scripts.end())
     //     graph.set_node_status_to_unknown(fd->second.adep);
     
-    scripts.erase(ulabel);
+    scripts.erase(label);
 }
 
 
@@ -360,61 +371,80 @@ CGNTarget CGNImpl::analyse_target(
     const Configuration &cfg,
     std::string *adep_test
 ) {
-    std::string labe2 = _expand_cell(label);
     ConfigurationID cfg_id = cfg_mgr->commit(cfg);
     logger.print(logger.color("Analyse ") + label + " #" + cfg_id);
     // logout<<"CGN::analyse_target("<< label <<", "<<cfg_id<<")"<<std::endl;
 
-    //expand short label
-    // factory_label: @cell//project:nameA
-    // labe2: cell_folder/project:nameA
-    // => stem: cell_folder/project ('/' slash only)
-    // => facty_name: nameA
-    std::string stem, facty_name;
-    if (auto fdc = labe2.rfind(':'); fdc != labe2.npos)
-        facty_name = labe2.substr(fdc+1), labe2.resize(fdc);
-    for (size_t last=0; last<labe2.size();) {
-        auto fdbs = labe2.find('/', last);
-        if (fdbs == labe2.npos)
-            fdbs = labe2.size();
-        if (fdbs > last) {
-            if (stem.size())
-                stem.push_back('/');
-            stem += labe2.substr(last, fdbs - last);
-        }
-        last = fdbs + 1;
-    }
+    // std::string src_prefix_unixsep = _expand_cell(label);
+    // std::string out_prefix_ossep   = cgn_out.string() + OSSEP + "obj";
+    // std::string out_prefix_unixsep = cgn_out.string() + "/obj";
+    // std::size_t pos;
+    // if (label[1] == '@') {
+    //     src_prefix_unixsep
+    // }
+    // if (label[0] == '/' && label[1] == '/' && label[2] != '@')
+    //     stem = std::string_view{};
 
+
+    // //expand short label
+    // // factory_label: @cell//project:nameA
+    // // labe2: cell_folder/project:nameA
+    // // => stem: cell_folder/project ('/' slash only)
+    // // => facty_name: nameA
+    // std::string stem, facty_name;
+    // if (auto fdc = labe2.rfind(':'); fdc != labe2.npos)
+    //     facty_name = labe2.substr(fdc+1), labe2.resize(fdc);
+    // for (size_t last=0; last<labe2.size();) {
+    //     auto fdbs = labe2.find('/', last);
+    //     if (fdbs == labe2.npos)
+    //         fdbs = labe2.size();
+    //     if (fdbs > last) {
+    //         if (stem.size())
+    //             stem.push_back('/');
+    //         stem += labe2.substr(last, fdbs - last);
+    //     }
+    //     last = fdbs + 1;
+    // }
+
+    //expand short label and generate src_prefix and out_prefix
+    //    [IN] label: @cell//project:nameA
+    //          cell: @cell or <NULLSTR>
+    //          stem: project
+    // factory_label: @cell//project:nameA
+    //    facty_name: nameA
+    std::string factory_label = label, facty_name, script_label;
+    std::string dir_in = _expand_cell(label);  //unix_sep
+    if (auto fdname = label.rfind(':'); fdname != label.npos) {
+        facty_name = label.substr(fdname+1);
+        dir_in.resize(dir_in.size() - facty_name.size() - 1);  //remove ":xxx" suffix
+        script_label = label.substr(0, fdname) + "/BUILD.cgn.cc";
+    }else
+        script_label = label + "/BUILD.cgn.cc";
+
+    // convert dir_in to dir_out (add '_' suffix for each folder in path)
     std::string OSSEP = {std::filesystem::path::preferred_separator};
     std::string out_prefix_ossep   = cgn_out.string() + OSSEP + "obj";
     std::string out_prefix_unixsep = cgn_out.string() + "/obj";
-
-    std::filesystem::path escaped_mid;
     std::string last_dir;
-    for (std::size_t i=0, fd=0; fd<stem.size(); i=fd+1) {
-        if (fd = stem.find('/', i); fd == stem.npos)
-            fd = stem.size();
-        last_dir = stem.substr(i, fd-i);
+    for (std::size_t i=0, fd=0; fd<dir_in.size(); i=fd+1) {
+        if (fd = dir_in.find('/', i); fd == dir_in.npos)
+            fd = dir_in.size();
+        last_dir = dir_in.substr(i, fd-i);
         out_prefix_ossep += OSSEP + last_dir + "_";
         out_prefix_unixsep += "/" + last_dir + "_";
+    }
 
-        // escaped_mid /= (last_dir = stem.substr(i, fd-i)) + "_";
-    }
-    if (facty_name.empty()){
+    if (facty_name.empty()) {
         if (last_dir.empty())
-            throw std::runtime_error{"target factory name must be assgined: "+ stem};
+            throw std::runtime_error{"target factory name must be assgined: "+ label};
         facty_name = last_dir;
+        factory_label += ":" + facty_name;
     }
-    std::string factory_label = "//" + stem + ":" + facty_name;
-    std::string tgt_label = factory_label + "#" + cfg_id;
 
     out_prefix_ossep += OSSEP + facty_name + "_" + cfg_id + OSSEP;
     out_prefix_unixsep += "/" + facty_name + "_" + cfg_id + "/";
 
-    // auto out_prefix_path = cgn_out / "obj" / escaped_mid / (facty_name + "_" + cfg_id);
-    // std::string out_prefix = out_prefix_path.string();
-    // out_prefix.push_back(std::filesystem::path::preferred_separator);
-
+    std::string tgt_label = factory_label + "#" + cfg_id;
     if (adep_cycle_detection.insert(tgt_label).second == false)
         throw std::runtime_error{"analyse: cycle-dependency " + tgt_label};
     auto adep_pop = [&](){ adep_cycle_detection.erase(tgt_label); };
@@ -423,7 +453,7 @@ CGNTarget CGNImpl::analyse_target(
     //  check the stat of target ninja file
     //  return empty if Latest existed, otherwise enter normal analyse
     if (adep_test != nullptr) {
-        GraphNode *node = graph.get_node(out_prefix_ossep);
+        GraphNode *node = graph.get_node("T" + tgt_label);
         if (node->files.size()) { //if existed in db (generate by previous analyse)
             graph.test_status(node);
             if (node->status == GraphNode::Latest) {
@@ -447,7 +477,7 @@ CGNTarget CGNImpl::analyse_target(
     CGNTarget rv;
 
     // active_script and find factories 
-    rv.cgn_script = &active_script("//" + stem + "/BUILD.cgn.cc");
+    rv.cgn_script = &active_script(script_label);
     cgn::CGNFactoryLoader fn_loader;
     if (auto fd = factories.find(factory_label); fd != factories.end())
         fn_loader = fd->second;
@@ -463,10 +493,10 @@ CGNTarget CGNImpl::analyse_target(
     CGNTargetOpt opt;
     opt.factory_ulabel = factory_label;
     opt.factory_name   = facty_name;
-    opt.src_prefix = stem + "/";
+    opt.src_prefix = dir_in + "/";
     opt.out_prefix = out_prefix_ossep;
     
-    rv.adep = opt.adep = graph.get_node(out_prefix_ossep);
+    rv.adep = opt.adep = graph.get_node("F" + factory_label);
     graph.remove_inbound_edges(opt.adep);
     graph.set_node_files(opt.adep, {ninja_file_ossep});
     graph.add_edge(rv.cgn_script->adep, rv.adep);
@@ -567,7 +597,7 @@ void CGNImpl::build_target(
 std::string CGNImpl::_expand_cell(const std::string &ss) const
 {
     // ss: @cell//project:nameA
-    // => rv: cell_folder/project:nameA
+    // => rv: dir_to/@cell_folder/project:nameA
     
     if (ss[0]=='/' && ss[1]=='/' && ss[2] != '@')
         return ss.substr(2);

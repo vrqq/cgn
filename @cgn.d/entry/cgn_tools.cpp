@@ -335,6 +335,10 @@ int64_t Tools::stat(const std::string &path)
 
 } //Tools::stat()
 
+bool Tools::is_regular_file(const std::string &path)
+{
+    return std::filesystem::is_regular_file(path);
+}
 
 std::string Tools::absolute_label(
     const std::string &p, std::string base
@@ -343,17 +347,29 @@ std::string Tools::absolute_label(
     if (p.size() && (p[0] == '@' || p[0] == '/'))
         return p; //return if p is an abs-label
 
-    std::string raw = base + p, name_part;
+    // remove factory_name if base is like `@cell//project:lib`
+    if (auto fdcolon = base.rfind(':'); fdcolon != base.npos)
+        base.resize(fdcolon);
 
-    // if the latest block is starting with ':' like ":lib"
-    // remove the slash before ':'
+    // raw is something like `@cell//proj1/../base1:nameY`
+    std::string raw = base + "/" + p, name_part;
+
+    // if `raw` is end with factory_name like ":lib"
     if (auto fdcolon = raw.rfind(':'); fdcolon != raw.npos)
         name_part = raw.substr(fdcolon), raw.resize(fdcolon);
 
+    //skip `@cell`
     std::string rv;
-    std::vector<std::size_t> rvpos = { 0 };
-    // std::cout<<raw<<"\n";
-    for (std::size_t i=0, fd; i < raw.size(); i = fd+1) {
+    std::vector<std::size_t> rvpos;
+    if (auto fdc = raw.find("//"); fdc!=raw.npos && (fdc==0 || raw[0]=='@')) {
+        rv = raw.substr(0, fdc+1);  // rv = '@cell/' instead of '@cell//'
+        rvpos.push_back(rv.size()); // the second slash would append below
+    }
+    else
+        throw std::runtime_error{"Invalid label : " + base + " " + p};
+    
+    // std::cout<<raw<<" "<<rv<<"\n";
+    for (std::size_t i=rv.size(), fd; i < raw.size(); i = fd+1) {
         if (fd = raw.find('/', i); fd == raw.npos)
             fd = raw.size();
         // std::cout<<"i:"<<i<<" "<<"fd:"<<fd<<" => "<<raw.substr(i, fd-i)<<"\n";
@@ -366,11 +382,11 @@ std::string Tools::absolute_label(
         }
         else if (fd == i || (fd == i + 1 && raw[i] == '.'))
             continue;
-        rv += (rv.size()?"/":"") + raw.substr(i, fd-i);
+        rv += "/" + raw.substr(i, fd-i);
         rvpos.push_back(rv.size());
     }
 
-    return "//" + rv + name_part;
+    return rv + name_part;
 }
 
 std::unordered_map<std::string, std::string> 

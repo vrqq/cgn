@@ -1,7 +1,13 @@
 # Announcement
 [Why Not Recommand](WHY_NOT_RECOMMAND.md)
 
-目前正在改动 `@cell` 以及 configuration 处理：拟增加 remove unnecessary entry in cfg[] for interpreter
+`@cell` 改动基本完成 可用
+接下来计划改进 external build tools 带来的 `BinDevelInfo`
+**TODO 为何不能在interpreter前缩减x.cfg[]**
+configuration 处理：remove unnecessary entry in cfg[] for interpreter?
+诚然 修改lang_rust相关信息会导致lang_cxx重新编译 听起来是愚蠢的，但是考虑一种情况：
+某个`cxx_factory()`内部调用了`add_dep("//a/rust/factory")`在所依赖的rust项内部 会根据`cfg["rust_xxx"]` 增删某些`.o`返回给调用者.
+
 
 # CGN
 受GN和bazel/buck启发，用 C++11 编写编译脚本(BUILD.cgn.cc)，并由cgn.exe扫描目录并自动将每一个`BUILD.cgn.cc` 编译为独立dll，然后由cgn.exe依次dlopen后，自动解析target然后生成ninja脚本。 
@@ -81,6 +87,19 @@
 * 接上一条，不允许出现`//@`开头的label，也就是说working-root下所有以@开头的文件夹都是imported cell，working-root下不允许出现以@开头的普通文件。
 * 如果`@`出现在label的中段，则认为他是普通的folder_name，例如 `//proj1/@folderX/fileY`
 * cgn为monorepo设计，通常建议任何新开工程都有自己的project folder。
+
+**label**
+每个 cgn_script 或 target_factory 仅有一种label可以访问，如果它属于cell，只能用`@cell//path/to` 访问，如果不属于cell 则可使用`//path/to` 访问之。
+以下为举例
+* script: `@cgn.d//library/cxx.cgn.bundle`
+* script: `@third_party//protobuf/proto.cgn.cc`
+* factory: `@third_party//spdlog`
+* factory: `//hello/cpp1:lib1`
+
+**以下为限制**
+* 文件夹名允许 `: " \` (`\` 仅linux)
+    * 带`:`的文件夹指定 factory_label 时必须写全 不能简写例如 `//x:y/name1:name1` 不能写作 `//x:y/name1`
+* factory_name禁止 `: `
 
 **BUILD**
 `ninja -C cgn.d` 编译输出到 cgn.d/build/cgn
