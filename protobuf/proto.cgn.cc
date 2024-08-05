@@ -1,4 +1,4 @@
-#include "cgn.d/library/cxx.cgn.bundle/cxx.cgn.h"
+#include "@cgn.d/library/cxx.cgn.bundle/cxx.cgn.h"
 #include "proto.cgn.h"
 
 static std::string two_escape(const std::string &in) {
@@ -41,13 +41,29 @@ cgn::TargetInfos ProtobufInterpreter::interpret(
     for (auto it : x.srcs) {
         if (it.size() < 6 || it.substr(it.size()-6) != ".proto")
             continue;
+        
+        // Test and find the relevant path for the ".proto" file to 
+        // any of "x.include_dir[]".
+        // The out_stem is the path which .proto relavent to x.include_dir[]
+        std::string out_stem;
+        for (auto inc : x.include_dirs) {
+            // "one of `inc`(x.include_dirs) must be an exact prefix of the `it`(x.srcs)"
+            std::string reb = api.rebase_path(it, inc);
+            if (reb[0] != '.' && reb[1] != '.') {
+                out_stem = reb.substr(0, reb.size() - 6);
+                break;
+            }
+        }
+        if (out_stem.empty())
+            throw std::runtime_error{"Protoc: you must assign a include_dir"
+                "which is the prefix of src file. " + opt.factory_ulabel};
+
         proto_fullpath_njesc.push_back(
             opt.ninja->escape_path(api.locale_path(opt.src_prefix + it))
         );
-        std::string stem = it.substr(0, it.size() - 6);
         
         if (x.lang == x.Cxx) {
-            std::string s1 = x.lang_src_outdir + stem;
+            std::string s1 = x.lang_src_outdir + out_stem;
             lang_pbout_njesc += {opt.ninja->escape_path(s1 + ".pb.cc"), 
                                  opt.ninja->escape_path(s1 + ".pb.h")};
             src_for_cxxtarget += {api.rebase_path(s1 + ".pb.cc", opt.src_prefix)};
