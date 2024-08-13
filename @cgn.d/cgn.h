@@ -56,7 +56,7 @@ struct CGNTargetOpt {
     // like "cgn-out/obj/project1_/hello_FFFF1234/"
     std::string out_prefix;
 
-    // a relative path that trailing with '/' or '\' (system-path-separator)
+    // a relative path that trailing with '/' (unix-separator)
     // like 'project1/'
     std::string src_prefix;
     
@@ -113,7 +113,12 @@ struct CGN_EXPORT Tools {
     //   As a special case, if new_base is the empty string (the default), all
     //   paths will be converted to system-absolute native style paths with system
     //   path separators. This is useful for invoking external programs.
-    static std::string rebase_path(const std::string &p, const std::string &new_base);
+    // static std::string rebase_path(const std::string &p, const std::string &new_base);    
+    static std::string rebase_path(
+        const std::string &p, 
+        const std::string &new_base, 
+        const std::string &current_base = "."
+    );
 
     // convert path 'in' to OS-dependent separator style, even if the path does 
     // not exist.
@@ -132,6 +137,11 @@ struct CGN_EXPORT Tools {
         const std::string &folder_path);
 
     static bool is_regular_file(const std::string &path);
+
+    static void mkdir(const std::string &path);
+
+    //@param mode: +w, -r, u+rwx, go+rwx, 0755
+    static void set_permission(const std::string &file, std::string mode);
 
     static bool win32_long_paths_enabled();
 

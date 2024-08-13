@@ -6,12 +6,12 @@
 using StrList = std::vector<std::string>;
 using StrSet  = std::unordered_set<std::string>;
 
-StrList operator+(const StrList &lhs, const StrList &rhs) {
+inline StrList operator+(const StrList &lhs, const StrList &rhs) {
     StrList rv{lhs};
     rv.insert(rv.end(), rhs.begin(), rhs.end());
     return rv;
 }
-StrList operator+(const StrList &lhs, StrList &&rhs) {
+inline StrList operator+(const StrList &lhs, StrList &&rhs) {
     StrList rv{lhs};
     rv.insert(rv.end(), 
         std::make_move_iterator(rhs.begin()), 
@@ -20,11 +20,11 @@ StrList operator+(const StrList &lhs, StrList &&rhs) {
     return rv;
 }
 
-StrList &operator+=(StrList &lhs, const StrList &rhs) {
+inline StrList &operator+=(StrList &lhs, const StrList &rhs) {
     lhs.insert(lhs.end(), rhs.begin(), rhs.end());
     return lhs;
 }
-StrList &operator+=(StrList &lhs, StrList &&rhs) {
+inline StrList &operator+=(StrList &lhs, StrList &&rhs) {
     lhs.insert(lhs.end(), 
         std::make_move_iterator(rhs.begin()), 
         std::make_move_iterator(rhs.end()));
@@ -32,12 +32,12 @@ StrList &operator+=(StrList &lhs, StrList &&rhs) {
     return lhs;
 }
 
-StrSet operator+(const StrSet &lhs, const StrSet &rhs) {
+inline StrSet operator+(const StrSet &lhs, const StrSet &rhs) {
     StrSet rv{lhs};
     rv.insert(rhs.begin(), rhs.end());
     return rv;
 }
-StrSet operator+(const StrSet &lhs, StrSet &&rhs) {
+inline StrSet operator+(const StrSet &lhs, StrSet &&rhs) {
     StrSet rv{lhs};
     rv.insert(std::make_move_iterator(rhs.begin()), 
               std::make_move_iterator(rhs.end()));
@@ -45,11 +45,11 @@ StrSet operator+(const StrSet &lhs, StrSet &&rhs) {
     return rv;
 }
 
-StrSet &operator+=(StrSet &lhs, const StrSet &rhs) {
+inline StrSet &operator+=(StrSet &lhs, const StrSet &rhs) {
     lhs.insert(rhs.begin(), rhs.end());
     return lhs;
 }
-StrSet &operator+=(StrSet &lhs, StrSet &&rhs) {
+inline StrSet &operator+=(StrSet &lhs, StrSet &&rhs) {
     lhs.insert(std::make_move_iterator(rhs.begin()), 
                std::make_move_iterator(rhs.end()));
     rhs.clear();
