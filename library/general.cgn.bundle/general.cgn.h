@@ -5,6 +5,7 @@
 
 // exported zone
 #include "git_fetch.cgn.h"
+#include "bin_devel.cgn.h"
 // end exported zone
 
 #include "../../cgn.h"

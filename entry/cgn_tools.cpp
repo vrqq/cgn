@@ -185,23 +185,34 @@ HostInfo Tools::get_host_info()
     return rv;
 }
 
-std::string Tools::rebase_path(const std::string &p, const std::string &base)
-{
+static std::string locale_path_impl(std::filesystem::path in) {
+    in = in.lexically_normal().make_preferred();
+    while (in.has_filename() && in.filename() == ".")
+        in = in.parent_path();
+    return in.string();
+}
+std::string Tools::rebase_path(
+    const std::string &p, const std::string &base, 
+    const std::string &current_base
+) {
+    std::filesystem::path in{p};
+    if (in.is_relative())
+        in = std::filesystem::path{current_base} / in;
     if (base.empty())
-        return std::filesystem::absolute(p).string();
+        return locale_path_impl(std::filesystem::absolute(in));
     // return std::filesystem::proximate(p, base).string();
-    return std::filesystem::path(p).lexically_proximate(base).string();
+    return locale_path_impl(std::filesystem::path(in).lexically_proximate(base));
 }
 
 std::string Tools::locale_path(const std::string &in)
 {
-    return std::filesystem::path{in}.lexically_normal().make_preferred().string();
+    return locale_path_impl(in);
 }
 
 std::string Tools::parent_path(const std::string &in)
 {
     auto p = std::filesystem::path{in};
-    return p.has_parent_path()? p.parent_path().string() : ".";
+    return p.has_parent_path()? p.parent_path().string() : "";
 }
 
 bool Tools::win32_long_paths_enabled() 
@@ -338,6 +349,41 @@ int64_t Tools::stat(const std::string &path)
 bool Tools::is_regular_file(const std::string &path)
 {
     return std::filesystem::is_regular_file(path);
+}
+
+void Tools::mkdir(const std::string &path)
+{
+    std::filesystem::create_directories(path);
+}
+
+void Tools::set_permission(const std::string &file, std::string mode)
+{
+    std::filesystem::perm_options opt = std::filesystem::perm_options::replace;
+
+    int prms = 0;
+    for (auto ch : mode)
+        if ('0' <= ch && ch <= '7')
+            prms = prms * 8 + ch - '0';
+    std::filesystem::permissions(file, (std::filesystem::perms)prms);
+    
+    // std::filesystem::perms prms;
+    // auto set_prm_by_num = [&](char role, int num) {};
+    // int num_mode = 0;
+    // for (auto ch : mode) {
+    //     if ('0' <= ch && ch <= '7') {
+    //         num_mode++;
+    //         if (num_mode == 1)
+    //             set_prm_by_num('u', ch - '0');
+    //         if (num_mode == 2)
+    //             set_prm_by_num('g', ch - '0');
+    //         if (num_mode == 3)
+    //             set_prm_by_num('o', ch - '0');
+    //         continue;
+    //     }
+    //     if (num_mode)
+    //         throw std::runtime_error{"Invalid mode: " + mode};
+    // }
+    // std::filesystem::permissions(file, prms);
 }
 
 std::string Tools::absolute_label(

@@ -60,6 +60,13 @@ inline cgn::Configuration config_guessor(std::unordered_set<std::string> &argls)
     if ((cfg["cpu"] = extract(argls, {"x86", "x86_64", "arm64", "ia64", "mips64"})) == "")
         cfg["cpu"] = host.cpu;
     
+    if ((cfg["shell"] = extract(argls, {"cmd", "powershel", "bash"})) == "") {
+        if (host.os == "win")
+            cfg["shell"] = "cmd";
+        else
+            cfg["shell"] = "bash";
+    }
+
     if ((cfg["cxx_toolchain"] = extract(argls, {"gcc", "llvm", "msvc"})) == "") {
         if (cfg["os"] == "win")
             cfg["cxx_toolchain"] = "msvc";
@@ -101,10 +108,10 @@ inline cgn::Configuration generate_host_release()
     cgn::HostInfo hinfo = api.get_host_info();
     std::unordered_set<std::string> args{"release", hinfo.cpu, hinfo.os};
     if (hinfo.os == "win")
-        args.insert({"msvc", "msvc_MD", "CONSOLE"});
+        args.insert({"msvc", "msvc_MD", "CONSOLE", "cmd"});
     else if (hinfo.os == "linux")
-        args.insert({"gcc"});
+        args.insert({"gcc", "bash"});
     else
-        args.insert({"llvm"});
+        args.insert({"llvm", "bash"});
     return config_guessor(args);
 }
