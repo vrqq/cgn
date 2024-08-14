@@ -136,6 +136,16 @@ cgn::TargetInfos FileCollect::interpret(
     // Prepare build.ninja
     std::string rulepath = api.get_filepath("@cgn.d//library/general.cgn.bundle/rule.ninja");
     opt.ninja->append_include(rulepath);
+
+    // order_only_dep: must run before current target
+    std::vector<std::string> tgt_before; 
+    if (x._order_only_dep.size()) {
+        auto *build = opt.ninja->append_build();
+        build->rule = "phony";
+        build->outputs = {opt.out_prefix + ".order_dep"};
+        build->inputs  = x._order_only_dep;
+        tgt_before = build->outputs;
+    }
     
     auto *entry = opt.ninja->append_build();
     entry->rule = "phony";
@@ -148,6 +158,7 @@ cgn::TargetInfos FileCollect::interpret(
             build->rule    = "unix_cp";
             build->outputs = {opt.ninja->escape_path(it.first)};
             build->inputs  = {opt.ninja->escape_path(it.second)};
+            build->order_only = tgt_before;
 
             entry->inputs += build->outputs;  //append entry
         }
@@ -171,7 +182,7 @@ cgn::TargetInfos FileCollect::interpret(
                 bat<<"pushd " + cpentry.file_part1 + "\n";
                 if (cpentry.recursive)
                     bat<<"find . -name '" + cpentry.file_part2 + "' "
-                         "| xargs cp --parent -r -t $dst\n";
+                         "-exec cp --parent -r \"{}\" $dst \\;\n";
                 else
                     bat<<"cp --parent -r " + cpentry.file_part2 + " $dst\n";
                 bat<<"popd\n";
@@ -189,6 +200,7 @@ cgn::TargetInfos FileCollect::interpret(
             build->rule    = "run";
             build->inputs  = {opt.ninja->escape_path(batdesc.bat_file)};
             build->outputs = {opt.ninja->escape_path(dst_dir)};
+            build->order_only = tgt_before;
             build->variables["exe"] = "bash -c";
 
             entry->inputs += build->outputs;
@@ -197,10 +209,10 @@ cgn::TargetInfos FileCollect::interpret(
     } //x.cfg["shell"] == "bash"
 
     cgn::TargetInfos rv;
-    auto *def = rv.get<cgn::DefaultInfo>();
+    auto *def = rv.get<cgn::DefaultInfo>(true);
     def->target_label = opt.factory_ulabel;
     def->build_entry_name = entry->outputs[0];
-    def->outputs = entry->inputs;
+    def->outputs = {opt.out_prefix + "install"};
     def->enforce_keep_order = true;
 
     return rv;
@@ -209,7 +221,8 @@ cgn::TargetInfos FileCollect::interpret(
 cgn::TargetInfos FileCollect::Context::add_target_dep(
     const std::string &label, const cgn::Configuration &cfg
 ) {
-    auto rhs = api.analyse_target(label, cfg);
+    auto rhs = api.analyse_target(
+        api.absolute_label(label, opt.factory_ulabel), cfg);
     if (rhs.errmsg.size())
         throw std::runtime_error{
             opt.factory_ulabel + " add_target_dep(" + label + "): " + rhs.errmsg
@@ -226,7 +239,8 @@ cgn::TargetInfos FileCollect::Context::add_target_dep(
 
 void BinDevelCollect::Context::add_from_target(const std::string &label)
 {
-    auto dep = api.analyse_target(label, cfg);
+    auto dep = api.analyse_target(
+        api.absolute_label(label, opt.factory_ulabel), cfg);
     if (dep.errmsg.size())
         throw std::runtime_error{dep.errmsg};
     gp.add_target_dep(label, cfg);
@@ -243,30 +257,33 @@ void BinDevelCollect::Context::add_from_target(const std::string &label)
     auto *cxinfo = dep.infos.get<cxx::CxxInfo>(false);
     if (cxinfo)
         for (auto &incdir : cxinfo->include_dirs)
-            include.push_back({incdir, {"**.h", "**.hpp", "**.hxx", "**.hh"}});
+            include.push_back({
+                api.rebase_path(incdir, opt.src_prefix), 
+                {"**.h", "**.hpp", "**.hxx", "**.hh"}
+            });
 
     auto *lrinfo = dep.infos.get<cgn::LinkAndRunInfo>(false);
     if (lrinfo) {
         for (auto &so : lrinfo->shared_files) {
             auto dir = api.parent_path(so);
-            auto file = so.substr(dir.size());
-            lib.push_back({dir, {file}});
+            auto file = so.substr(dir.size()+1);
+            lib.push_back({api.rebase_path(dir, opt.src_prefix), {file}});
         }
         for (auto &a : lrinfo->static_files) {
             auto dir = api.parent_path(a);
-            auto file = a.substr(dir.size());
-            lib.push_back({dir, {file}});
+            auto file = a.substr(dir.size()+1);
+            lib.push_back({api.rebase_path(dir, opt.src_prefix), {file}});
         }
         for (auto &rtfile : lrinfo->runtime_files) {
             auto dir = api.parent_path(rtfile.second);
-            auto file = rtfile.second.substr(dir.size());
+            auto file = rtfile.second.substr(dir.size()+1);
             std::string ext = get_ext(file);
             if (cfg["os"] == "win") {
                 if (ext == "exe" || ext == "dll")
-                    bin.push_back({dir, {file}});
+                    bin.push_back({api.rebase_path(dir, opt.src_prefix), {file}});
             }
             else if (ext == "")
-                bin.push_back({dir, {file}});
+                bin.push_back({api.rebase_path(dir, opt.src_prefix), {file}});
         }
     }
 } //BinDevelCollect::Context::add_from_target()
@@ -274,18 +291,26 @@ void BinDevelCollect::Context::add_from_target(const std::string &label)
 cgn::TargetInfos BinDevelCollect::interpret(
     BinDevelCollect::context_type &x, cgn::CGNTargetOpt opt
 ) {
-    FileCollect::context_type gp(x.cfg, opt);
+    std::string libdirname;
 
     auto add_to_gp = [&](const std::vector<FilePattern> &list, const std::string &dst_dir) {
         for (auto &it : list)
-            gp.add(it.src_basedir, it.src_files, dst_dir);
+            x.gp.add(it.src_basedir, it.src_files, dst_dir);
     };
     add_to_gp(x.include, "include");
     add_to_gp(x.bin, "bin");
     if (x.cfg["cpu"] == "x86_64")
-        add_to_gp(x.lib, "lib64");
+        add_to_gp(x.lib, "lib64"), libdirname = "lib64";
     else
-        add_to_gp(x.lib, "lib");
+        add_to_gp(x.lib, "lib"), libdirname = "lib";
 
-    return FileCollect::interpret(x.gp, opt);
+    auto rv = FileCollect::interpret(x.gp, opt);
+
+    BinDevelInfo devel;
+    devel.base = rv.get<cgn::DefaultInfo>()->outputs[0];
+    devel.include_dir = devel.base + opt.path_separator + "include";
+    devel.bin_dir     = devel.base + opt.path_separator + "bin";
+    devel.lib_dir     = devel.base + opt.path_separator + libdirname;
+    rv.set(devel);
+    return rv;
 } //BinDevelCollect::interpret()
