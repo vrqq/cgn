@@ -36,3 +36,19 @@ cxx_shared("gmock", x) {
 alias("googletest", x) {
     x.actual_label = ":gmock";
 }
+
+// filegroup("devel", x) {
+//     x.add("src/googlemock/include/gmock", {"*.h"}, "include/gmock");
+//     x.add("src/googletest/include/gtest", {"*.h"}, "include/gtest");
+
+//     auto info = x.add_target_dep(":googletest", x.cfg);
+//     x.flat_add_rootbase(info.get<cgn::LinkAndRunInfo>(false)->shared_files, 
+//                         (x.cfg["cpu"]=="x86_64"?"lib64":"lib"));
+// }
+bin_devel("devel", x) {
+    x.include = {
+        {"src/googlemock/include", {"gmock/*.h"}},
+        {"src/googletest/include", {"gtest/*.h"}}
+    };
+    x.add_from_target(":googletest", x.allow_linknrun);
+}

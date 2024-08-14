@@ -6,6 +6,9 @@ git("c-ares.git", x) {
     x.dest_dir = "repo";
 }
 
+alias("c-ares", x) {
+    x.actual_label = ":build_cmake";
+}
 
 cmake("build_cmake", x) {
     // x.vars["ENABLE_DEBUG"] = (x.cfg["optimization"] == "debug"?"ON":"OFF");
