@@ -1,11 +1,11 @@
 # Announcement
-[Why Not Recommand](WHY_NOT_RECOMMAND.md)
+[Why Not Recommand](WHY_NOT_RECOMMAND.md)  
 
-`@cell` 改动基本完成 可用
-接下来计划改进 external build tools 带来的 `BinDevelInfo`
+`@cell` 改动基本完成 可用  
+接下来计划改进 external build tools 带来的 `BinDevelInfo`  
 **TODO 为何不能在interpreter前缩减x.cfg[]**
-configuration 处理：remove unnecessary entry in cfg[] for interpreter?
-诚然 修改lang_rust相关信息会导致lang_cxx重新编译 听起来是愚蠢的，但是考虑一种情况：
+configuration 处理：remove unnecessary entry in cfg[] for interpreter?  
+诚然 修改lang_rust相关信息会导致lang_cxx重新编译 听起来是愚蠢的，但是考虑一种情况：  
 某个`cxx_factory()`内部调用了`add_dep("//a/rust/factory")`在所依赖的rust项内部 会根据`cfg["rust_xxx"]` 增删某些`.o`返回给调用者.
 
 
@@ -15,7 +15,8 @@ configuration 处理：remove unnecessary entry in cfg[] for interpreter?
 
 **conceptions**  
 * factory label: `@third_party//protobuf:protoc`
-    * 
+    * target_factory 简写为 factory
+    * target_factory + config => target
 * script label: `@cgn.d//library/cxx.cgn.bundle`
     * CGN支持3种script表述方式: 以.bundle结尾的文件夹, 以.rsp结尾的文件, 和以 .cc结尾的单脚本文件
     * CGN利用类似ninja的 `/showIncludes` 处理 .h的引入
@@ -167,13 +168,15 @@ rust_library("mylib", x) {
 ## TargetInfos (Provider)
 
 **DefaultInfo**
-* .outputs[] 仅当前target的输出文件 例如 a.exe b.dll c.so d.txt
-* User: Package() target 会收集指定target的 outputs[] 并打包到当前输出
+* .outputs[] 仅当前target的输出文件 例如 a.exe b.dll c.so d.txt 
+    * 不含来自依赖的文件, 例如使用 bin_devel() 可以自动拾取
+* User: bin_devel() 会收集指定target的 outputs[] 并打包到当前输出
+* 注意 此info无法从dep继承信息 仅作用于当前target
 
 **LinkAndRunInfo**
 * 由于接近系统的语言为c/cpp系列 此处暂不考虑其他语言的中间输出
 * .object 编译半成品 通常 windows下.obj(PE-format)  linux下.o(ELF)
-* .shared 动态库 windows下.lib(COFF) 注意不含.dll(PE), linux下.so(ELF)
+* .shared 动态库 linux下.so(ELF), windows下.lib(COFF) 不含.dll(PE)
 * .static 静态库 windows下.lib(COFF), linux下.a
 * .runtime 运行时 例如 win动态库带的.dll, exe需要读取的配置文件.ini
     * win动态库.dll/.exe等等 默认情况放在'/' 和exe同位置, 他们会根据例如 cfg['pkg-mode'] 改变输出的位置
@@ -184,16 +187,17 @@ rust_library("mylib", x) {
 
 **BinDevelInfo**
 收集文件至 `include_dir`, `lib_dir`，而非CxxInfo内散落的路径，一般按照xxx-devel install后的目录样子。给例如 cmake() nmake() 引入依赖用，这些外部project编译时指定某个第三方库的include_dir只能指定一个目录，不能指定多个。当然也可以把所有路径都加到INCLUDE_DIR中假装是默认的。
+* 注意 此info无法从dep继承信息 仅作用于当前target
 
 ## 常用rules说明 (所有cgn.d/library的rule)
 简易使用说明/目录再此更新，dev-implement说明在bundle内README
 部分rule开发中
 
-**dir_package()**
+**filegroup()**
 `@cgn.d//library/general.cgn.bundle`
 将其内部提到的target的outputs[]全部copy到当前target的输出文件夹
 
-**zip_package()**
+**zip_package() (TODO)**
 `@cgn.d//library/general.cgn.bundle`
 与dir_package()类似 将其输出的文件夹打包成zip，需要依赖系统zip.exe 或者在target内部指定archiver，可指定例如 `@third_party//zlib:exe`
 支持 zip, 7z, gzip, bzip2, tar, tar.gz
@@ -202,3 +206,32 @@ rust_library("mylib", x) {
 `@cgn.d//library/general.cgn.bundle`
 从git拉指定版本的repo，需要依赖系统git.exe 亦可指定 `@third_party//libgit2:exe` 但此处涉及鸡生蛋蛋生鸡问题。
 
+**bin_devel()**
+自动拾取`.dll`, `.so` 等文件，其内部会收集好后转至`filegroup()`处理
+
+**cxx_static()**
+c/cpp/asm static library
+
+**cxx_shared()**
+c/cpp/asm shared library
+
+**cxx_sources()**
+c/cpp/asm source set
+
+**cmake()**
+编译外部cmake工程 并提供`CxxInfo`, `BinDevelInfo`
+
+**nmake()**
+(windows only) 使用nmake.exe 编译外部工程
+
+**xcode_project()**
+(macos only) 在命令行中编译xcode project
+
+**sh_binary()**
+直接运行外部程序
+
+**group()**
+打包一堆target
+
+**alias()**
+某个target的快捷方式 注意将会保留全部`TargetInfos`

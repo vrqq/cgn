@@ -76,6 +76,11 @@ std::vector<std::string> add_prefix(std::vector<std::string> in, std::string pre
 } //namespace<>
 
 cxx_static("libprotoc", x) {
+    if (x.cfg["os"] == "win")
+        x.perferred_binary_name = "protoc.lib";
+    else
+        x.perferred_binary_name = "libprotoc.a";
+
     x.include_dirs = {"repo/src", "repo"};
     x.cflags  = COPTS(x.cfg);
     x.srcs = add_prefix(libprotoc_srcs, "repo");
@@ -93,6 +98,11 @@ cxx_executable("protoc", x) {
 }
 
 cxx_static("libprotobuf-lite", x) {
+    if (x.cfg["os"] == "win")
+        x.perferred_binary_name = "protobuf-lite.lib";
+    else
+        x.perferred_binary_name = "libprotobuf-lite.a";
+
     x.include_dirs = {"repo/src", "repo"};
     x.pub.include_dirs = {"repo/src"};
     x.cflags = COPTS(x.cfg);
@@ -102,6 +112,11 @@ cxx_static("libprotobuf-lite", x) {
 }
 
 cxx_static("libprotobuf", x) {
+    if (x.cfg["os"] == "win")
+        x.perferred_binary_name = "protobuf.lib";
+    else
+        x.perferred_binary_name = "libprotobuf.a";
+
     x.include_dirs = {"repo/src", "repo"};
     x.pub.include_dirs = {"repo/src"};
     x.cflags = COPTS(x.cfg);
@@ -117,4 +132,13 @@ cxx_sources("utf8_validity", x) {
         "repo/third_party/utf8_range/utf8_validity.cc",
     };
     x.add_dep("@third_party//abseil-cpp", cxx::inherit);
+}
+
+bin_devel("devel", x) {
+    x.include = {
+        {"repo/third_party/utf8_range", {"*.h"}},
+        {"repo/src", {"google/protobuf/**.h"}}
+    };
+    x.add_from_target(":libprotobuf", x.allow_default);
+    x.add_from_target(":libprotoc",   x.allow_default);
 }
