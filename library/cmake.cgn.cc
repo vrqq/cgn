@@ -82,14 +82,13 @@ cgn::TargetInfos CMakeInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
 
     // prepare return value
     cgn::TargetInfos &rv = x.merged_info;
-    rv.set<BinDevelInfo>(x.output_bin_devel);
 
     // The 'include file' usually not appear in output
     // 
     rv.get<cgn::DefaultInfo>()->enforce_keep_order = true;
 
     auto *lrinfo = rv.get<cgn::LinkAndRunInfo>(true);
-    std::unordered_set<std::string> dllstem;
+    std::unordered_set<std::string> dllstem, alldirs;
     std::vector<std::pair<std::string,std::string>> dotlib;
     for (auto &file : x.outputs) {
         auto fd1   = file.rfind('/');
@@ -100,6 +99,8 @@ cgn::TargetInfos CMakeInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
         std::string fullp = install_dir + "/" + file;
         std::string stem = file.substr(fd1, fddot-fd1);
         std::string ext  = file.substr(fddot);
+        if (fd1)
+            alldirs.insert(file.substr(0, fd1-1));
         if (ext == ".so")
             lrinfo->shared_files.push_back(fullp);
         else if (ext == ".a")
@@ -123,6 +124,17 @@ cgn::TargetInfos CMakeInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
     x.pub.include_dirs.push_back(install_dir + "/include");
     rv.set(x.pub);
 
+    // generate BinDevelInfo in return value
+    auto *bin_devel = rv.get<BinDevelInfo>(true);
+    bin_devel->base = install_dir;
+    bin_devel->include_dir = install_dir + opt.path_separator + "include";
+    if (alldirs.count("bin"))
+        bin_devel->bin_dir = install_dir + opt.path_separator + "bin";
+    if (alldirs.count("lib64"))
+        bin_devel->lib_dir = install_dir + opt.path_separator + "lib64";
+    if (alldirs.count("lib"))
+        bin_devel->lib_dir = install_dir + opt.path_separator + "lib";
+    
     // prepare cmake gen command
     auto prepare_cmdgen = [&](std::function<std::string(std::string)> fn_escape) {
         std::string cmd = "cmake";

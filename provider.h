@@ -26,7 +26,7 @@ template<size_t N> struct ConstLabelGroup {
 struct BaseInfo {
     struct VTable {
         std::shared_ptr<BaseInfo> (*allocate)();
-        void        (*merge_from)(void *ecx, const void *rhs);
+        bool        (*merge_from)(void *ecx, const void *rhs);
         std::string (*to_string)(const void *ecx, char type);
     };
 
@@ -36,7 +36,7 @@ struct BaseInfo {
         return vtable->allocate();
     }
 
-    void merge_from(const BaseInfo *rhs) {
+    bool merge_from(const BaseInfo *rhs) {
         return vtable->merge_from(this, rhs);
     }
     std::string to_string(char type) const {

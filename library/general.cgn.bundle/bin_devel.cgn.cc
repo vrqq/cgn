@@ -14,7 +14,7 @@ BinDevelInfo::_glb_bindevel_vtable()
             return std::make_shared<BinDevelInfo>();
         },
         [](void *ecx, const void *rhs) {
-            return ;
+            return false;
         }, 
         [](const void *ecx, char type) -> std::string { 
             auto *self = (BinDevelInfo *)ecx;
@@ -28,16 +28,43 @@ BinDevelInfo::_glb_bindevel_vtable()
     return &v; 
 }
 
-void FileCollect::Context::add(
+void FileCollect::Context::_add_impl(
     const std::string src_dir, 
     const std::vector<std::string> &src_files,
-    const std::string &dst_dir
+    const std::string &dst_dir,
+    bool is_src_root_base
 ) {
     Pattern p;
-    p.src_basedir = src_dir;
+    if (is_src_root_base)
+        p.src_basedir = api.rebase_path(src_dir, opt.src_prefix);
+    else
+        p.src_basedir = src_dir;
     p.src_files   = src_files;
     p.dst_dir     = dst_dir;
     mapper.push_back(p);
+}
+
+void FileCollect::Context::_flat_add_impl(
+    const std::vector<std::string> &src_files,
+    const std::string &dst_dir,
+    bool is_root_base
+) {
+    std::unordered_map<std::string, std::vector<std::string>> reorg;
+    for (auto &file : src_files) {
+        std::string basedir = api.parent_path(file);
+        std::string filename = file.substr(basedir.size()+1);
+        reorg[basedir].push_back(filename);
+    }
+    for (auto it: reorg) {
+        Pattern p;
+        if (is_root_base)
+            p.src_basedir = api.rebase_path(it.first, opt.src_prefix);
+        else
+            p.src_basedir = it.first;
+        p.src_files   = it.second;
+        p.dst_dir     = dst_dir;
+        mapper.push_back(p);
+    }
 }
 
 static std::string two_escape(const std::string &in) {
@@ -237,7 +264,7 @@ cgn::TargetInfos FileCollect::Context::add_target_dep(
 } //FileCollect::Context::add_target_dep()
 
 
-void BinDevelCollect::Context::add_from_target(const std::string &label)
+void BinDevelCollect::Context::add_from_target(const std::string &label, int flag)
 {
     auto dep = api.analyse_target(
         api.absolute_label(label, opt.factory_ulabel), cfg);
@@ -255,7 +282,7 @@ void BinDevelCollect::Context::add_from_target(const std::string &label)
     
     // if no BinDevelInfo provider, guess from CxxInfo and LinkAndRunInfo
     auto *cxinfo = dep.infos.get<cxx::CxxInfo>(false);
-    if (cxinfo)
+    if (cxinfo && (flag & allow_cxxinfo))
         for (auto &incdir : cxinfo->include_dirs)
             include.push_back({
                 api.rebase_path(incdir, opt.src_prefix), 
@@ -263,7 +290,7 @@ void BinDevelCollect::Context::add_from_target(const std::string &label)
             });
 
     auto *lrinfo = dep.infos.get<cgn::LinkAndRunInfo>(false);
-    if (lrinfo) {
+    if (lrinfo && (flag & allow_linknrun)) {
         for (auto &so : lrinfo->shared_files) {
             auto dir = api.parent_path(so);
             auto file = so.substr(dir.size()+1);
@@ -283,6 +310,19 @@ void BinDevelCollect::Context::add_from_target(const std::string &label)
                     bin.push_back({api.rebase_path(dir, opt.src_prefix), {file}});
             }
             else if (ext == "")
+                bin.push_back({api.rebase_path(dir, opt.src_prefix), {file}});
+        }
+    }
+
+    auto *def = dep.infos.get<cgn::DefaultInfo>(false);
+    if (def && (flag & allow_default)) {
+        for (auto &fp1 : def->outputs) {
+            auto dir = api.parent_path(fp1);
+            auto file = fp1.substr(dir.size()+1);
+            std::string ext = get_ext(file);
+            if (ext == "so" || ext == "lib" || ext == "a")
+                lib.push_back({api.rebase_path(dir, opt.src_prefix), {file}});
+            if (ext == "exe" || (cfg["os"]!="win" && ext==""))
                 bin.push_back({api.rebase_path(dir, opt.src_prefix), {file}});
         }
     }

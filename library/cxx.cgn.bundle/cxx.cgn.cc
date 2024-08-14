@@ -23,12 +23,13 @@ const cgn::BaseInfo::VTable &CxxInfo::_glb_cxx_vtable()
         },
         [](void *ecx, const void *rhs) {
             if (rhs == nullptr)
-                return ;
+                return false;
             CxxInfo *self = (CxxInfo*)ecx, *r = (CxxInfo*)rhs;
             self->include_dirs += r->include_dirs;
             self->defines += r->defines;
             self->ldflags += r->ldflags;
             self->cflags  += r->cflags;
+            return true;
         }, 
         [](const void *ecx, char type) -> std::string { 
             auto *self = (CxxInfo *)ecx;
@@ -563,7 +564,9 @@ void TargetWorker::step31_win()
     //  deps.obj + self.srcs.o => rv[LRinfo].a
     //  deps.rt / deps.so / deps.a => rv[LRinfo]
     if (x.role == 'a') {
-        std::string outfile = opt.out_prefix + x.name + ".a";
+        std::string outfile = opt.out_prefix + x.name + ".lib";
+        if (x.perferred_binary_name.size())
+            outfile = opt.out_prefix + x.perferred_binary_name;
         std::string outfile_njesc = cgn::NinjaFile::escape_path(outfile);
         auto *field = opt.ninja->append_build();
         field->rule = "msvc_lib";
@@ -583,14 +586,16 @@ void TargetWorker::step31_win()
     //   self.so + {so from deps} => rv[LRinfo].so
     if (x.role == 's' || x.role == 'x') {
         std::string outfile;
-        std::string outfile_njesc;
         std::string outfile_implib;
         if (x.role == 's')
             outfile = opt.out_prefix + x.name + ".dll";
         else
             outfile = opt.out_prefix + x.name + ".exe";
         outfile_implib = opt.out_prefix + x.name + ".lib";
-        // outfile_njesc  = opt.ninja->escape_path(outfile);
+        if (x.perferred_binary_name.size()) {
+            outfile = opt.out_prefix + x.perferred_binary_name;
+            outfile_implib = opt.out_prefix + x.perferred_binary_name + ".lib";
+        }
 
         //prepare rpath argument
         //  this is seen as target ldflags, so put on the tail of cargs.ldflags
@@ -691,6 +696,8 @@ void TargetWorker::step31_unix()
     //  deps.rt / deps.so / deps.a => rv[LRinfo]
     if (x.role == 'a') {
         std::string outfile = opt.out_prefix + "lib" + x.name + ".a";
+        if (x.perferred_binary_name.size())
+            outfile = opt.out_prefix + x.perferred_binary_name;
         std::string outfile_njesc = cgn::NinjaFile::escape_path(outfile);
         auto *field = opt.ninja->append_build();
         field->rule = "gcc_ar";
@@ -701,6 +708,8 @@ void TargetWorker::step31_unix()
 
         _entry_postprocess(field->outputs);
         rvlnr->static_files = std::vector<std::string>{outfile} + rvlnr->static_files;
+
+        rvdef->outputs = {outfile};
         return ;
     }
     
@@ -720,6 +729,8 @@ void TargetWorker::step31_unix()
             outfile = opt.out_prefix + "lib" + x.name + ".so";
         else
             outfile = opt.out_prefix + x.name;
+        if (x.perferred_binary_name.size())
+            outfile = opt.out_prefix + x.perferred_binary_name;
         outfile_njesc = opt.ninja->escape_path(outfile);
 
         //prepare rpath argument

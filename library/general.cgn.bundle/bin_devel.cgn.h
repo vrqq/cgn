@@ -66,7 +66,17 @@ struct FileCollect
             const std::string src_dir, 
             const std::vector<std::string> &src_files,
             const std::string &dst_dir = ""
-        );
+        ) { return _add_impl(src_dir, src_files, dst_dir, false); }
+
+        void flat_add(
+            const std::vector<std::string> &src_files,
+            const std::string &dst_dir = ""
+        ) { return _flat_add_impl(src_files, dst_dir, false); }
+
+        void flat_add_rootbase(
+            const std::vector<std::string> &src_files,
+            const std::string &dst_dir = ""
+        ) { return _flat_add_impl(src_files, dst_dir, true); }
 
         cgn::TargetInfos add_target_dep(const std::string &label, const cgn::Configuration &cfg);
 
@@ -76,6 +86,19 @@ struct FileCollect
     private: friend class FileCollect;
         const cgn::CGNTargetOpt opt;  //self opt
         std::vector<std::string> _order_only_dep;
+
+        void _add_impl(
+            const std::string src_dir, 
+            const std::vector<std::string> &src_files,
+            const std::string &dst_dir,
+            bool is_src_root_base
+        );
+
+        void _flat_add_impl(
+            const std::vector<std::string> &src_files,
+            const std::string &dst_dir,
+            bool is_src_root_base
+        );
     };
     using context_type = Context;
 
@@ -107,13 +130,20 @@ struct BinDevelCollect
 
         // TargetInfos[CxxInfo]
         //   .include[] {*.h}         => this.include
+        // TargetInfos[LinkAndRunInfo]
         //   .shared[]  {*.so, *.lib} => this.lib64
         //   .static[]  {*.a, *.lib}  => this.lib64
         //   .runtime[] {*.dll, ELF, *.exe} => this.bin
         // TargetInfos[DefaultInfo]
         //   .output[] => this.bin / this.lib64
-        void add_from_target(const std::string &label);
-    
+        // @param flag: allow_xxx
+        const static int allow_cxxinfo  =     0b1;
+        const static int allow_linknrun =  0b1110;
+        const static int allow_default  = 0b10000;
+        void add_from_target(const std::string &label, 
+                             int flag = (allow_cxxinfo | allow_linknrun)
+        );
+
         Context(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
         : name(opt.factory_name), cfg(cfg), opt(opt), gp(cfg, opt) {}
 

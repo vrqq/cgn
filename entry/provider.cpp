@@ -9,9 +9,11 @@ CGN_EXPORT const BaseInfo::VTable DefaultInfo::v = {
         return std::make_shared<DefaultInfo>();
     },
     [](void *ecx, const void *rhs) {
-        auto *self = (DefaultInfo *)ecx;
-        auto *rr   = (const DefaultInfo *)(rhs);
-        self->outputs.insert(self->outputs.end(), rr->outputs.begin(), rr->outputs.end());
+        return true;
+        // auto *self = (DefaultInfo *)ecx;
+        // auto *rr   = (const DefaultInfo *)(rhs);
+        // self->outputs.insert(self->outputs.end(), rr->outputs.begin(), rr->outputs.end());
+        // return true;
     },
     [](const void *ecx, char type) -> std::string { 
         auto *self = (DefaultInfo *)ecx;
@@ -52,6 +54,7 @@ CGN_EXPORT const BaseInfo::VTable LinkAndRunInfo::v = {
         merge(&self->object_files, rr->object_files);
         self->runtime_files.insert(
             rr->runtime_files.begin(), rr->runtime_files.end());
+        return true;
     },
     [](const void *ecx, char type) -> std::string { 
         const LinkAndRunInfo *self = (const LinkAndRunInfo *)ecx;
@@ -73,7 +76,8 @@ void TargetInfos::merge_from(const TargetInfos &rhs)
             fd->second->merge_from(val.get());
         else {
             auto &ref = _data[name] = val->allocate();
-            ref->merge_from(val.get());
+            if (ref->merge_from(val.get()) == false)
+                _data.erase(name);
         }
 }
 
@@ -85,7 +89,8 @@ void TargetInfos::merge_entry(
         fd->second->merge_from(rhs.get());
     else {
         auto &ref = _data[name] = rhs->allocate();
-        ref->merge_from(rhs.get());
+        if (ref->merge_from(rhs.get()) == false)
+            _data.erase(name);
     }
 }
 

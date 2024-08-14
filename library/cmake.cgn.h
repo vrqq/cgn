@@ -51,7 +51,7 @@ struct CMakeContext : cgn::TargetInfoDep<true> {
     // *.a *.so *.dll, no .h required.
     std::vector<std::string> outputs;
     
-    BinDevelInfo    output_bin_devel;
+    // BinDevelInfo    output_bin_devel;
 
     // the CxxInfo and LinkAndRunInfo return value would be filled from 
     // CMAKE_INSTALL_BINDIR, CMAKE_INSTALL_LIBDIR and CMAKE_INSTALL_INCLUDEDIR,

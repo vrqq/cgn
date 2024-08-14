@@ -104,6 +104,16 @@ struct CxxContext : CxxInfo
     const char role;
     const std::string name;
 
+    // using this name instead of generate from x.name
+    //  if not assign, the default name below:
+    //  xnixStatic: "lib" + x.name + ".a"
+    //  xnixShared: "lib" + x.name + ".so"
+    //  xnixExE   : x.name
+    //  winShared : x.name + ".dll"
+    //  winStatic : x.name + ".lib"
+    //  winExE    : x.name + ".exe"
+    std::string perferred_binary_name;
+
     // only c, cpp source file included, no header required.
     std::vector<std::string> srcs; 
 
