@@ -73,7 +73,7 @@ struct FileCollect
         Context(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
         : name(opt.factory_name), cfg(cfg), opt(opt) {}
 
-    private:
+    private: friend class FileCollect;
         const cgn::CGNTargetOpt opt;  //self opt
         std::vector<std::string> _order_only_dep;
     };
@@ -122,8 +122,13 @@ struct BinDevelCollect
         FileCollect::context_type gp;
     };
     using context_type = Context;
+    
+    constexpr static cgn::ConstLabelGroup<1> preload_labels() {
+        return {"@cgn.d//library/general.cgn.bundle"};
+    }
 
     GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
 };
 
 #define filegroup(name, x) CGN_RULE_DEFINE(FileCollect, name, x)
+#define bin_devel(name, x) CGN_RULE_DEFINE(BinDevelCollect, name, x)

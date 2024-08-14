@@ -101,6 +101,10 @@ public:
         _data[T::name()] = std::shared_ptr<T>(new T(rhs));
     }
     template<typename T> T *get(bool create_if_nx = false) {
+        if (create_if_nx == false) {
+            auto fd = _data.find(T::name());
+            return (fd == _data.end())? nullptr: (T*)fd->second.get();
+        }
         auto &uptr = _data.insert({T::name(), nullptr}).first->second;
         return (T*)(uptr? uptr : (uptr=std::shared_ptr<T>(new T))).get();
     }

@@ -496,7 +496,7 @@ void TargetWorker::step30_prepare_rv()
     // init CxxInfo for return value
     rv = &x._pub_infos_fromdep;
     
-    rvcxx = rv->get<CxxInfo>();
+    rvcxx = rv->get<CxxInfo>(true);
     rvcxx->cflags  += x.pub.cflags;
     rvcxx->ldflags += x.pub.ldflags;
     rvcxx->defines += x.pub.defines;
@@ -690,7 +690,7 @@ void TargetWorker::step31_unix()
     //  deps.obj + self.srcs.o => rv[LRinfo].a
     //  deps.rt / deps.so / deps.a => rv[LRinfo]
     if (x.role == 'a') {
-        std::string outfile = opt.out_prefix + x.name + ".a";
+        std::string outfile = opt.out_prefix + "lib" + x.name + ".a";
         std::string outfile_njesc = cgn::NinjaFile::escape_path(outfile);
         auto *field = opt.ninja->append_build();
         field->rule = "gcc_ar";
