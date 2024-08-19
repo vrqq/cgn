@@ -41,7 +41,9 @@ ConfigurationID CGN::commit_config(const Configuration &plat_cfg)
     return pimpl->cfg_mgr->commit(plat_cfg);
 }
 
-const Configuration *CGN::query_config(const std::string &name) const
+// const Configuration *
+std::pair<const Configuration *, GraphNode *>
+CGN::query_config(const std::string &name) const
 {
     return pimpl->cfg_mgr->get(name);
 }

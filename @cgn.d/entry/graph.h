@@ -7,6 +7,7 @@
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
+#include <filesystem>
 #include <cstdio>
 
 namespace cgn
@@ -40,6 +41,11 @@ public:
 
     GraphNode *get_node(const std::string &name);
 
+    // Set the initial state when db_load()
+    // Default is 'unknown' if no assigned
+    void set_unknown_as_default_state(GraphNode *p);
+    void set_stale_as_default_state(GraphNode *p);
+
     void add_edge(GraphNode *from, GraphNode *to);
     
     void remove_inbound_edges(GraphNode *p);
@@ -56,6 +62,8 @@ public:
     //@param p : nullptr to set all node to Unknown status
     //           otherwise for p and dfs(p)
     void set_node_status_to_unknown(GraphNode *p = nullptr);
+
+    void set_node_status_to_stale(GraphNode *p);
 
     // set p->files = in and set p and dfs(p)->status = Stale 
     void set_node_files(GraphNode *p, std::vector<std::string> in);
@@ -163,6 +171,7 @@ struct GraphNode {
 
 private: friend class Graph;
     Status _status = Unknown;
+    bool init_status_to_stale = false;
     // std::vector<std::string> _files;
     std::vector<Graph::DBStringBlock*> _file_blocks;
     int64_t max_mtime = 0;
@@ -176,7 +185,9 @@ private: friend class Graph;
     std::size_t db_block_size = 0;
 
     // db data (already sorted before last save)
+    bool db_enforce_write = true;
     std::vector<uint32_t> lastdb_data;
+
 }; //struct GraphNode
 
 } // namespace cgn

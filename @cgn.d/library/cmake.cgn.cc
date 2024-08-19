@@ -12,6 +12,9 @@
 // 
 #define CMAKE_CGN_IMPL
 #include "../entry/raymii_command.hpp"
+#include "../std_operator.hpp"
+#include "helper/helper.hpp"
+#include "general.cgn.bundle/bin_devel.cgn.h"
 #include "cmake.cgn.h"
 
 // namespace cmake{
@@ -66,6 +69,13 @@ CMakeContext::CMakeContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
             = cpu1 + "-" + os1 + "-gnu";    
     }
 } //CMakeContext
+
+
+#ifdef _WIN32
+constexpr const char *nul_suffix = " 1> nul";
+#else
+constexpr const char *nul_suffix = " 1> /dev/null";
+#endif
 
 cgn::TargetInfos CMakeInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
 {
@@ -151,11 +161,6 @@ cgn::TargetInfos CMakeInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
     };
 
     // [NINJA FILE] cmake_havedep_mode
-    #ifdef _WIN32
-    std::string nul_suffix = " 1> nul";
-    #else
-    std::string nul_suffix = " 1> /dev/null";
-    #endif
     if (x.enforce_havedep_mode || x.ninja_target_dep.size()) {
         // rule to run custom command
         auto *rule = opt.ninja->append_rule();
@@ -224,5 +229,74 @@ cgn::TargetInfos CMakeInterpreter::interpret(context_type &x, cgn::CGNTargetOpt 
 
     return rv;
 } //CMakeInterpreter::interpret()
+
+cgn::TargetInfos CMakeConfigInterpeter::interpret(
+    CMakeConfigInterpeter::context_type &x, cgn::CGNTargetOpt opt
+) {
+    // value check
+    if (x.outputs.empty())
+        throw std::runtime_error{opt.factory_ulabel + " output field must be assigned"};
+
+    // dir for cmake
+    std::string build_dir = opt.out_prefix + "build";
+    std::string src_dir = api.locale_path(opt.src_prefix + x.sources_dir);
+
+    // prepare return value
+    cgn::TargetInfos &rv = x.merged_info;
+    auto *def = rv.get<cgn::DefaultInfo>();
+    def->enforce_keep_order = true;
+
+    // std::vector<std::string> dot_cmake_files;
+    std::vector<std::string> cmake_out_njesc;
+    for (auto &file : x.outputs) {
+        std::string fullp = build_dir + opt.path_separator + file;
+        def->outputs += {fullp};
+        cmake_out_njesc.push_back(opt.ninja->escape_path(fullp));
+        auto ext = get_ext(file);
+        // if (ext == "cmake")
+        //     dot_cmake_files.push_back(file);
+    }
+
+    // prepare cmake gen command
+    std::string cmd = "cmake";
+    if (x.cfg["cmake_exe"] != "")
+        cmd = two_escape(x.cfg["cmake_exe"]);
+    cmd += " -G Ninja -S " + two_escape(src_dir)
+        + "  -B " + two_escape(build_dir);
+    for (auto item : x.vars) {
+        cmd += " -D" + two_escape(item.first);
+        if (item.second.size())
+            cmd += "=" + two_escape(item.second);
+    }
+
+    // rule to run custom command
+    std::string rulepath = api.get_filepath("@cgn.d//library/general.cgn.bundle/rule.ninja");
+    opt.ninja->append_include(rulepath);
+
+    // target cmake gen
+    auto *gen = opt.ninja->append_build();
+    gen->rule    = "quick_run";
+    gen->inputs  = {api.locale_path(src_dir + "/CMakeLists.txt")};
+    gen->implicit_inputs = x.ninja_target_dep;
+    gen->outputs = {api.locale_path(build_dir + "/CMakeCache.txt")};
+    gen->variables["cmd"] = cmd + nul_suffix;
+    gen->variables["desc"] = "CMAKE_GEN " + src_dir;
+
+    // target .entry
+    auto *entry = opt.ninja->append_build();
+    entry->rule = "phony";
+    entry->inputs  = gen->outputs;
+    entry->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
+
+    // Generate BinDevelInfo
+    // BinDevelContext devel_ctx{x.cfg, opt};
+    // devel_ctx.lib = {
+    //     {build_dir, dot_cmake_files}
+    // };
+    // auto devel_info = BinDevelCollect::interpret(devel_ctx, opt);
+    // rv.set(*devel_info.get<BinDevelInfo>());
+
+    return rv;
+} // CMakeConfigInterpeter::interpret()
 
 // } //namespace

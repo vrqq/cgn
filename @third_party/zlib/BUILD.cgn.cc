@@ -37,14 +37,18 @@ cxx_executable("zlib_test_minigzip", x) {
     x.add_dep(":z", cxx::private_dep);
 }
 
-filegroup("devel", x) {
-    x.add("repo", {"*.h"}, "include");
+// filegroup("devel", x) {
+//     x.add("repo", {"*.h"}, "include");
 
-    auto info = x.add_target_dep(":zlib", x.cfg);
-    auto *lib = info.get<cgn::LinkAndRunInfo>(false);
-    x.flat_add_rootbase(lib->static_files, 
-                        (x.cfg["cpu"]=="x86_64"?"lib64":"lib"));
-}
-// bin_devel("devel", x) {
-//     x.add_from_target(":zlib");
+//     auto info = x.add_target_dep(":zlib", x.cfg);
+//     auto *lib = info.get<cgn::LinkAndRunInfo>(false);
+//     x.flat_add_rootbase(lib->static_files, 
+//                         (x.cfg["cpu"]=="x86_64"?"lib64":"lib"));
 // }
+
+bin_devel("devel", x) {
+    x.include = {
+        {"repo", {"*.h"}}
+    };
+    x.add_from_target(":zlib", x.allow_linknrun);
+}

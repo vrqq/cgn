@@ -6,8 +6,10 @@
 // 2) empty block
 //    <2 bits '10'> + <30 bits string_len BE> + "...any_content......"
 // 3) GraphNode with self_name(key), file_list[] and inbound_edge_list[]
-//    <2 bits '11'> + x:<30 bits num-of-relblocks BE> + <4 bytes self_name_id> 
+//    <2 bits '11'> + x:<30 bits num-of-relblocks BE> 
+//    + init_state:<1 bits '1'> + <31 bytes self_name_id> 
 //    + x * <4 bytes inner-file_blkid / inbound-edge-of-node_selfname_id>
+//    init_state: '1':stale, '0':unknown
 //    inbound-edge blk_nameid : start with (0b1<<31)
 //    inner-file blkid : start with (0b0<<31)
 #include <filesystem>
@@ -94,6 +96,18 @@ GraphNode *Graph::get_node(const std::string &name)
     return &node;
 } //Graph::get_node()
 
+
+void Graph::set_unknown_as_default_state(GraphNode *p) {
+    p->init_status_to_stale = false;
+    p->db_enforce_write = true;
+    db_pending_write.insert(p);
+}
+void Graph::set_stale_as_default_state(GraphNode *p) {
+    p->init_status_to_stale = true;
+    p->db_enforce_write = true;
+    db_pending_write.insert(p);
+}
+
 void Graph::add_edge(GraphNode *from, GraphNode *to)
 {
     size_t eid;
@@ -145,18 +159,25 @@ void Graph::set_node_status_to_latest(GraphNode *p)
 
 void Graph::set_node_status_to_unknown(GraphNode *p)
 {
-    if (p->status == GraphNode::Unknown)
-        return ;
     if (p == nullptr) {
         for (auto &[name, node] : nodes)
             node._status = GraphNode::Unknown;
     }
     else {
+        if (p->status == GraphNode::Unknown)
+            return ;
+        p->_status = GraphNode::Unknown;
         for (GraphEdgeID eid = _iter_edge(p->head, true); eid; 
              eid = _iter_edge(edges[eid].next, true))
                 set_node_status_to_unknown(edges[eid].to);
     }
 } //Graph::set_node_status_to_unknown()
+
+void Graph::set_node_status_to_stale(GraphNode *p)
+{
+    set_node_status_to_unknown(p);
+    p->_status = GraphNode::Stale;
+}
 
 void Graph::set_node_files(GraphNode *p, std::vector<std::string> in)
 {
@@ -256,6 +277,9 @@ void Graph::db_load(const std::string &filename)
         db_strings.clear();
         db_pending_write.clear();
 
+        if (logger.verbose)
+            logger.paragraph("Create new GraphDB: " + filename);
+
         file_ = fopen(filename.c_str(), "wb+");
         fseek(file_, 0, SEEK_SET);
         fwrite(version, DB_VERSION_FIELD_SIZE, 1, file_);
@@ -319,9 +343,14 @@ void Graph::db_load(const std::string &filename)
                 return fn_create_new(pos);
 
             uint32_t *name_id = (uint32_t*)(buf.data() + pos + sizeof(uint32_t));
+            bool init_state_to_stale = false;
+            if (*name_id & (1<<31))
+                init_state_to_stale = true, *name_id -= (1ul<<31);
             GraphNode &n = nodes[*db_blocks[*name_id].as_string->strkey];
             n.db_offset      = pos;
             n.db_block_size  = aligned_size;
+            n.db_enforce_write = false;  // if existed in db
+            n.init_status_to_stale = init_state_to_stale;
             db_blocks[n.db_selfname_id = *name_id].as_nodename = &n;
 
             for (size_t i=0; i<body_len; i++) {
@@ -333,6 +362,8 @@ void Graph::db_load(const std::string &filename)
                 else //as file
                     n._file_blocks.push_back(db_blocks[rel_id].as_string);
             }
+            if (init_state_to_stale)
+                n._status = GraphNode::Stale;
 
             pos += aligned_size;
         }
@@ -390,16 +421,20 @@ void Graph::db_flush_node()
             }
         
         //skip if same with last data
+        // FIXED: if Node not existed in DB, the n->lastdb_data also keep empty
+        //      so we use n->db_enforce_write to do extra check
+        //      and when we set 'init_status_to_stale' flag, we also
+        //      enforce write to db here.
         if (newdata.size())
             std::sort(++newdata.begin(), newdata.end());
-        if (newdata == n->lastdb_data)
+        if (!n->db_enforce_write && newdata == n->lastdb_data)
             continue;
 
         //seek and write data into db
-        // 1) modify the previous block
+        // 1) modify the previous block (if existed)
         //    off + <u32 title> + <u32 selfname> + <rel_blocks>...
         // 2) write a new record
-        if (newdata.size() == n->lastdb_data.size())
+        if (n->db_offset && newdata.size() == n->lastdb_data.size())
             fseek(file_, n->db_offset + 2*sizeof(uint32_t), SEEK_SET);
         else {//TODO: use blk_recycle here
             if (n->db_offset) //erase existed one in db
@@ -409,7 +444,11 @@ void Graph::db_flush_node()
             n->db_offset = ftell(file_);
             uint32_t title = newdata.size() + DB_BIT_NODE;
             fwrite(&title, sizeof(title), 1, file_);
-            fwrite(&(n->db_selfname_id), sizeof(uint32_t), 1, file_);
+
+            uint32_t name_4byte = n->db_selfname_id;
+            if (n->init_status_to_stale)
+                name_4byte |= (1<<31);
+            fwrite(&name_4byte, sizeof(uint32_t), 1, file_);
         }
         fwrite(newdata.data(), sizeof(uint32_t), newdata.size(), file_);
         n->db_block_size = ftell(file_) - n->db_offset;
@@ -418,7 +457,8 @@ void Graph::db_flush_node()
             std::stringstream ss;
             auto *self_name = db_blocks[n->db_selfname_id].as_string->strkey;
             ss<<"Graph.fwrite(): off=" << n->db_offset 
-              << " [blk" + std::to_string(n->db_selfname_id) + "] " + *self_name + "\n";
+              << " [blk" + std::to_string(n->db_selfname_id) + "] " + *self_name 
+                 + (n->init_status_to_stale?" (DEFAULT_STALE)":"") + "\n";
             for (auto oitem : newdata) {
                 uint32_t blk_id = (oitem & ~(1UL<<31));
                 if (oitem & (1UL<<31))

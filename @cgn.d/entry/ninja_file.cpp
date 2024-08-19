@@ -89,6 +89,7 @@ NinjaFile::CommentSection *NinjaFile::append_comment(const std::string &comment)
 
 NinjaFile::IncludeSection *NinjaFile::append_include(const std::string &file) {
     auto ptr = append_section<IncludeSection>();
+    sect_include.insert(ptr);
     return ptr->file = file, ptr;
 }
 
@@ -105,6 +106,13 @@ NinjaFile::append_variable(const std::string &k, const std::string &v) {
 
 template<typename T> T *NinjaFile::append_section() {
     return (T*)sections.emplace_back(new T).get();
+}
+
+bool NinjaFile::is_file_included(const std::string &file) {
+    for (auto *ptr : sect_include)
+        if (ptr->file == file)
+            return true;
+    return false;
 }
 
 void NinjaFile::flush() {

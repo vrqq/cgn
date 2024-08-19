@@ -10,12 +10,14 @@
 #include <filesystem>
 #include <fstream>
 #include <cstdint>
+#include "graph.h"
 #include "configuration.h"
 
 namespace cgn {
 
-ConfigurationManager::ConfigurationManager(const std::string &storage_dir)
-: storage_dir(storage_dir)
+ConfigurationManager::ConfigurationManager(
+    const std::string &storage_dir, Graph *g
+) : storage_dir(storage_dir), graph(g)
 {
     std::filesystem::path p{storage_dir};
 
@@ -63,17 +65,42 @@ ConfigurationManager::ConfigurationManager(const std::string &storage_dir)
         }
 } //ConfigurationManager()
 
+static std::string 
+get_node_name(const std::string &name, const Configuration &cfg)
+{
+    return "C-" + name + "-" + cfg.get_id();
+}
 
 void ConfigurationManager::set_name(
     const std::string &name, const ConfigurationID &hash
 ) {
-    if (auto fd = cfg_hashs.find(hash); fd != cfg_hashs.end())
-        named_cfgs[name] = &(fd->second);
+    // update named_cfg[name] point to cfg_hashs[hash]
+    if (auto fdnow = cfg_hashs.find(hash); fdnow != cfg_hashs.end()) {
+        auto &last_cfg = named_cfgs[name];
+
+        // if the previous "name->hash" existed and not same as
+        // current one, set the 'Node' invalid
+        if (last_cfg) {
+            if (last_cfg == &(fdnow->second))
+                return ;
+            std::string last = get_node_name(name, *last_cfg);
+            graph->set_node_status_to_stale(graph->get_node(last));
+        }
+
+        // then create the new GraphNode represent for "name->hash" relation
+        GraphNode *p = graph->get_node(get_node_name(name, fdnow->second));
+        last_cfg = &(fdnow->second);
+        graph->set_stale_as_default_state(p);
+        graph->set_node_status_to_latest(p);
+    }
 }
-const Configuration *ConfigurationManager::get(const std::string name) const {
+
+// const Configuration *
+std::pair<const Configuration *, GraphNode *>
+ConfigurationManager::get(const std::string name) const {
     if (auto fd = named_cfgs.find(name); fd != named_cfgs.end())
-        return fd->second;
-    return nullptr;
+        return {fd->second, graph->get_node(get_node_name(name, *fd->second))};
+    return {nullptr, nullptr};
 }
 
 ConfigurationID ConfigurationManager::commit(Configuration cfg)

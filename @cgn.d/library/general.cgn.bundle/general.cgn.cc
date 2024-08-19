@@ -69,7 +69,8 @@ GENERAL_CGN_BUNDLE_API cgn::TargetInfos CopyInterpreter::interpret(context_type 
     // file, but now it has become a folder.
 
     std::string rulepath = api.get_filepath("@cgn.d//library/general.cgn.bundle/rule.ninja");
-    opt.ninja->append_include(rulepath);
+    if (!opt.ninja->is_file_included(rulepath))
+        opt.ninja->append_include(rulepath);
 
     // using 'cp' in unix-like os (rule.ninja)
     std::string rule = (api.get_host_info().os != "win"? "unix_cp" : "win_cp");

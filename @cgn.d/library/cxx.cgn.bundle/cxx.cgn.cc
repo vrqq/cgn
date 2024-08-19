@@ -166,6 +166,18 @@ static char src_path_convert(
 
 struct TargetWorker
 {
+    // win10==0x0A00; win7==0x0601;
+    // win8.1/Server2012R2==0x0603;
+    static constexpr const char *mimimum_winver = "0x0603";
+
+    // extra function
+    // generate the mimimum cflags and ldflags for external build system like
+    // pkg-config or cmake
+    // @param in.include_dirs[] based on working-root-dir
+    // @return CxxInfo::cflags and CxxInfo::ldflags
+    static CxxInfo export_unix(const cgn::Configuration &cfg, CxxInfo in, const std::string &libfile="");
+    static CxxInfo export_win_msvc(const cgn::Configuration &cfg, CxxInfo in, const std::string &libfile="");
+
     // Step0: input
     CxxContext &x;
     cgn::CGNTargetOpt &opt;
@@ -217,13 +229,12 @@ void TargetWorker::step1_win_msvc()
     cflags_cpp = {"/std:c++17"};
     cflags_c   = {"/std:c17"};
 
-    std::string mimimum_winver = "0x0603";
     interp_arg.defines += {
         //"UNICODE", "_UNICODE",   // default for NO unicode WidthType (encoding UTF-8 only)
         "_CONSOLE",                //"WIN32",
         "_CRT_SECURE_NO_WARNINGS", //for strcpy instead of strcpy_s
-        "WINVER=" + mimimum_winver,        // win10==0x0A00; win7==0x0601;
-        "_WIN32_WINNT=" + mimimum_winver,  // win8.1/Server2012R2==0x0603;
+        "WINVER=" + std::string{mimimum_winver},        // win10==0x0A00; win7==0x0601;
+        "_WIN32_WINNT=" + std::string{mimimum_winver},  // win8.1/Server2012R2==0x0603;
     };
 
     interp_arg.cflags += {
@@ -326,6 +337,29 @@ void TargetWorker::step1_win_msvc()
         interp_arg.ldflags += {"/SUBSYSTEM:WINDOW"};
 } //TargetWorker::step1_win_msvc()
 
+CxxInfo TargetWorker::export_win_msvc(
+    const cgn::Configuration &cfg, CxxInfo in, const std::string &libfile
+) {
+    in.defines += {
+        "WINVER=" + std::string{mimimum_winver},
+        "_WIN32_WINNT=" + std::string{mimimum_winver},
+        (cfg["msvc_runtime"] == "MDd"? "_DEBUG" : "NDEBUG")
+    };
+    in.cflags = decltype(in.cflags){
+        "/utf-8", "/wd4828",   // illegal character in UTF-8
+        "/EHsc",       // Enables standard C++ stack unwinding
+        (cfg["msvc_runtime"] == "MDd"? "/MDd" : "/MD")
+    } + in.cflags;
+    
+    if (libfile.size())
+        in.ldflags += {libfile};
+    
+    for (auto it : in.defines)
+        in.cflags += {"/D" + api.shell_escape(it)};
+    for (auto it : in.include_dirs)
+        in.cflags += {"/I" + api.shell_escape(it)};
+    return in;
+}
 
 void TargetWorker::step1_linux_gcc()
 {
@@ -461,6 +495,19 @@ void TargetWorker::step1_linuxllvm_and_xcode()
         interp_arg.cflags += {"--target=" + cpu + "-pc-" + (std::string)x.cfg["os"]};
     }
 } //TargetWorker::step1_linuxllvm_and_xcode()
+
+CxxInfo TargetWorker::export_unix(
+    const cgn::Configuration &cfg, CxxInfo in, const std::string &libfile
+) {
+    in.cflags = decltype(in.cflags){"-fPIC","-pthread"} + in.cflags;
+    if (libfile.size())
+        in.ldflags += {"-l:" + libfile};
+    for (auto it : in.defines)
+        in.cflags += {"-D" + api.shell_escape(it)};
+    for (auto it : in.include_dirs)
+        in.cflags += {"-I" + api.shell_escape(it)};
+    return in;
+}
 
 
 void TargetWorker::step2_arg_merge()
@@ -983,6 +1030,15 @@ CxxToolchainInfo CxxInterpreter::test_param(const cgn::Configuration &cfg)
     }
 
     return rv;
+}
+
+CxxInfo CxxInterpreter::test_minimum_flags(
+    const cgn::Configuration &cfg, const CxxInfo &in, const std::string &libfile
+) {
+    if (cfg["os"] == "win")
+        return TargetWorker::export_win_msvc(cfg, in, libfile);
+    else
+        return TargetWorker::export_unix(cfg, in, libfile);
 }
 
 // CxxPrebuiltInterpreter

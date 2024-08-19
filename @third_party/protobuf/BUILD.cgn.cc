@@ -82,6 +82,7 @@ cxx_static("libprotoc", x) {
         x.perferred_binary_name = "libprotoc.a";
 
     x.include_dirs = {"repo/src", "repo"};
+    x.pub.include_dirs = {"repo/src"};
     x.cflags  = COPTS(x.cfg);
     x.srcs = add_prefix(libprotoc_srcs, "repo");
     x.add_dep(":libprotobuf", cxx::private_dep);
@@ -134,6 +135,43 @@ cxx_sources("utf8_validity", x) {
     x.add_dep("@third_party//abseil-cpp", cxx::inherit);
 }
 
+//TODO: 当前问题
+//   1) 由 cmake_config 生成的文件 对libname命名不一 例如cmake认为是 "libprotobuf-lited.a"
+//   2) 在grpc的 cmake文件中 强行以 find_package(protobuf CONFIG) 模式搜索
+//      故只能生成 protobuf-Config.cmake 供其使用, ".pc" (pkg-config) 不能用
+//      也不能用 find_package(MODULE) 模式, 
+//      或许grpc认为 protobuf的cmake是自己写的 自己认得, README中也不考虑由 apt 安装的
+//
+//可能的方案: 
+//  * 手动改 .cmake 别的工程可能也能使
+//    由于 brpc内部使用 find_package(Protobuf REQUIRED) 此方案brpc并不受益
+//  * 改grpc到本地target
+//    似乎也没有想象的复杂
+//
+cmake_config("cmake_config", x) {
+    auto *absl = x.add_dep("@third_party//abseil-cpp").get<BinDevelInfo>();
+    x.sources_dir = "repo";
+    x.vars["protobuf_BUILD_TESTS"] = "OFF";
+    x.vars["protobuf_BUILD_SHARED_LIBS"] = "OFF";
+    x.vars["protobuf_ABSL_PROVIDER"] = "package";
+    x.vars["absl_ROOT"] = absl->base;
+    x.outputs = {
+        "cmake/protobuf/protobuf-config-version.cmake",
+        "cmake/protobuf/protobuf-config.cmake",
+        "cmake/protobuf/protobuf-generate.cmake",
+        "cmake/protobuf/protobuf-module.cmake",
+        "cmake/protobuf/protobuf-options.cmake",
+        "CMakeFiles/Export/e09086e7eadf5835f8bdfa7f95657dc2/protobuf-targets.cmake"
+    };
+
+    // TODO: let filegroup() to collect "**.cmake" in flat mode
+    //       then call it via bin_devel()
+    x.outputs += {std::string{
+        "CMakeFiles/Export/e09086e7eadf5835f8bdfa7f95657dc2/protobuf-targets-"
+        } + (x.cfg["optimization"] == "debug"?"debug.cmake":"noconfig.cmake")
+    };
+}
+
 bin_devel("devel", x) {
     x.include = {
         {"repo/third_party/utf8_range", {"*.h"}},
@@ -141,4 +179,19 @@ bin_devel("devel", x) {
     };
     x.add_from_target(":libprotobuf", x.allow_default);
     x.add_from_target(":libprotoc",   x.allow_default);
+    // x.add_cmake_config_from_target(":cmake_config", "protobuf");
+    // x.gen_pkgconfig_from_target(":libprotobuf", //label
+    //     "protobuf", //"Protocol Buffers",  //Name
+    //     "Google's Data Interchange Format", //Description
+    //     //Requires
+    //     "absl_absl_check absl_absl_log absl_algorithm absl_base absl_bind_front "
+    //     "absl_bits absl_btree absl_cleanup absl_cord absl_core_headers "
+    //     "absl_debugging absl_die_if_null absl_dynamic_annotations absl_flags "
+    //     "absl_flat_hash_map absl_flat_hash_set absl_function_ref absl_hash "
+    //     "absl_if_constexpr absl_layout absl_log_initialize absl_log_severity "
+    //     "absl_memory absl_node_hash_map absl_node_hash_set absl_optional "
+    //     "absl_span absl_status absl_statusor absl_strings absl_synchronization "
+    //     "absl_time absl_type_traits absl_utility absl_variant utf8_range",
+    //     "26.1.0" //Version
+    // );
 }

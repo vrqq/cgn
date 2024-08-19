@@ -196,12 +196,23 @@ std::string Tools::rebase_path(
     const std::string &current_base
 ) {
     std::filesystem::path in{p};
-    if (in.is_relative())
-        in = std::filesystem::path{current_base} / in;
+    // if (in.is_relative())
+    //     in = std::filesystem::path{current_base} / in;
     if (base.empty())
         return locale_path_impl(std::filesystem::absolute(in));
+    std::filesystem::path on{base};
+    if (in.is_absolute() || on.is_absolute()) {
+        in = std::filesystem::absolute(in);
+        on = std::filesystem::absolute(on);
+        // return locale_path_impl(in.lexically_proximate(base));
+    }
+    else {
+        in = std::filesystem::path{"."} / current_base / in;
+        on = std::filesystem::path{"."} / on;
+    }
     // return std::filesystem::proximate(p, base).string();
-    return locale_path_impl(std::filesystem::path(in).lexically_proximate(base));
+    return locale_path_impl(std::filesystem::relative(in, on));
+    // return locale_path_impl(std::filesystem::path(in).lexically_proximate(base));
 }
 
 std::string Tools::locale_path(const std::string &in)

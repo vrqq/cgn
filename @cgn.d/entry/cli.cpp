@@ -130,7 +130,7 @@ int main(int argc, char **argv)
     
     auto init0 = [&]() {
         api.init(args_kv);
-        const auto *cfg = api.query_config("DEFAULT");
+        auto [cfg, adep] = api.query_config("DEFAULT");
         if (cfg)
             return *cfg;
         else {
@@ -144,8 +144,7 @@ try{
     if (args[0] == "analyze" || args[0] == "analyse") {
         if (args.size() != 2)
             return show_helper(argv[0]);
-        api.init(args_kv);
-        auto rv = api.analyse_target(args[1], *api.query_config("DEFAULT"));
+        auto rv = api.analyse_target(args[1], init0());
         if (rv.infos.empty())
             throw std::runtime_error{"analyse: " + args[1] + " not found."};
         api.release();
@@ -153,8 +152,7 @@ try{
     if (args[0] == "build") {
         if (args.size() != 2)
             return show_helper(argv[0]);
-        api.init(args_kv);
-        api.build(args[1], *api.query_config("DEFAULT"));
+        api.build(args[1], init0());
         api.release();
     }
     if (args[0] == "run") {
@@ -169,7 +167,7 @@ try{
             cfg_name = args[2];
 
         api.init(args_kv);
-        auto *cfg = api.query_config(cfg_name);
+        auto [cfg, adep] = api.query_config(cfg_name);
         if (cfg == nullptr) {
             std::cerr<<"Configuration "<<cfg_name<<" not found."<<std::endl;
             api.release();
@@ -194,6 +192,13 @@ try{
     if (args[0] == "tool") {
         if (args.size() == 4 && args[1] == "abslabel") {
             std::cout<<api.absolute_label(args[2], args[3])<<"\n";
+            return 0;
+        }
+        if (args.size() > 4 && args[1] == "rebase") {
+            if (args.size() == 4)
+                std::cout<<api.rebase_path(args[2], args[3])<<"\n";
+            if (args.size() > 4)
+                std::cout<<api.rebase_path(args[2], args[3], args[4])<<"\n";
             return 0;
         }
         if (args.size() == 2 && args[1] == "dev")
