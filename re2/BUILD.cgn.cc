@@ -73,4 +73,16 @@ bin_devel("devel", x) {
     x.include = {
         {"repo", {"re2/filtered_re2.h", "re2/re2.h", "re2/set.h", "re2/stringpiece.h"}}
     };
+    x.add_from_target(":re2", x.allow_default);
+    x.gen_pkgconfig_from_target(":re2", "re2",  // label, name
+        // desc
+        "RE2 is a fast, safe, thread-friendly regular expression engine.", 
+        // requires
+        "absl_absl_check absl_absl_log absl_base absl_core_headers "
+        "absl_fixed_array absl_flags absl_flat_hash_map absl_flat_hash_set "
+        "absl_hash absl_inlined_vector absl_optional absl_span "
+        "absl_str_format absl_strings absl_synchronization",
+        // version
+        "11.0.0"
+    );
 }

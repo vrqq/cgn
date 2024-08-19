@@ -5,17 +5,31 @@ static std::string two_escape(const std::string &in) {
     return cgn::NinjaFile::escape_path(cgn::CGN::shell_escape(in));
 }
 
+void ProtobufContext::load_grpc_plugin(const std::string &label)
+{
+    auto dep = api.analyse_target(
+        api.absolute_label(label, opt.factory_ulabel), cfg
+    );
+    if (dep.errmsg.size())
+        throw std::runtime_error{dep.errmsg};
+
+    auto plugin_exe = dep.infos.get<cgn::DefaultInfo>()->outputs[0];
+    grpc_args = "--plugin=protoc-gen-grpc=" + api.shell_escape(plugin_exe);
+}
+
 cgn::TargetInfos ProtobufInterpreter::interpret(
     context_type &x, cgn::CGNTargetOpt opt
 ) {
     if (x.srcs.empty() || x.lang == x.UNDEFINED)
         throw std::runtime_error{opt.factory_ulabel + "empty src or lang"};
-    cgn::CGNTarget protoc = api.analyse_target(x.protoc, 
-                        *api.query_config("host_release"));
+    auto host_cfg = api.query_config("host_release");
+    cgn::CGNTarget protoc = api.analyse_target(x.protoc, *host_cfg.first);
+    api.add_adep_edge(host_cfg.second, opt.adep);
     auto *pbcout = protoc.infos.get<cgn::DefaultInfo>();
     if (!pbcout || pbcout->outputs.empty())
         throw std::runtime_error{opt.factory_ulabel +" protoc not found: " + x.protoc};
-    
+    api.add_adep_edge(protoc.adep, opt.adep);
+
     // args at {'protoc' }
     std::string pbcexe = pbcout->outputs[0];
 
@@ -79,7 +93,9 @@ cgn::TargetInfos ProtobufInterpreter::interpret(
     field->inputs  = {opt.ninja->escape_path(pbcexe)};
     field->inputs += proto_fullpath_njesc;
     field->variables["args"] = pbcflags_2esc
-        + " --cpp_out=" + two_escape(x.lang_src_outdir);
+        + " --cpp_out=" + two_escape(x.lang_src_outdir)
+        + (x.grpc_args.size()? 
+            " --grpc_out=" + two_escape(x.lang_src_outdir) : "");
     field->variables["desc"] = "PROTOC " + opt.factory_ulabel;
     field->outputs = lang_pbout_njesc;
 

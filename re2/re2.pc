@@ -1,0 +1,6 @@
+Name: re2
+Description: RE2 is a fast, safe, thread-friendly regular expression engine.
+Requires: 
+Version: re2.0.0
+Cflags: ${cflags}
+Libs: ${ldflags}

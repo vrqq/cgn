@@ -54,8 +54,15 @@ struct ProtobufContext {
 
     std::string protoc = "@third_party//protobuf:protoc";
 
+    // --plugin=protoc-gen-grpc=<DefaultInfo.outputs[0]> --grpc_out=<GenDir>
+    void load_grpc_plugin(const std::string &label);
+
     ProtobufContext(cgn::Configuration cfg, cgn::CGNTargetOpt opt)
-    : name(opt.factory_name), cfg(cfg) {}
+    : name(opt.factory_name), cfg(cfg), opt(opt) {}
+
+private: friend class ProtobufInterpreter;
+    cgn::CGNTargetOpt opt;
+    std::string grpc_args;
 };
 
 struct ProtobufInterpreter
