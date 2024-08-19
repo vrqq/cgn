@@ -65,7 +65,11 @@ struct CMakeContext : cgn::TargetInfoDep<true> {
     // user should read return value then fill into vars manually.
     using cgn::TargetInfoDep<true>::add_dep;
 
+    BinDevelInfo *get_bindevel(const std::string &factory_label) 
+    { return add_dep(factory_label).get<BinDevelInfo>(false); }
+
     friend class CMakeInterpreter;
+    friend class CMakeConfigInterpeter;
 };
 
 struct CMakeInterpreter {
@@ -79,6 +83,46 @@ struct CMakeInterpreter {
     interpret(context_type &x, cgn::CGNTargetOpt opt);
 }; //CMakeInterpreter
 
+// struct CMakeConfigContext : cgn::TargetInfoDep<true>
+// {
+//     const std::string name;
+
+//     //read only, using vars instead cfg to control target build
+//     using cgn::TargetInfoDep<true>::cfg;
+    
+//     // folder of CMakeLists.txt
+//     std::string sources_dir;
+
+//     std::unordered_map<std::string, std::string> vars;
+
+//     // *.a *.so *.dll, no .h required.
+//     // std::vector<std::string> outputs_to_lib;
+
+//     CMAKE_CGN_API CMakeConfigContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt);
+
+//     // user should read return value then fill into vars manually.
+//     using cgn::TargetInfoDep<true>::add_dep;
+
+//     BinDevelInfo *get_bindevel(const std::string &factory_label) 
+//     { return add_dep(factory_label).get<BinDevelInfo>(false); }
+
+//     friend class CMakeConfigInterpeter;
+// }; //CMakeConfigContext
+
+struct CMakeConfigInterpeter
+{
+    using context_type = CMakeContext;
+    
+    constexpr static cgn::ConstLabelGroup<3> preload_labels() {
+        return {"@cgn.d//library/cxx.cgn.bundle",
+                "@cgn.d//library/general.cgn.bundle",
+                "@cgn.d//library/cmake.cgn.cc"};
+    }
+
+    CMAKE_CGN_API static cgn::TargetInfos 
+    interpret(context_type &x, cgn::CGNTargetOpt opt);
+};
+
 // struct CMakeMultiContext : CMakeContext {
 //     using CMakeContext::CMakeContext;
 //     void add_target(const std::string &suffix, std::initializer_list<std::string> _outputs);
@@ -90,3 +134,4 @@ struct CMakeInterpreter {
 
 
 #define cmake(name, x) CGN_RULE_DEFINE(::CMakeInterpreter, name, x)
+#define cmake_config(name, x) CGN_RULE_DEFINE(::CMakeConfigInterpeter, name, x)

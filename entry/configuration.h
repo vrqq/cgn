@@ -16,6 +16,8 @@
 namespace cgn {
 
 using ConfigurationID = std::string;
+class Graph;
+struct GraphNode;
 
 class Configuration
 {
@@ -178,14 +180,20 @@ public:
     };
 
     CGN_EXPORT void set_name(const std::string &name, const ConfigurationID &hash);
-    CGN_EXPORT const Configuration *get(const std::string name) const;
+
+    // Get configuration by name
+    // @return <Configuration*, adep> if found, otherwise <nullptr, nullptr>.
+    CGN_EXPORT std::pair<const Configuration *, GraphNode *>
+    get(const std::string name) const;
+
+    CGN_EXPORT std::string get_name_id_mapper(const std::string &name) const;
 
     //Save configuration and write into .cfg file.
     // @return: the configuration unique_hash
     CGN_EXPORT ConfigurationID commit(Configuration cfg);
 
     // @param storage_dir: cgn-out/configurations
-    CGN_EXPORT ConfigurationManager(const std::string &storage_dir);
+    CGN_EXPORT ConfigurationManager(const std::string &storage_dir, Graph *g);
 
 private:
     using CfgData = std::unordered_map<std::string, std::string>;
@@ -211,12 +219,14 @@ private:
 
     //cfg_indexs[CDataRef{&cfg_hashs[NAME].data}] = NAME
     std::unordered_map<std::string, Configuration*>    named_cfgs;
-    std::unordered_map<std::string, Configuration>      cfg_hashs;
+    std::unordered_map<ConfigurationID, Configuration> cfg_hashs;
     std::unordered_map<CDataRef, std::string, CHasher> cfg_indexs;
     
     std::unordered_map<std::string, KVRestriction> kv_restrictions;
 
     const std::string storage_dir;
+
+    Graph *graph;
 
     CGN_EXPORT std::string get_hash(size_t want);
 

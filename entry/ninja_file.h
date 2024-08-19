@@ -6,6 +6,7 @@
 #include <list>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include "../api_export.h"
 
 namespace cgn {
@@ -87,6 +88,8 @@ public:
     //builddir and ninja_required_version
     CGN_EXPORT GlobalVariable *append_variable(const std::string &k="", const std::string &v="");
 
+    CGN_EXPORT bool is_file_included(const std::string &file);
+
     CGN_EXPORT void flush();
 
     CGN_EXPORT static std::string parse_ninja_str(const std::string &in);
@@ -113,6 +116,7 @@ public:
 private:
     const std::string filepath;
     std::list<std::unique_ptr<Section>> sections;
+    std::unordered_set<IncludeSection *> sect_include;
     template<typename T> T *append_section();
 
     // std::string builddir;

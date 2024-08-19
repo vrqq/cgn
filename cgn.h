@@ -175,7 +175,9 @@ public:
 
     ConfigurationID commit_config(const Configuration &plat_cfg);
 
-    const Configuration *query_config(const std::string &name) const;
+    // const Configuration *
+    std::pair<const Configuration *, GraphNode *>
+    query_config(const std::string &name) const;
     
     void add_adep_edge(GraphNode *early, GraphNode *late);
 

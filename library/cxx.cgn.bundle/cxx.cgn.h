@@ -193,6 +193,12 @@ struct CxxInterpreter
     LANGCXX_CGN_BUNDLE_API static CxxToolchainInfo 
     test_param(const cgn::Configuration &cfg);
 
+    // @return : CxxInfo::cflags and CxxInfo::ldflags
+    LANGCXX_CGN_BUNDLE_API static CxxInfo
+    test_minimum_flags(
+        const cgn::Configuration &cfg, const CxxInfo &in,
+        const std::string &libfile = "");
+
     LANGCXX_CGN_BUNDLE_API static cgn::TargetInfos 
     interpret(context_type &x, cgn::CGNTargetOpt opt);
 };

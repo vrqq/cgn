@@ -375,37 +375,6 @@ CGNTarget CGNImpl::analyse_target(
     logger.print(logger.color("Analyse ") + label + " #" + cfg_id);
     // logout<<"CGN::analyse_target("<< label <<", "<<cfg_id<<")"<<std::endl;
 
-    // std::string src_prefix_unixsep = _expand_cell(label);
-    // std::string out_prefix_ossep   = cgn_out.string() + OSSEP + "obj";
-    // std::string out_prefix_unixsep = cgn_out.string() + "/obj";
-    // std::size_t pos;
-    // if (label[1] == '@') {
-    //     src_prefix_unixsep
-    // }
-    // if (label[0] == '/' && label[1] == '/' && label[2] != '@')
-    //     stem = std::string_view{};
-
-
-    // //expand short label
-    // // factory_label: @cell//project:nameA
-    // // labe2: cell_folder/project:nameA
-    // // => stem: cell_folder/project ('/' slash only)
-    // // => facty_name: nameA
-    // std::string stem, facty_name;
-    // if (auto fdc = labe2.rfind(':'); fdc != labe2.npos)
-    //     facty_name = labe2.substr(fdc+1), labe2.resize(fdc);
-    // for (size_t last=0; last<labe2.size();) {
-    //     auto fdbs = labe2.find('/', last);
-    //     if (fdbs == labe2.npos)
-    //         fdbs = labe2.size();
-    //     if (fdbs > last) {
-    //         if (stem.size())
-    //             stem.push_back('/');
-    //         stem += labe2.substr(last, fdbs - last);
-    //     }
-    //     last = fdbs + 1;
-    // }
-
     //expand short label and generate src_prefix and out_prefix
     //    [IN] label: @cell//project:nameA
     //          cell: @cell or <NULLSTR>
@@ -496,7 +465,7 @@ CGNTarget CGNImpl::analyse_target(
     opt.src_prefix = dir_in + "/";
     opt.out_prefix = out_prefix_ossep;
     
-    rv.adep = opt.adep = graph.get_node("F" + factory_label);
+    rv.adep = opt.adep = graph.get_node("T" + tgt_label);
     graph.remove_inbound_edges(opt.adep);
     graph.set_node_files(opt.adep, {ninja_file_ossep});
     graph.add_edge(rv.cgn_script->adep, rv.adep);
@@ -697,7 +666,7 @@ void CGNImpl::init(std::unordered_map<std::string, std::string> cmd_kvargs)
     //     regen_all = true;
     logger.print("Init configuration manager");
     cfg_mgr = std::make_unique<ConfigurationManager>(
-                (cgn_out / "configurations").string());
+                (cgn_out / "configurations").string(), &graph);
 
     //prepare obj-main-ninja (entry of all targets)
     constexpr std::string_view SUBNINJA{"subninja "};

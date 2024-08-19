@@ -3,7 +3,6 @@
 #include "../../std_operator.hpp"
 #include "../../cgn.h"
 #include "../helper/helper.hpp"
-#include "../cxx.cgn.bundle/cxx.cgn.h"
 #include "bin_devel.cgn.h"
 
 GENERAL_CGN_BUNDLE_API const cgn::BaseInfo::VTable*
@@ -162,7 +161,8 @@ cgn::TargetInfos FileCollect::interpret(
 
     // Prepare build.ninja
     std::string rulepath = api.get_filepath("@cgn.d//library/general.cgn.bundle/rule.ninja");
-    opt.ninja->append_include(rulepath);
+    if (!opt.ninja->is_file_included(rulepath))
+        opt.ninja->append_include(rulepath);
 
     // order_only_dep: must run before current target
     std::vector<std::string> tgt_before; 
@@ -263,11 +263,18 @@ cgn::TargetInfos FileCollect::Context::add_target_dep(
     return rhs.infos;
 } //FileCollect::Context::add_target_dep()
 
+static std::string list2str(const std::vector<std::string> &in) {
+    std::string rv;
+    for (auto &it : in)
+        rv += it + " ";
+    return rv;
+}
 
-void BinDevelCollect::Context::add_from_target(const std::string &label, int flag)
-{
-    auto dep = api.analyse_target(
-        api.absolute_label(label, opt.factory_ulabel), cfg);
+void BinDevelCollect::Context::add_from_target(
+    const std::string &label, int flag
+) {
+    std::string abslabel = api.absolute_label(label, opt.factory_ulabel);
+    auto dep = api.analyse_target(abslabel, cfg);
     if (dep.errmsg.size())
         throw std::runtime_error{dep.errmsg};
     gp.add_target_dep(label, cfg);
@@ -277,11 +284,12 @@ void BinDevelCollect::Context::add_from_target(const std::string &label, int fla
         include.push_back({devinfo->include_dir, {"*"}});
         bin.push_back({devinfo->bin_dir, {"*"}});
         lib.push_back({devinfo->lib_dir, {"*"}});
-        return ;
     }
     
     // if no BinDevelInfo provider, guess from CxxInfo and LinkAndRunInfo
     auto *cxinfo = dep.infos.get<cxx::CxxInfo>(false);
+    if (cxinfo)
+        _cxx_pkgcfg[abslabel].cxxinf = *cxinfo;
     if (cxinfo && (flag & allow_cxxinfo))
         for (auto &incdir : cxinfo->include_dirs)
             include.push_back({
@@ -315,6 +323,14 @@ void BinDevelCollect::Context::add_from_target(const std::string &label, int fla
     }
 
     auto *def = dep.infos.get<cgn::DefaultInfo>(false);
+    if (cxinfo && def) {
+        for (auto it : def->outputs) {
+            std::string ext = get_ext(it);
+            if (ext == "a" || ext == "so" || ext == "lib") {
+                _cxx_pkgcfg[abslabel].libout = it; break;
+            }
+        }
+    }
     if (def && (flag & allow_default)) {
         for (auto &fp1 : def->outputs) {
             auto dir = api.parent_path(fp1);
@@ -328,21 +344,63 @@ void BinDevelCollect::Context::add_from_target(const std::string &label, int fla
     }
 } //BinDevelCollect::Context::add_from_target()
 
+void BinDevelCollect::Context::add_cmake_config_from_target(
+    const std::string &label, const std::string &pkgname
+) {
+    std::string abslabel = api.absolute_label(label, opt.factory_ulabel);
+    auto dep = gp.add_target_dep(label, cfg);
+
+    auto &ls1 = dep.get<cgn::DefaultInfo>()->outputs;
+    auto &dst = _cmakecfg[pkgname];
+    dst.insert(dst.end(), ls1.begin(), ls1.end());
+}
+
+
+void BinDevelCollect::Context::gen_pkgconfig_from_target(
+    const std::string &label,
+    const std::string &name,
+    const std::string &desc,
+    const std::string &req,
+    const std::string &version
+) {
+    std::string abslabel = api.absolute_label(label, opt.factory_ulabel);
+    auto fd = _cxx_pkgcfg.find(abslabel);
+    if (fd == _cxx_pkgcfg.end())
+        throw std::runtime_error{opt.factory_ulabel 
+                + ": target "+ label + " do not contain CxxInfo"};
+    fd->second.enable = true;
+    fd->second.name = name;
+    fd->second.desc = desc;
+    fd->second.require = req;
+    fd->second.ver = version;
+}
+
+
 cgn::TargetInfos BinDevelCollect::interpret(
     BinDevelCollect::context_type &x, cgn::CGNTargetOpt opt
 ) {
-    std::string libdirname;
-
+    std::string libdirname = (x.cfg["cpu"] == "x86_64"? "lib64":"lib");
+    
+    // forward to FileCollect
     auto add_to_gp = [&](const std::vector<FilePattern> &list, const std::string &dst_dir) {
         for (auto &it : list)
             x.gp.add(it.src_basedir, it.src_files, dst_dir);
     };
     add_to_gp(x.include, "include");
     add_to_gp(x.bin, "bin");
-    if (x.cfg["cpu"] == "x86_64")
-        add_to_gp(x.lib, "lib64"), libdirname = "lib64";
-    else
-        add_to_gp(x.lib, "lib"), libdirname = "lib";
+    add_to_gp(x.lib, libdirname);
+
+    //add cmake_config file (Pkgname.cmake / Pkgname-version.cmake / ...)
+    for (auto it : x._cmakecfg) {
+        std::string dst = libdirname + opt.path_separator
+                        + "cmake" + opt.path_separator+ it.first;
+        for (auto f1 : it.second) {
+            std::string dir1 = api.parent_path(f1);
+            std::string name1 = f1.substr(dir1.size()+1);
+            x.gp.add(api.rebase_path(dir1, opt.src_prefix), 
+                     {name1}, dst);
+        }
+    }
 
     auto rv = FileCollect::interpret(x.gp, opt);
 
@@ -352,5 +410,26 @@ cgn::TargetInfos BinDevelCollect::interpret(
     devel.bin_dir     = devel.base + opt.path_separator + "bin";
     devel.lib_dir     = devel.base + opt.path_separator + libdirname;
     rv.set(devel);
+    
+    // Generate pkg_config (.pc file)
+    // THIS file is generating in analyzing
+    bool dir_created = false;
+    for (auto &item : x._cxx_pkgcfg) {
+        auto &data = item.second;
+        if (data.enable == false)
+            continue;
+        data.cxxinf.include_dirs = {devel.include_dir};
+        auto tmp = cxx::CxxInterpreter::test_minimum_flags(x.cfg, data.cxxinf, data.libout);
+        std::string dir1 = devel.lib_dir + opt.path_separator + "pkgconfig";
+        if (!dir_created)
+            api.mkdir(dir1), dir_created = true;
+        std::ofstream fout(dir1 + opt.path_separator + data.name + ".pc");
+        fout<<"Name: "       <<data.name<<"\n"
+            <<"Description: "<<data.desc<<"\n"
+            <<"Requires: "   <<data.require<<"\n"
+            <<"Version: "    <<data.ver<<"\n"
+            <<"Cflags: "     <<list2str(tmp.cflags)<<"\n"
+            <<"Libs: "       <<list2str(tmp.ldflags)<<"\n";
+    }
     return rv;
 } //BinDevelCollect::interpret()
