@@ -98,11 +98,15 @@ GraphNode *Graph::get_node(const std::string &name)
 
 
 void Graph::set_unknown_as_default_state(GraphNode *p) {
+    if (!p->init_status_to_stale)
+        return ;
     p->init_status_to_stale = false;
     p->db_enforce_write = true;
     db_pending_write.insert(p);
 }
 void Graph::set_stale_as_default_state(GraphNode *p) {
+    if (p->init_status_to_stale)
+        return ;
     p->init_status_to_stale = true;
     p->db_enforce_write = true;
     db_pending_write.insert(p);
