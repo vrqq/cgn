@@ -48,7 +48,7 @@ struct CMakeContext : cgn::TargetInfoDep<true> {
 
     std::unordered_map<std::string, std::string> vars;
 
-    // *.a *.so *.dll, no .h required.
+    // *.a *.so *.dll, no .h required. (os-path-separator)
     std::vector<std::string> outputs;
     
     // BinDevelInfo    output_bin_devel;
@@ -75,8 +75,9 @@ struct CMakeContext : cgn::TargetInfoDep<true> {
 struct CMakeInterpreter {
     using context_type = CMakeContext;
     
-    constexpr static cgn::ConstLabelGroup<2> preload_labels() {
-        return {"@cgn.d//library/cxx.cgn.bundle",
+    constexpr static cgn::ConstLabelGroup<3> preload_labels() {
+        return {"@cgn.d//library/cxx.cgn.bundle",     //CxxInfo
+                "@cgn.d//library/general.cgn.bundle", //BinDevelInfo
                 "@cgn.d//library/cmake.cgn.cc"};
     }
     CMAKE_CGN_API static cgn::TargetInfos 
