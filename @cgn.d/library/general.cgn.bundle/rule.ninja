@@ -13,9 +13,9 @@ rule run_rsp
     rspfile = ${out}.rsp
     rspfile_content = ${in} ${args}
 
-rule run_script
-    command = ${exe} ${script_file}
-    rspfile = 
+rule run_input_as_rsp
+    command = ${exe} @${in} ${args}
+    description = ${desc}
 
 # rule run_rsp
 #     command = ${exe_prefix} @${rspfile}.rsp ${exe_suffix}
