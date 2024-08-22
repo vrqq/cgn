@@ -1,0 +1,13 @@
+Using script modified from https://android.googlesource.com/platform/external/grpc-grpc/+/refs/heads/main/update_android_bp.sh to generate grpc_src.h
+
+Then copy rules from
+
+https://android.googlesource.com/platform/external/grpc-grpc/+/refs/heads/main/Android.bp
+
+https://cs.android.com/android/platform/superproject/main/+/main:external/grpc-grpc/third_party/address_sorting/Android.bp
+
+https://cs.android.com/android/platform/superproject/main/+/main:external/grpc-grpc/third_party/upb/Android.bp
+
+https://cs.android.com/android/platform/superproject/main/+/main:external/grpc-grpc/third_party/utf8_range/Android.bp
+
+https://cs.android.com/android/platform/superproject/main/+/main:external/grpc-grpc/third_party/xxhash/Android.bp
