@@ -107,8 +107,13 @@ struct AliasInterpreter
         std::string actual_label;
         cgn::Configuration cfg;
 
+        void load_named_config(const std::string &cfg_name);
+
         AliasContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
-        : name(opt.factory_name), cfg(cfg) {}
+        : name(opt.factory_name), cfg(cfg), opt(opt) {}
+        
+    private:
+        cgn::CGNTargetOpt opt;
     };
     using context_type = AliasContext;
     
