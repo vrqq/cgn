@@ -70,12 +70,10 @@ cxx_static("leveldb", x) {
 
 cxx_executable("leveldbutil", x) {
     x.srcs = {"repo/db/leveldbutil.cc"};
-    x.cfg = *api.query_config("host_release");
     x.add_dep(":leveldb", x.cfg, cxx::private_dep);
 }
 
 static void leveldb_benchmark_init(cxx::CxxContext &x) {
-    x.cfg = *api.query_config("host_release");
     if (x.cfg["os"] == "win") 
         x.defines += {"LEVELDB_PLATFORM_WINDOWS=1"};
     if (x.cfg["os"] == "linux") 
