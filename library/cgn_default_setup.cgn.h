@@ -67,11 +67,11 @@ inline cgn::Configuration config_guessor(std::unordered_set<std::string> &argls)
             cfg["shell"] = "bash";
     }
 
-    if ((cfg["cxx_toolchain"] = extract(argls, {"gcc", "llvm", "msvc"})) == "") {
+    if ((cfg["cxx_toolchain"] = extract(argls, {"gcc", "llvm", "msvc", "xcode"})) == "") {
         if (cfg["os"] == "win")
             cfg["cxx_toolchain"] = "msvc";
         else if (cfg["os"] == "mac")
-            cfg["cxx_toolchain"] = "llvm";
+            cfg["cxx_toolchain"] = "xcode";
         else
             cfg["cxx_toolchain"] = "gcc";
     }

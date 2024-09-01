@@ -100,6 +100,15 @@ GENERAL_CGN_BUNDLE_API cgn::TargetInfos CopyInterpreter::interpret(context_type 
 
 // Target Alias
 // ------------
+void AliasInterpreter::AliasContext::load_named_config(const std::string &cfg_name)
+{
+    auto dep = api.query_config(cfg_name);
+    if (dep.first == nullptr)
+        throw std::runtime_error{opt.factory_ulabel + " " + cfg_name + " not found"};
+    this->cfg = *dep.first;
+    api.add_adep_edge(dep.second, opt.adep);
+}
+
 GENERAL_CGN_BUNDLE_API cgn::TargetInfos AliasInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
 {
     auto real = api.analyse_target(api.absolute_label(x.actual_label, opt.factory_ulabel), x.cfg);
