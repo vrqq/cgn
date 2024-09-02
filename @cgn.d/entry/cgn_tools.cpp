@@ -443,7 +443,9 @@ std::string Tools::absolute_label(
         rvpos.push_back(rv.size());
     }
 
-    return rv + name_part;
+    // if no "/ + raw.substr(i, fd-i)" operation run,
+    // we should add '/' to complete "@cell/" to "@cell//"
+    return rv + (rvpos.size()==1?"/":"") + name_part;
 }
 
 std::unordered_map<std::string, std::string> 
