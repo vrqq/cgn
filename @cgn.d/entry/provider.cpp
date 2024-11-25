@@ -43,6 +43,8 @@ CGN_EXPORT const BaseInfo::VTable LinkAndRunInfo::v = {
         return std::make_shared<LinkAndRunInfo>();
     },
     [](void *ecx, const void *rhs) {
+        if (!rhs)
+            return false;
         auto *self = (LinkAndRunInfo *)ecx;
         auto *rr   = (const LinkAndRunInfo *)(rhs);
         auto merge = [](auto *out, auto &in) {

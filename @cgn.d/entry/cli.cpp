@@ -213,6 +213,7 @@ try{
         else
             return show_helper(argv[0]);
     }
+    if (args[0] == "gn") {}
     if (args[0] == "clean") {
         std::cout<<"Cleaning..."<<std::endl;
         std::filesystem::path dir{args_kv["cgn-out"]};

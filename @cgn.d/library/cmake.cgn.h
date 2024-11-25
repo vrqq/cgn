@@ -22,6 +22,12 @@
 
 // namespace cmake{
 
+struct CMakeInfo {
+    std::string binary_dir;
+    std::string source_dir;
+    std::string install_dir;
+};
+
 // variables may pre-inited
 //   CMAKE_INSTALL_PREFIX
 //   CMAKE_C_COMPILER
