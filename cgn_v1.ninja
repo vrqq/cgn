@@ -1,0 +1,61 @@
+
+## part of build script
+## ====================
+
+build $builddir/cgn_api.o : cc v1/cgn_api.cpp
+
+build $builddir/cgn_impl.o : cc v1/cgn_impl.cpp
+
+build $builddir/cgn_tools_fileglob.o : cc v1/cgn_tools_fileglob.cpp 
+
+build $builddir/cgn_tools.o : cc v1/cgn_tools.cpp
+
+build $builddir/cgn_type.o : cc v1/cgn_type.cpp
+
+build $builddir/configuration_mgr.o : cc v1/configuration_mgr.cpp
+
+build $builddir/dl_helper.o : cc v1/dl_helper.cpp
+
+build $builddir/graph.o : cc v1/graph.cpp
+
+build $builddir/logger.o : cc v1/logger.cpp
+
+build $builddir/ninja_file.o : cc v1/ninja_file.cpp
+
+
+## PE loader
+## =========
+build $builddir/pe_file.o: cc pe_loader/pe_file.cpp
+
+build $builddir/msvc_trampo.o: cc pe_loader/msvc_trampo.cpp
+
+build $builddir/msvc_symbol_host.o: cc pe_loader/msvc_symbol_host.cpp
+
+## CLI Entry
+## =========
+build $builddir/cli.o : cc v1/cli.cpp
+
+## Ninja Build sources
+## ===================
+ninjaout = ${builddir}/ninjabuild
+include ninjabuild.ninja
+
+## Main
+## ====
+build $builddir/cgn_v1.a : ar $
+    $builddir/cgn_api.o $
+    $builddir/cgn_impl.o $
+    $builddir/cgn_tools_fileglob.o $
+    $builddir/cgn_tools.o $
+    $builddir/cgn_type.o $
+    $builddir/configuration_mgr.o $
+    $builddir/dl_helper.o $
+    $builddir/graph.o $
+    $builddir/logger.o $
+    $builddir/ninja_file.o $
+    $builddir/pe_file.o $
+    $builddir/msvc_trampo.o $
+    $builddir/msvc_symbol_host.o
+
+## Linux/Unix target
+build $builddir/cgn : link $builddir/cli.o $builddir/cgn_v1.a ${ninjaout}/ninja_port_unix.a

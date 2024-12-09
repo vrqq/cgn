@@ -3,13 +3,14 @@
 #include <istream>
 #include <string>
 #include <cstring>
-#include "../cgn.h"
+#include <unordered_set>
+#include <cstdint>
 
 #ifdef _WIN32
 #include <WinDef.h>
 #endif
 
-namespace cgn {
+namespace cgnv1 {
 
 //
 struct LibraryFile

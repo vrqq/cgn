@@ -7,10 +7,7 @@
 #include <thread>
 #include <atomic>
 
-#include "quick_print.hpp"
-#include "../cgn.h"
-
-CGN_EXPORT cgn::CGN api;
+#include "cgn_api.h"
 
 int show_helper(const char *arg0) {
     std::cerr<<arg0<<"\n"
@@ -81,8 +78,7 @@ int cgn_preload_all()
     return error_count.load();
 }
 
-extern int dev_helper();
-extern int wincp(std::string src, std::string dst);
+// extern int dev_helper();
 
 int main(int argc, char **argv)
 {
@@ -128,6 +124,7 @@ int main(int argc, char **argv)
     if (args.empty())
         return show_helper(argv[0]);
     
+    // API init function
     auto init0 = [&]() {
         api.init(args_kv);
         auto [cfg, adep] = api.query_config("DEFAULT");
@@ -138,15 +135,15 @@ int main(int argc, char **argv)
             exit(2);
         }
     };
+    auto release0 = [](){ api.release(); };
 
 try{
-
     if (args[0] == "analyze" || args[0] == "analyse") {
         if (args.size() != 2)
             return show_helper(argv[0]);
         auto rv = api.analyse_target(args[1], init0());
-        if (rv.infos.empty())
-            throw std::runtime_error{"analyse: " + args[1] + " not found."};
+        if (rv.errmsg.size())
+            api.logger->paragraph(rv.errmsg);
         api.release();
     }
     if (args[0] == "build") {
@@ -158,12 +155,19 @@ try{
     if (args[0] == "run") {
         if (args.size() != 2)
             return show_helper(argv[0]);
+        auto rv = api.analyse_target(args[1], init0());
+        if (rv.errmsg.size())
+            api.logger->paragraph(rv.errmsg);
+        else if (rv.outputs.size()) {
+            system(rv.outputs[0].c_str());
+        }
+        api.release();
     }
     if (args[0] == "query") {
         if (args.size() < 2)
             return show_helper(argv[0]);
         std::string cfg_name = "DEFAULT";
-        if (args.size() >= 3)
+        if (args.size() >= 3) //using config 'DEFAULT' if no cfgname assigned
             cfg_name = args[2];
 
         api.init(args_kv);
@@ -178,12 +182,11 @@ try{
         char type = api.get_kvargs().count("verbose")?'H':'h';
         std::cout<<"\n--- Target: "<<args[1]<<" #"<<cfg->get_id()<<" ---";
         std::cout<<"\n--- Configuration ---\n"
-                 <<cgn::list2str_h(*cfg, "", 999) <<std::endl;
+                 <<cgnv1::Logger::fmt_list(*cfg, "", 999) <<std::endl;
 
-        std::cout<<"\n--- Analyse Result ---\n"<<rv.infos.to_string(type)<<std::endl;
+        std::cout<<"\n--- Analyse Result ---\n"<<rv.to_string(type)<<std::endl;
         if (rv.errmsg.size())
             std::cout<<rv.errmsg<<std::endl;
-        rv.infos.data().clear();
         api.release();
         return 0;
     }
@@ -201,10 +204,10 @@ try{
                 std::cout<<api.rebase_path(args[2], args[3], args[4])<<"\n";
             return 0;
         }
-        if (args.size() == 2 && args[1] == "dev")
-            return dev_helper();
+        // if (args.size() == 2 && args[1] == "dev")
+        //     return dev_helper();
         if (args.size() == 4 && args[1] == "wincp")
-            return wincp(args[2], args[3]);
+            return cgnv1::Tools::win_copy(args[2], args[3]);
         if (args.size() == 3 && args[1] == "fileglob") {
             auto ls = api.file_glob(args[2]);
             for (auto &ss : ls)
@@ -232,4 +235,4 @@ try{
 }
 
     return 0;
-}
+} //int main()

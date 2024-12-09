@@ -3,12 +3,12 @@
 
 #ifdef _WIN32
     
-namespace cgn {
+namespace cgnv1 {
     DLHelper::DLHelper(const std::string &file) {
-        hnd = GlobalSymbol::WinLoadLibrary(file);
+        hnd = ::cgn::GlobalSymbol::WinLoadLibrary(file);
     }
     DLHelper::~DLHelper() {
-        GlobalSymbol::WinUnloadLibrary(hnd);
+        ::cgn::GlobalSymbol::WinUnloadLibrary(hnd);
     }
 }
 
@@ -17,7 +17,7 @@ namespace cgn {
 #include <dlfcn.h>
 #include <unistd.h>
     
-namespace cgn {
+namespace cgnv1 {
     DLHelper::DLHelper(const std::string &file) {
         m_ptr = dlopen(file.c_str(), RTLD_LAZY | RTLD_GLOBAL);
         if (!m_ptr)

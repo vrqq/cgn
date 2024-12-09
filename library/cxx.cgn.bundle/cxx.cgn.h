@@ -41,8 +41,6 @@
 #include <vector>
 #include <unordered_set>
 #include "../../cgn.h"
-#include "../../provider_dep.h"
-#include "../../rule_marco.h"
 #include "windef.h"
 
 namespace cxx {
@@ -121,29 +119,31 @@ struct CxxContext : CxxInfo
     // but not apply on current target.
     CxxInfo pub;
 
-    cgn::Configuration cfg;
+    cgn::Configuration &cfg;
 
     // add_dep() would not change (CxxInfo*)this / this.pub 
     // whether flag == priv_dep / inherit / order_only
-    LANGCXX_CGN_BUNDLE_API cgn::TargetInfos add_dep(
+    LANGCXX_CGN_BUNDLE_API cgn::CGNTarget add_dep(
         const std::string &label, cgn::Configuration cfg, DepType flag
     );
-    cgn::TargetInfos add_dep(const std::string &label, DepType flag) {
+
+    cgn::CGNTarget add_dep(const std::string &label, DepType flag) {
         return add_dep(label, this->cfg, flag);
     }
 
     // void set_runtime(const std::string &rout, const std::string &src);
 
 protected:
-    LANGCXX_CGN_BUNDLE_API CxxContext(char role, const cgn::Configuration &cfg, cgn::CGNTargetOpt opt);
+    LANGCXX_CGN_BUNDLE_API CxxContext(char role, cgn::CGNTargetOptIn *opt);
 
 private: friend struct CxxInterpreter; // field for interpreter
     friend struct TargetWorker;
-    const cgn::CGNTargetOpt opt;  //self opt
+    cgn::CGNTargetOptIn *opt;  //self opt
 
     // collection from deps, as the part of interpreter return value.
     // also with [CxxInfo] and [DefaultInfo] field inherit from deps.
-    cgn::TargetInfos _pub_infos_fromdep;
+    // cgn::TargetInfos _pub_infos_fromdep;
+    cgn::InfoTable _pub_infos;
 
     // collection from deps, only apply on current target.
     cxx::CxxInfo        _cxx_to_self;
@@ -155,16 +155,16 @@ private: friend struct CxxInterpreter; // field for interpreter
 
     // target name in build.ninja when cxx::order_dep
     //   build current_cxx : ... || <phony_order_only...>
-    std::vector<std::string> phony_order_only;
+    // std::vector<std::string> phony_order_only;
 
     // got TargetInfos[DefaultInfo].enforce_keep_order 
     // from add_dep(..., cxx::inherit) then transport this flag
-    bool _enforce_self_order_only = false;
+    // bool _enforce_self_order_only = false;
 };
 
 template <char ROLE> struct CxxContextType : CxxContext {
-    CxxContextType(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
-    : CxxContext(ROLE, cfg, opt) {}
+    CxxContextType(cgn::CGNTargetOptIn *opt)
+    : CxxContext(ROLE, opt) {}
 };
 using CxxSourcesContext = CxxContextType<'o'>;
 using CxxStaticContext  = CxxContextType<'a'>;
@@ -193,14 +193,16 @@ struct CxxInterpreter
     LANGCXX_CGN_BUNDLE_API static CxxToolchainInfo 
     test_param(const cgn::Configuration &cfg);
 
+    // generate the mimimum cflags and ldflags for external build system like
+    // pkg-config or cmake.
     // @return : CxxInfo::cflags and CxxInfo::ldflags
     LANGCXX_CGN_BUNDLE_API static CxxInfo
     test_minimum_flags(
-        const cgn::Configuration &cfg, const CxxInfo &in,
+        cgn::Configuration &cfg, const CxxInfo &in,
         const std::string &libfile = "");
 
-    LANGCXX_CGN_BUNDLE_API static cgn::TargetInfos 
-    interpret(context_type &x, cgn::CGNTargetOpt opt);
+    LANGCXX_CGN_BUNDLE_API static void
+    interpret(context_type &x);
 };
 
 template<typename TypeContext>
@@ -213,10 +215,11 @@ using CxxStaticInterpreter  = cxx::CxxInterpreterIF<cxx::CxxStaticContext>;
 using CxxSourcesInterpreter = cxx::CxxInterpreterIF<cxx::CxxSourcesContext>;
 using CxxExecutableInterpreter = cxx::CxxInterpreterIF<cxx::CxxExecutableContext>;
 
+
 // Section: prebulit cxx library
 // -----------------------------
 
-struct PrebuiltContext : public cgn::TargetInfoDep<true> {
+struct PrebuiltContext {
     const std::string name;
 
     CxxInfo pub;
@@ -229,10 +232,10 @@ struct PrebuiltContext : public cgn::TargetInfoDep<true> {
     //linux shared/static lib: .so / .a / .o
     std::vector<std::string> files;
 
-    friend class CxxPrebuiltInterpreter;
-    PrebuiltContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
-    : cgn::TargetInfoDep<true>(cfg, opt), name(opt.factory_name) {}
+    PrebuiltContext(cgn::CGNTargetOptIn *opt) : opt(opt) {}
 
+private: friend class CxxPrebuiltInterpreter;
+    cgn::CGNTargetOptIn *opt;
 };
 
 struct CxxPrebuiltInterpreter {
@@ -241,7 +244,7 @@ struct CxxPrebuiltInterpreter {
     constexpr static cgn::ConstLabelGroup<1> preload_labels() {
         return {"@cgn.d//library/cxx.cgn.bundle"};
     }
-    LANGCXX_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    LANGCXX_CGN_BUNDLE_API static void interpret(context_type &x);
 };
 
 } //namespace cxx

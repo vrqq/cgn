@@ -2,7 +2,6 @@
 ## ======================
 
 ninjasrc = ninjabuild/src
-ninjaout = ${builddir}/ninjabuild
 
 build ${ninjaout}/metrics.o : cc ${ninjasrc}/metrics.cc
 
@@ -20,14 +19,17 @@ build ${ninjaout}/edit_distance.o : cc ${ninjasrc}/edit_distance.cc
 
 build ${ninjaout}/line_printer.o : cc ${ninjasrc}/line_printer.cc
 
+build ${ninjaout}/elide_middle.o : cc ${ninjasrc}/elide_middle.cc
+
 ## collections
 ## -----------
 
 
 build ${ninjaout}/ninja_port_unix.a : ar ${ninjaout}/util.o $
-    ${ninjaout}/edit_distance.o ${ninjaout}/clparser.o $
+    ${ninjaout}/edit_distance.o  ${ninjaout}/clparser.o $
     ${ninjaout}/depfile_parser.o ${ninjaout}/metrics.o $
-    ${ninjaout}/line_printer.o ${ninjaout}/string_piece_util.o
+    ${ninjaout}/line_printer.o   ${ninjaout}/string_piece_util.o $
+    ${ninjaout}/elide_middle.o
 
-build ${ninjaout}/ninja_port_win.a : ar ${ninjaout}/ninja_port_unix.a $
+build ${ninjaout}/ninja_port_win.lib : ar ${ninjaout}/ninja_port_unix.a $
     ${ninjaout}/includes_normalize-win32.o

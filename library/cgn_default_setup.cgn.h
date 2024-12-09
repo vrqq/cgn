@@ -51,7 +51,7 @@ inline std::unordered_set<std::string> str_to_set(const std::string &argstr)
 
 inline cgn::Configuration config_guessor(std::unordered_set<std::string> &argls)
 {
-    cgn::HostInfo host = api.get_host_info();
+    cgn::HostInfo host = cgn::Tools::get_host_info();
     cgn::Configuration cfg;
     
     if ((cfg["os"] = extract(argls, {"win", "mac", "linux"})) == "")
@@ -105,7 +105,7 @@ inline cgn::Configuration config_guessor_notest(
 
 inline cgn::Configuration generate_host_release()
 {
-    cgn::HostInfo hinfo = api.get_host_info();
+    cgn::HostInfo hinfo = cgn::Tools::get_host_info();
     std::unordered_set<std::string> args{"release", hinfo.cpu, hinfo.os};
     if (hinfo.os == "win")
         args.insert({"msvc", "msvc_MD", "CONSOLE", "cmd"});

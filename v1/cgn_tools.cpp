@@ -24,10 +24,9 @@
     #include <sys/utsname.h>
 #endif
 
-#include "../cgn.h"
-#include "debug.h"
+#include "cgn_api.h"
 
-namespace cgn {
+namespace cgnv1 {
 
 #ifdef _WIN32
 static std::string GetLastErrorString() {
@@ -477,14 +476,6 @@ Tools::read_kvfile(const std::string &fname)
     return rv;
 }
 
-
-void Tools::print_debug(const std::string &text, bool verbose_level)
-{
-    if (!verbose_level || logger.verbose)
-        logger.paragraph(text);
-}
-
-
 bool Tools::setenv(const std::string &key, const std::string &value)
 {
 #ifdef _WIN32
@@ -507,6 +498,41 @@ std::string Tools::getenv(const std::string &key)
         return ::getenv(key.c_str());
     #endif
 }
+
+void Tools::remove_duplicate_inplace(std::vector<std::string> &data)
+{
+    std::unordered_set<std::string> visited;
+    std::size_t i=0;
+    for (std::size_t j=0; j<data.size(); j++)
+        if (visited.insert(data[j]).second == true)
+            std::swap(data[i++], data[j]);
+    data.resize(i);
+}
+
+int Tools::win_copy(const std::string &_src, const std::string &_dst)
+{
+    std::string src = _src, dst = _dst;
+    for (auto &c : src)
+        if (c == '\\' || c == '/')
+            c = std::filesystem::path::preferred_separator;
+    for (auto &c : dst)
+        if (c == '\\' || c == '/')
+            c = std::filesystem::path::preferred_separator;
+    
+    try {
+        std::filesystem::path pth1(src);
+        std::string cmd;
+        if (std::filesystem::is_directory(pth1))
+            cmd = "xcopy /S /E /H /Y /F /I \"" + src + "\" \"" + dst + "\"";
+        else
+            cmd = "copy /Y \"" + src + "\" \"" + dst + "\"";
+        return system(cmd.c_str());
+    }catch(...) {
+        return -1;
+    }
+    return 0;
+}
+
 
 
 } //namespace

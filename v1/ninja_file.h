@@ -1,15 +1,14 @@
 // CGN public header, implement in cli
 #pragma once
-#include <fstream>
 #include <string>
 #include <memory>
 #include <list>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
-#include "../api_export.h"
+#include "api_export.h"
 
-namespace cgn {
+namespace cgnv1 {
 
 // All sections would not auto escape any string!
 // see also //proof/ninja/syntax/build.ninja

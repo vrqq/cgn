@@ -13,15 +13,16 @@
 //    inbound-edge blk_nameid : start with (0b1<<31)
 //    inner-file blkid : start with (0b0<<31)
 #include <filesystem>
+#include <fstream>
 #include <sstream>
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include "cgn_api.h" // static Tools
 #include "graph.h"
-#include "../cgn.h"
-#include "debug.h"
 
-namespace cgn {
+namespace cgnv1 {
 
 GraphEdgeID Graph::_iter_edge(GraphEdgeID &eid, bool loop_from_edge_start)
 {
@@ -52,12 +53,14 @@ void Graph::test_status(GraphNode *p)
         std::filesystem::path fp{*(p->files[i]->strkey)};
         
         //if file not existed.
+        //  mark stale and break
         if (std::filesystem::exists(fp) == false) {
-            if (p->files[i]->mtime == 0)
-                continue;
-            else {
-                is_stale = true; break;
-            }
+            is_stale = true; break;
+            // if (p->files[i]->mtime == 0)
+            //     continue;
+            // else {
+            //     is_stale = true; break;
+            // }
         }
 
         if (std::filesystem::is_regular_file(fp) == false)
@@ -144,12 +147,12 @@ void Graph::set_node_status_to_latest(GraphNode *p)
         ff->mtime = stat_and_cache(*ff->strkey);
         fseek(file_, ff->db_offset + sizeof(uint32_t), SEEK_SET);
         fwrite(&(ff->mtime), sizeof(ff->mtime), 1, file_);
-        if (logger.verbose) {
-            std::stringstream ss;
-            ss<<"Graph.fwrite(): ["<<ff->db_id<<"] " + *ff->strkey
-                <<"\n    * mtime "<<last_mtime <<" -> "<<ff->mtime<<"\n";
-            logger.paragraph(ss.str());
-        }
+
+        //print debug log
+        std::stringstream ss;
+        ss<<"Graph.fwrite(): ["<<ff->db_id<<"] " + *ff->strkey
+            <<"\n    * db/mtime "<<last_mtime <<" -> "<<ff->mtime<<"\n";
+        logger->verbose_paragraph(ss.str());
     }
 
     // check nodes from inbound edges. For example there has a edge U->V, 
@@ -187,8 +190,8 @@ void Graph::set_node_files(GraphNode *p, std::vector<std::string> in)
 {
     //check modified or not
     bool is_same = (p->files.size() == in.size());
-    std::unordered_set<std::string> s1{in.begin(), in.end()};
     if (is_same) {
+        std::unordered_set<std::string> s1{in.begin(), in.end()};
         for (auto blk : p->files)
             if (s1.count(*blk->strkey) == 0) {
                 is_same = false; break;
@@ -197,7 +200,8 @@ void Graph::set_node_files(GraphNode *p, std::vector<std::string> in)
     if (is_same)
         return;
 
-    //write to db if modified
+    //clear the previous record and write to db if modified
+    p->_file_blocks.clear();
     for (auto &fp : in)
         p->_file_blocks.push_back(db_fetch_string(fp));
     p->_status = GraphNode::Unknown;
@@ -253,7 +257,7 @@ int64_t Graph::stat_and_cache(std::filesystem::path fp)
 // FileDB operations
 // -----------------
 
-Graph::Graph() {
+Graph::Graph(Logger *logger) : logger(logger) {
     //EdgeID == 0 (nullptr)
     GraphEdge e;
     e.from = e.to = 0;
@@ -281,8 +285,7 @@ void Graph::db_load(const std::string &filename)
         db_strings.clear();
         db_pending_write.clear();
 
-        if (logger.verbose)
-            logger.paragraph("Create new GraphDB: " + filename);
+        logger->verbose_paragraph("Create new GraphDB: " + filename);
 
         file_ = fopen(filename.c_str(), "wb+");
         fseek(file_, 0, SEEK_SET);
@@ -380,9 +383,9 @@ void Graph::db_load(const std::string &filename)
     }
     
     //debug
-    if (logger.verbose) {
+    {
         std::stringstream ss;
-        ss<<"Graph.db_load(): "<< db_blocks.size() <<" Blocks loaded\n";
+        ss<<"=== Graph.db_load(): "<< db_blocks.size() <<" Blocks loaded\n";
         for (size_t i=0; i<db_blocks.size(); i++) {
             if (db_blocks[i].as_string)
                 ss<<" "<<i<<"] mtime:"
@@ -401,7 +404,8 @@ void Graph::db_load(const std::string &filename)
                         <<" -> "<<edges[eid].to->db_selfname_id<<"\n";
             }
         }
-        logger.paragraph(ss.str());
+        ss<<"=================================================================\n";
+        logger->verbose_paragraph(ss.str());
     }
 
     // close stream and open file by fopen()
@@ -457,11 +461,11 @@ void Graph::db_flush_node()
         fwrite(newdata.data(), sizeof(uint32_t), newdata.size(), file_);
         n->db_block_size = ftell(file_) - n->db_offset;
         n->lastdb_data = newdata;
-        if (logger.verbose) {
+        { //debug
             std::stringstream ss;
             auto *self_name = db_blocks[n->db_selfname_id].as_string->strkey;
-            ss<<"Graph.fwrite(): off=" << n->db_offset 
-              << " [blk" + std::to_string(n->db_selfname_id) + "] " + *self_name 
+            ss<<"db_flush/Graph.fwrite(): off=" << n->db_offset 
+              << " [blk " + std::to_string(n->db_selfname_id) + "] " + *self_name 
                  + (n->init_status_to_stale?" (DEFAULT_STALE)":"") + "\n";
             for (auto oitem : newdata) {
                 uint32_t blk_id = (oitem & ~(1UL<<31));
@@ -471,7 +475,7 @@ void Graph::db_flush_node()
                     ss<<"    * File["<<blk_id<<"] "
                         <<*db_blocks[blk_id].as_string->strkey<<"\n";
             }
-            logger.paragraph(ss.str());
+            logger->verbose_paragraph(ss.str());
         }
     } //end for(db_pending_write)
     fflush(file_);
@@ -502,11 +506,11 @@ Graph::DBStringBlock *Graph::db_fetch_string(std::string name)
 
 void Graph::db_set_to_emptyblock(std::size_t offset, uint32_t whole_block_size)
 {
-    if (logger.verbose) {
+    { //debug
         std::stringstream ss;
         ss<<"Graph.fwrite(): recycle OFFSET "<< offset
           <<" -> "<<offset + whole_block_size<<std::endl;
-        logger.paragraph(ss.str());
+        logger->verbose_paragraph(ss.str());
     }
     uint32_t title = whole_block_size | DB_BIT_EMPTY;
     fseek(file_, offset, SEEK_SET);

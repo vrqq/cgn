@@ -1,7 +1,8 @@
 #include <filesystem>
+#include <fstream>
 #include "ninja_file.h"
 
-namespace cgn{
+namespace cgnv1{
 
 static std::string varlist_to_string(
     const std::unordered_map<std::string, std::string> &ls
