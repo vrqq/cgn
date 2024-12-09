@@ -2,10 +2,11 @@
 #include <iostream>
 #include <vector>
 #include "pe_file.h"
+#include "../v1/cgn_api.h"
 
 #define devout std::cout
 
-namespace cgn {
+namespace cgnv1 {
 
 static std::string strhex(char in) {
     constexpr char tbl[16] = {'0', '1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};

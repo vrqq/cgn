@@ -10,7 +10,7 @@
 #include <iostream>
 #include <filesystem>
 #include <cassert>
-#include "../cgn.h"
+#include "cgn_api.h"
 
 namespace {
 
@@ -141,7 +141,7 @@ void work(std::vector<std::string> &out, std::filesystem::path prefix,
    
 } //namespace <>
 
-namespace cgn {
+namespace cgnv1 {
 
 std::vector<std::string> Tools::file_glob(const std::string &dir, const std::string &base)
 {

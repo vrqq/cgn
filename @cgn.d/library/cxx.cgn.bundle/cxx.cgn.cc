@@ -8,8 +8,6 @@
 #define LANGCXX_CGN_BUNDLE_IMPL
 #include <cassert>
 #include "cxx.cgn.h"
-#include "../../std_operator.hpp"
-#include "../../entry/quick_print.hpp"
 
 // CxxInterpreter
 // ------------- -------------
@@ -21,7 +19,7 @@ const cgn::BaseInfo::VTable &CxxInfo::_glb_cxx_vtable()
         []() -> std::shared_ptr<cgn::BaseInfo> {
             return std::make_shared<CxxInfo>();
         },
-        [](void *ecx, const void *rhs) {
+        [](void *ecx, const cgn::BaseInfo *rhs) {
             if (rhs == nullptr)
                 return false;
             CxxInfo *self = (CxxInfo*)ecx, *r = (CxxInfo*)rhs;
@@ -36,10 +34,10 @@ const cgn::BaseInfo::VTable &CxxInfo::_glb_cxx_vtable()
             const char *indent = "           ";
             size_t len = (type=='h'?5:999);
             return std::string{"{\n"}
-                + "   cflags: " + cgn::list2str_h(self->cflags, indent, len) + "\n"
-                + "  ldflags: " + cgn::list2str_h(self->ldflags, indent, len) + "\n"
-                + "  incdirs: " + cgn::list2str_h(self->include_dirs, indent, len) + "\n"
-                + "  defines: " + cgn::list2str_h(self->defines, indent, len) + "\n"
+                + "   cflags: " + cgn::Logger::fmt_list(self->cflags, indent, len) + "\n"
+                + "  ldflags: " + cgn::Logger::fmt_list(self->ldflags, indent, len) + "\n"
+                + "  incdirs: " + cgn::Logger::fmt_list(self->include_dirs, indent, len) + "\n"
+                + "  defines: " + cgn::Logger::fmt_list(self->defines, indent, len) + "\n"
                 + "}";
         }
     };
@@ -94,15 +92,15 @@ list2str(const T &in, const std::string prefix="")
 }
 
 // keep element first seen and remove duplicate in 'ls'
-static void remove_dup(std::vector<std::string> &ls)
-{
-    std::unordered_set<std::string> visited;
-    std::size_t i=0;
-    for (std::size_t j=0; j<ls.size(); j++)
-        if (visited.insert(ls[j]).second == true)
-            std::swap(ls[i++], ls[j]);
-    ls.resize(i);
-}
+// static void remove_dup(std::vector<std::string> &ls)
+// {
+//     std::unordered_set<std::string> visited;
+//     std::size_t i=0;
+//     for (std::size_t j=0; j<ls.size(); j++)
+//         if (visited.insert(ls[j]).second == true)
+//             std::swap(ls[i++], ls[j]);
+//     ls.resize(i);
+// }
 
 // get substr and convert to lowercase
 static std::string lower_substr(
@@ -175,20 +173,20 @@ struct TargetWorker
     // pkg-config or cmake
     // @param in.include_dirs[] based on working-root-dir
     // @return CxxInfo::cflags and CxxInfo::ldflags
-    static CxxInfo export_unix(const cgn::Configuration &cfg, CxxInfo in, const std::string &libfile="");
-    static CxxInfo export_win_msvc(const cgn::Configuration &cfg, CxxInfo in, const std::string &libfile="");
+    static CxxInfo export_unix(cgn::Configuration &cfg, CxxInfo in, const std::string &libfile="");
+    static CxxInfo export_win_msvc(cgn::Configuration &cfg, CxxInfo in, const std::string &libfile="");
 
     // Step0: input
     CxxContext &x;
-    cgn::CGNTargetOpt &opt;
-    TargetWorker(CxxContext &x, cgn::CGNTargetOpt &opt) : x(x), opt(opt) {};
+    TargetWorker(CxxContext &x) : x(x) {};
 
     // step1: generate CxxInfo by interperter
     // exe_cc, exe_cxx... : two escaped
-    // interp_arg: data has been processed by two_escape()
+    // interp_arg: arguments provider by interpreter, data has been processed by two_escape()
     // interp_arg 内数据均经 两次转义过(two_escape) 或用户保证无需转义
     //            参数前半段为编译器参数 通常不需转义 (例如 --sysroot= ) 
     //            一般仅后段需转义 (例如 $ORIGIN => \$ORIGIN )
+    // cflags_cpp, cflags_c, cflags_asm: extra flag for specific language.
     CxxInfo interp_arg;
     std::string exe_cc, exe_cxx, exe_asm, exe_solink, exe_xlink, exe_ar;
     std::vector<std::string> cflags_cpp, cflags_c, cflags_asm;
@@ -197,17 +195,19 @@ struct TargetWorker
     void step1_win_msvc();
 
     // step2: merge args from target(x), deps, interpreter
+    //        then 
     CxxInfo carg;  // arg for self target (step 3)
-    void step2_arg_merge();
+    void step2_merge_selfarg();
 
-    // step3: make ninja file and return value
+    // step3: lock configuration and generate opt, make ninja file and return value
     // interpreter would return 'rv'
-    cgn::TargetInfos *rv;
-    CxxInfo             *rvcxx;  // point to entry inside 'rv'
-    cgn::DefaultInfo    *rvdef;  // point to entry inside 'rv'
-    cgn::LinkAndRunInfo *rvlnr;  // point to entry inside 'rv'
+    // cgn::TargetInfos *rv;
+    // CxxInfo             *rvcxx;  // point to entry inside 'rv'
+    // cgn::DefaultInfo    *rvdef;  // point to entry inside 'rv'
+    cgn::CGNTargetOpt *opt = nullptr;
+    cgn::LinkAndRunInfo *rvlnr;  // point to entry inside 'opt->result'
     std::string escaped_ninja_entry;
-    void step30_prepare_rv();
+    bool step30_prepare_opt();
     void step31_unix();
     void step31_win();
     void _entry_postprocess(const std::vector<std::string> &to);
@@ -338,7 +338,7 @@ void TargetWorker::step1_win_msvc()
 } //TargetWorker::step1_win_msvc()
 
 CxxInfo TargetWorker::export_win_msvc(
-    const cgn::Configuration &cfg, CxxInfo in, const std::string &libfile
+    cgn::Configuration &cfg, CxxInfo in, const std::string &libfile
 ) {
     in.defines += {
         "WINVER=" + std::string{mimimum_winver},
@@ -497,7 +497,7 @@ void TargetWorker::step1_linuxllvm_and_xcode()
 } //TargetWorker::step1_linuxllvm_and_xcode()
 
 CxxInfo TargetWorker::export_unix(
-    const cgn::Configuration &cfg, CxxInfo in, const std::string &libfile
+    cgn::Configuration &cfg, CxxInfo in, const std::string &libfile
 ) {
     in.cflags = decltype(in.cflags){"-fPIC","-pthread"} + in.cflags;
     if (libfile.size())
@@ -510,7 +510,7 @@ CxxInfo TargetWorker::export_unix(
 }
 
 
-void TargetWorker::step2_arg_merge()
+void TargetWorker::step2_merge_selfarg()
 {
     //=== Section 2: merge args from target(x), deps, interpreter ===
     carg.cflags = interp_arg.cflags + two_escape(x._cxx_to_self.cflags) 
@@ -532,34 +532,39 @@ void TargetWorker::step2_arg_merge()
     // def_to_cflag(x.pub); //x.pub don't need to modify anymore.
 
     // clear duplicate include folder, .obj files from dep
-    remove_dup(carg.include_dirs);
-    remove_dup(x._lnr_to_self.object_files);
-    remove_dup(x._lnr_to_self.static_files);
-    remove_dup(x._lnr_to_self.shared_files);
+    cgn::Tools::remove_duplicate_inplace(carg.include_dirs);
+    cgn::Tools::remove_duplicate_inplace(x._lnr_to_self.object_files);
+    cgn::Tools::remove_duplicate_inplace(x._lnr_to_self.static_files);
+    cgn::Tools::remove_duplicate_inplace(x._lnr_to_self.shared_files);
 } //TargetWorker::step2_arg_merge()
 
 
-void TargetWorker::step30_prepare_rv()
+bool TargetWorker::step30_prepare_opt()
 {
-    // init CxxInfo for return value
-    rv = &x._pub_infos_fromdep;
+    opt = x.opt->confirm();
+    if (opt->cache_result_found)
+        return true;
     
-    rvcxx = rv->get<CxxInfo>(true);
+    // init CxxInfo and LinkAndRunInfo for return value
+    auto rvcxx = opt->result.get<CxxInfo>(true);
     rvcxx->cflags  += x.pub.cflags;
     rvcxx->ldflags += x.pub.ldflags;
     rvcxx->defines += x.pub.defines;
     rvcxx->include_dirs = x.pub.include_dirs + rvcxx->include_dirs;
-    
-    rvdef = rv->get<cgn::DefaultInfo>(true);
-    rvdef->target_label = opt.factory_ulabel;
-    rvdef->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
-    rvdef->enforce_keep_order = x._enforce_self_order_only;
+    cgn::Tools::remove_duplicate_inplace(rvcxx->include_dirs);
 
-    rvlnr = rv->get<cgn::LinkAndRunInfo>(true);
-    remove_dup(rvlnr->object_files);
+    rvlnr = opt->result.get<cgn::LinkAndRunInfo>(true);
+    cgn::Tools::remove_duplicate_inplace(rvlnr->object_files);
     
     escaped_ninja_entry = cgn::NinjaFile::escape_path(
-                          opt.out_prefix + opt.BUILD_ENTRY);
+                          opt->out_prefix + opt->BUILD_ENTRY);
+
+    // include rule.ninja
+    constexpr const char *rule_ninja = "@cgn.d//library/cxx.cgn.bundle/cxx_rule.ninja";
+    static std::string rule_path = api.get_filepath(rule_ninja);
+    opt->ninja->append_include(rule_path);
+
+    return false;
 } //TargetWorker::step30_prepare_rv()
 
 
@@ -572,13 +577,14 @@ void TargetWorker::step31_win()
     std::vector<std::string> obj_out_ninja_esc;
     for (auto &file : x.srcs) {
         std::string path_in, path_out;
-        auto file_type = src_path_convert(file, opt, &path_in, &path_out);
+        auto file_type = src_path_convert(file, *opt, &path_in, &path_out);
         if (file_type == 0)
             continue;
-        auto *field = opt.ninja->append_build();
+        auto *field = opt->ninja->append_build();
         field->inputs  = {cgn::NinjaFile::escape_path(path_in)};
         field->outputs = {cgn::NinjaFile::escape_path(path_out)};
-        field->order_only = x.phony_order_only;
+        field->implicit_inputs = opt->quickdep_ninja_full;
+        field->order_only      = opt->quickdep_ninja_dynhdr;
         if (file_type == 'D') {
             dyn_def_file = path_in;
         }else if (file_type == 'A') {
@@ -611,11 +617,11 @@ void TargetWorker::step31_win()
     //  deps.obj + self.srcs.o => rv[LRinfo].a
     //  deps.rt / deps.so / deps.a => rv[LRinfo]
     if (x.role == 'a') {
-        std::string outfile = opt.out_prefix + x.name + ".lib";
+        std::string outfile = opt->out_prefix + x.name + ".lib";
         if (x.perferred_binary_name.size())
-            outfile = opt.out_prefix + x.perferred_binary_name;
+            outfile = opt->out_prefix + x.perferred_binary_name;
         std::string outfile_njesc = cgn::NinjaFile::escape_path(outfile);
-        auto *field = opt.ninja->append_build();
+        auto *field = opt->ninja->append_build();
         field->rule = "msvc_lib";
         field->inputs = obj_out_ninja_esc
                       + cgn::NinjaFile::escape_path(x._lnr_to_self.object_files);
@@ -635,13 +641,13 @@ void TargetWorker::step31_win()
         std::string outfile;
         std::string outfile_implib;
         if (x.role == 's')
-            outfile = opt.out_prefix + x.name + ".dll";
+            outfile = opt->out_prefix + x.name + ".dll";
         else
-            outfile = opt.out_prefix + x.name + ".exe";
-        outfile_implib = opt.out_prefix + x.name + ".lib";
+            outfile = opt->out_prefix + x.name + ".exe";
+        outfile_implib = opt->out_prefix + x.name + ".lib";
         if (x.perferred_binary_name.size()) {
-            outfile = opt.out_prefix + x.perferred_binary_name;
-            outfile_implib = opt.out_prefix + x.perferred_binary_name + ".lib";
+            outfile = opt->out_prefix + x.perferred_binary_name;
+            outfile_implib = opt->out_prefix + x.perferred_binary_name + ".lib";
         }
 
         //prepare rpath argument
@@ -651,16 +657,16 @@ void TargetWorker::step31_win()
         //generate ninja section
         // --start-group   : {all.obj} {dep.static without whole} -l{dep.shared}
         // --whole-archive : {static_files from inherit dep}
-        auto *field = opt.ninja->append_build();
+        auto *field = opt->ninja->append_build();
         field->rule = "msvc_link";
         field->inputs = obj_out_ninja_esc 
-                      + opt.ninja->escape_path(x._lnr_to_self.object_files)
-                      + opt.ninja->escape_path(x._lnr_to_self.static_files) 
-                      + opt.ninja->escape_path(x._lnr_to_self.shared_files)
-                      + opt.ninja->escape_path(x._wholearchive_a);
-        field->outputs = {opt.ninja->escape_path(outfile)};
+                      + opt->ninja->escape_path(x._lnr_to_self.object_files)
+                      + opt->ninja->escape_path(x._lnr_to_self.static_files) 
+                      + opt->ninja->escape_path(x._lnr_to_self.shared_files)
+                      + opt->ninja->escape_path(x._wholearchive_a);
+        field->outputs = {opt->ninja->escape_path(outfile)};
         if (x.role == 's') //only add .lib for .dll
-            field->implicit_outputs = {opt.ninja->escape_path(outfile_implib)};
+            field->implicit_outputs = {opt->ninja->escape_path(outfile_implib)};
         field->variables["link"] = (x.role=='s'? exe_solink:exe_xlink);
         field->variables["ldflags"] = list2str(carg.ldflags)
                 + list2str(two_escape(x._wholearchive_a), "/WHOLEARCHIVE:");
@@ -671,9 +677,9 @@ void TargetWorker::step31_win()
         // copy runtime when cxx_executable()
         if (x.role == 'x')
             for (auto &one_entry : x._lnr_to_self.runtime_files) {
-                auto dst  = opt.out_prefix + one_entry.first;
+                auto dst  = opt->out_prefix + one_entry.first;
                 auto &src = one_entry.second;
-                auto *cpfield = opt.ninja->append_build();
+                auto *cpfield = opt->ninja->append_build();
                 //TODO: copy runtime by custom command (like symbolic-link)
                 cpfield->rule    = "win_cp";
                 cpfield->inputs  = {cgn::NinjaFile::escape_path(src)};
@@ -686,7 +692,7 @@ void TargetWorker::step31_win()
         rvlnr->shared_files = std::vector<std::string>{outfile_implib} 
                             + rvlnr->shared_files;
 
-        rvdef->outputs = {outfile, outfile_implib};
+        opt->result.outputs = {outfile, outfile_implib};
     } // if (role=='s' or 'x')
 
 } //TargetWorker::step31_win()
@@ -706,18 +712,19 @@ void TargetWorker::step31_unix()
         // if (ss[0] == '.' && ss[1] == '.')
         //     ss = api.abspath(ss);  // using abspath to present file outside project
         std::string path_in, path_out;
-        auto file_type = src_path_convert(ss, opt, &path_in, &path_out);
+        auto file_type = src_path_convert(ss, *opt, &path_in, &path_out);
         if (file_type == 0)
             continue;
 
         if (file_type == 'D') {
             dyn_def_file = path_in;
         }else {
-            auto *field = opt.ninja->append_build();
+            auto *field = opt->ninja->append_build();
             field->rule = "gcc";
             field->inputs  = {cgn::NinjaFile::escape_path(path_in)};
             field->outputs = {cgn::NinjaFile::escape_path(path_out)};
-            field->order_only = x.phony_order_only;
+            field->implicit_inputs = opt->quickdep_ninja_full;
+            field->order_only      = opt->quickdep_ninja_dynhdr;
             field->variables["cc"] = (file_type=='+'?exe_cxx:exe_cc);
             field->variables["cflags"] = 
                 list2str(file_type=='+'? cflags_cpp:cflags_c) 
@@ -742,11 +749,11 @@ void TargetWorker::step31_unix()
     //  deps.obj + self.srcs.o => rv[LRinfo].a
     //  deps.rt / deps.so / deps.a => rv[LRinfo]
     if (x.role == 'a') {
-        std::string outfile = opt.out_prefix + "lib" + x.name + ".a";
+        std::string outfile = opt->out_prefix + "lib" + x.name + ".a";
         if (x.perferred_binary_name.size())
-            outfile = opt.out_prefix + x.perferred_binary_name;
+            outfile = opt->out_prefix + x.perferred_binary_name;
         std::string outfile_njesc = cgn::NinjaFile::escape_path(outfile);
-        auto *field = opt.ninja->append_build();
+        auto *field = opt->ninja->append_build();
         field->rule = "gcc_ar";
         field->inputs = obj_out_ninja_esc
                       + cgn::NinjaFile::escape_path(x._lnr_to_self.object_files);
@@ -756,7 +763,7 @@ void TargetWorker::step31_unix()
         _entry_postprocess(field->outputs);
         rvlnr->static_files = std::vector<std::string>{outfile} + rvlnr->static_files;
 
-        rvdef->outputs = {outfile};
+        opt->result.outputs = {outfile};
         return ;
     }
     
@@ -773,12 +780,12 @@ void TargetWorker::step31_unix()
         std::string outfile;
         std::string outfile_njesc;
         if (x.role == 's')
-            outfile = opt.out_prefix + "lib" + x.name + ".so";
+            outfile = opt->out_prefix + "lib" + x.name + ".so";
         else
-            outfile = opt.out_prefix + x.name;
+            outfile = opt->out_prefix + x.name;
         if (x.perferred_binary_name.size())
-            outfile = opt.out_prefix + x.perferred_binary_name;
-        outfile_njesc = opt.ninja->escape_path(outfile);
+            outfile = opt->out_prefix + x.perferred_binary_name;
+        outfile_njesc = opt->ninja->escape_path(outfile);
 
         //prepare rpath argument
         //  this is seen as target ldflags, so put on the tail of cargs.ldflags
@@ -794,7 +801,7 @@ void TargetWorker::step31_unix()
                 carg.ldflags += {"-Wl,--enable-new-dtags"};
                 for (auto &so : x._lnr_to_self.shared_files) {
                     auto path1    = cgn::Tools::parent_path(so);
-                    auto path_rel = cgn::Tools::rebase_path(path1, opt.out_prefix);
+                    auto path_rel = cgn::Tools::rebase_path(path1, opt->out_prefix);
                     carg.ldflags += {two_escape("-Wl,--rpath=$ORIGIN/" + path_rel)};
                 }
             }
@@ -808,15 +815,15 @@ void TargetWorker::step31_unix()
         //generate ninja section
         // --start-group   : {all.obj} {dep.static without whole} -l{dep.shared}
         // --whole-archive : {static_files from inherit dep}
-        auto *field = opt.ninja->append_build();
+        auto *field = opt->ninja->append_build();
         field->rule = "crun_rsp";
         field->inputs = obj_out_ninja_esc 
-                      + opt.ninja->escape_path(x._lnr_to_self.object_files);
-        field->implicit_inputs = opt.ninja->escape_path(x._lnr_to_self.static_files) 
-                               + opt.ninja->escape_path(x._lnr_to_self.shared_files)
-                               + opt.ninja->escape_path(x._wholearchive_a);
+                      + opt->ninja->escape_path(x._lnr_to_self.object_files);
+        field->implicit_inputs = opt->ninja->escape_path(x._lnr_to_self.static_files) 
+                               + opt->ninja->escape_path(x._lnr_to_self.shared_files)
+                               + opt->ninja->escape_path(x._wholearchive_a);
         field->outputs = {outfile_njesc};
-        field->variables["exe"] = opt.ninja->escape_path(
+        field->variables["exe"] = opt->ninja->escape_path(
                                     x.role=='s'? exe_solink:exe_xlink);
         
         std::string buildstr_a, buildstr_start_group, buildstr_end_group;
@@ -846,9 +853,9 @@ void TargetWorker::step31_unix()
         // copy runtime when cxx_executable()
         if (x.role == 'x')
             for (auto &one_entry : x._lnr_to_self.runtime_files) {
-                auto dst  = opt.out_prefix + one_entry.first;
+                auto dst  = opt->out_prefix + one_entry.first;
                 auto &src = one_entry.second;
-                auto *cpfield = opt.ninja->append_build();
+                auto *cpfield = opt->ninja->append_build();
                 //TODO: copy runtime by custom command (like symbolic-link)
                 cpfield->rule    = "unix_cp";
                 cpfield->inputs  = {cgn::NinjaFile::escape_path(src)};
@@ -860,7 +867,7 @@ void TargetWorker::step31_unix()
         // put front
         rvlnr->shared_files = std::vector<std::string>{outfile} + rvlnr->shared_files;
 
-        rvdef->outputs = {outfile};
+        opt->result.outputs = {outfile};
         return ;
     } // if (role=='s' or 'x')
 } //TargetWorker::step31_unix()
@@ -868,23 +875,21 @@ void TargetWorker::step31_unix()
 
 void TargetWorker::_entry_postprocess(const std::vector<std::string> &to)
 {
-    auto *entry = opt.ninja->append_build();
+    auto *entry = opt->ninja->append_build();
     entry->rule = "phony";
     entry->inputs = to;
     entry->outputs = {escaped_ninja_entry};
-    entry->order_only = x.phony_order_only;
+    entry->implicit_inputs = opt->quickdep_ninja_full;    //TODO: really need?
+    entry->order_only      = opt->quickdep_ninja_dynhdr;  //TODO: really need?
 }
 
-
-cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt opt)
+void CxxInterpreter::interpret(context_type &x)
 {
-    constexpr const char *rule_ninja = "@cgn.d//library/cxx.cgn.bundle/cxx_rule.ninja";
-
     // convert file path to relpath-of-working-dir
     for (std::string &dir : x.include_dirs)
-        dir = cgn::Tools::locale_path(opt.src_prefix + dir);
+        dir = cgn::Tools::locale_path(x.opt->src_prefix + dir);
     for (std::string &dir : x.pub.include_dirs)
-        dir = cgn::Tools::locale_path(opt.src_prefix + dir);
+        dir = cgn::Tools::locale_path(x.opt->src_prefix + dir);
 
     // preprocess "x.srcs = file_glob(*)"
     // if the source file is not at the same/sub folder of BUILD.cgn.cc
@@ -896,27 +901,25 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         if (ss.find('*') == ss.npos) //if not file_glob
             real_srcs += {ss};
         else
-            real_srcs += api.file_glob(opt.src_prefix + ss, opt.src_prefix);
+            real_srcs += api.file_glob(x.opt->src_prefix + ss, x.opt->src_prefix);
     }
     std::swap(x.srcs, real_srcs);
 
-    // include rule.ninja    
-    static std::string rule_path = api.get_filepath(rule_ninja);
-    opt.ninja->append_include(rule_path);
-
     // start interpret
-    TargetWorker w(x, opt);
+    TargetWorker w(x);
     if (x.cfg["cxx_toolchain"] == "msvc") {
         assert(api.get_host_info().os == "win");
         w.step1_win_msvc();
-        w.step2_arg_merge();
-        w.step30_prepare_rv();
+        w.step2_merge_selfarg();
+        if (w.step30_prepare_opt())
+            return ;
         w.step31_win();
     }
     else if (x.cfg["cxx_toolchain"] == "gcc" && api.get_host_info().os == "linux") {
         w.step1_linux_gcc();
-        w.step2_arg_merge();
-        w.step30_prepare_rv();
+        w.step2_merge_selfarg();
+        if (w.step30_prepare_opt())
+            return ;
         w.step31_unix();
     }
     else if (
@@ -924,69 +927,59 @@ cgn::TargetInfos CxxInterpreter::interpret(context_type &x, cgn::CGNTargetOpt op
         (x.cfg["cxx_toolchain"] == "llvm"  && api.get_host_info().os == "linux")
     ) {
         w.step1_linuxllvm_and_xcode();
-        w.step2_arg_merge();
-        w.step30_prepare_rv();
+        w.step2_merge_selfarg();
+        if (w.step30_prepare_opt())
+            return ;
         w.step31_unix();
     }
-    else {
-        throw std::runtime_error{
-            "Unsupported cxx_toolchain " + (std::string)x.cfg["cxx_toolchain"]};
-    }
-
-    return *w.rv;
+    else
+        x.opt->confirm_with_error("Unsupported cxx_toolchain " + (std::string)x.cfg["cxx_toolchain"]);
 }
 
 
-CxxContext::CxxContext(char role, const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
-: role(role), name(opt.factory_name), cfg(cfg), opt(opt) {}
+CxxContext::CxxContext(char role, cgn::CGNTargetOptIn *opt)
+: role(role), name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
 
-cgn::TargetInfos CxxContext::add_dep(
+cgn::CGNTarget CxxContext::add_dep(
     const std::string &label, cgn::Configuration new_cfg, DepType flag
 ) {
-    auto rhs = api.analyse_target(
-        api.absolute_label(label, opt.factory_ulabel), new_cfg);
-    if (rhs.infos.empty())
-        return {};
-    api.add_adep_edge(rhs.adep, opt.adep);
-    auto *r_def = rhs.infos.get<cgn::DefaultInfo>();
-    if ((flag & cxx::order_dep) || r_def->enforce_keep_order) {
-        const cgn::DefaultInfo *inf = rhs.infos.get<cgn::DefaultInfo>();
-        phony_order_only.push_back(inf->build_entry_name);
-        if (flag == cxx::order_dep)
-            return rhs.infos;
-    }
+    // merge TargetInfos[] manually
+    auto early = opt->quick_dep(label, cfg, false);
+    if (early.errmsg.size()) // return if error occured.
+        return early;
+
+    // cxx::order_dep
+    // Ignore remote CGNTarget value and return.
+    if (flag == cxx::order_dep)
+        return early;
 
     // call merge() for unused field
-    for (auto &rhs : rhs.infos.data())
+    for (auto &rhs : early.data())
         if (rhs.first != "CxxInfo" && rhs.first != "LinkAndRunInfo")
-            _pub_infos_fromdep.merge_entry(rhs.first, rhs.second);
+            _pub_infos.merge_entry(rhs.first, rhs.second.get());
 
     // rhs[CxxInfo]
     //   cxx::inherit : append to interpreter_rv[CxxInfo] as is, 
     //                  and also apply on current target.
     //   cxx::private : save to _cxx_to_self to use for current target only.
-    if ((flag & cxx::inherit)) {
-        _pub_infos_fromdep.get<CxxInfo>(true)->merge_from(rhs.infos.get<CxxInfo>());
+    if ((flag & cxx::inherit))
+        _pub_infos.get<CxxInfo>(true)->merge_entry(early.get<CxxInfo>(false));
 
-        // if dep::inherit have EnforceKeepOrder flag, then make this flag up
-        if (r_def->enforce_keep_order)
-            _enforce_self_order_only = true;
-    }
-    _cxx_to_self.merge_from(rhs.infos.get<CxxInfo>());
+    _cxx_to_self.merge_entry(early.get<CxxInfo>(false));
 
     // rhs[LinkAndRunInfo]
-    auto *r_lnr = rhs.infos.get<cgn::LinkAndRunInfo>();
+    auto *r_lnr = early.get<cgn::LinkAndRunInfo>(false);
 
     // for both msvc and GNU
     // cxx_sources() : keep as is (do not consume anyone)
     // cxx_static()  : move(r_lnr.obj) to cmd "ar rcs" later in interpreter, 
     //                 keep others as-is.
     if (role == 'o')
-        _pub_infos_fromdep.get<cgn::LinkAndRunInfo>(true)->merge_from(r_lnr);
+        _pub_infos.get<cgn::LinkAndRunInfo>(true)->merge_entry(r_lnr);
     if (role == 'a') {
         if (flag & pack_obj)
             _lnr_to_self.object_files += std::move(r_lnr->object_files);
-        _pub_infos_fromdep.get<cgn::LinkAndRunInfo>(true)->merge_from(r_lnr);
+        _pub_infos.get<cgn::LinkAndRunInfo>(true)->merge_entry(r_lnr);
     }
     
     // cxx_executable() and cxx_shared() for both msvc and GNU
@@ -997,15 +990,14 @@ cgn::TargetInfos CxxContext::add_dep(
     if (role == 's' || role == 'x') {
         if ((flag & cxx::inherit)) {
             _wholearchive_a += std::move(r_lnr->static_files);  //move and clear this entry
-            auto *pub_lr = _pub_infos_fromdep.get<cgn::LinkAndRunInfo>(true);
+            auto *pub_lr = _pub_infos.get<cgn::LinkAndRunInfo>(true);
             pub_lr->shared_files += r_lnr->shared_files;
             pub_lr->runtime_files.insert(r_lnr->runtime_files.begin(), r_lnr->runtime_files.end());
         }
-        _lnr_to_self.merge_from(r_lnr);
-        
+        _lnr_to_self.merge_entry(r_lnr);
     }
 
-    return rhs.infos;
+    return early;
 } //CxxContext::add_dep
 
 CxxToolchainInfo CxxInterpreter::test_param(const cgn::Configuration &cfg)
@@ -1033,7 +1025,7 @@ CxxToolchainInfo CxxInterpreter::test_param(const cgn::Configuration &cfg)
 }
 
 CxxInfo CxxInterpreter::test_minimum_flags(
-    const cgn::Configuration &cfg, const CxxInfo &in, const std::string &libfile
+    cgn::Configuration &cfg, const CxxInfo &in, const std::string &libfile
 ) {
     if (cfg["os"] == "win")
         return TargetWorker::export_win_msvc(cfg, in, libfile);
@@ -1044,22 +1036,23 @@ CxxInfo CxxInterpreter::test_minimum_flags(
 // CxxPrebuiltInterpreter
 // ----------------------
 
-cgn::TargetInfos CxxPrebuiltInterpreter::interpret(
-    context_type &x, cgn::CGNTargetOpt opt
-) {
-    cgn::TargetInfos &rv = x.merged_info;
+void CxxPrebuiltInterpreter::interpret(context_type &x)
+{
+    // std::string dllbase = opt->out_prefix;
+    // if (x.runtime_dir.size() && (x.cfg["pkg_mode"] == "T" || x.cfg["os"] == "win"))
+    //     dllbase += x.runtime_dir + opt.path_separator;
+
+    cgn::CGNTargetOpt *opt = x.opt->confirm();
+    if (opt->cache_result_found)
+        return ;
 
     // TargetInfos[CxxInfo]
     for (auto &it : x.pub.include_dirs)
-        it = api.locale_path(opt.src_prefix + it);
-    rv.set(x.pub);
-
-    std::string dllbase = opt.out_prefix;
-    if (x.runtime_dir.size() && (x.cfg["pkg_mode"] == "T" || x.cfg["os"] == "win"))
-        dllbase += x.runtime_dir + opt.path_separator;
+        it = api.locale_path(opt->src_prefix + it);
+    opt->result.set(x.pub);
 
     // TargetInfos[LinkAndRunInfo]
-    auto *lrinfo = rv.get<cgn::LinkAndRunInfo>(true);
+    auto *lrinfo = opt->result.get<cgn::LinkAndRunInfo>(true);
     bool have_sofile = false;
     std::unordered_set<std::string> dllstem;
     std::vector<std::pair<std::string,std::string>> dotlib;
@@ -1069,7 +1062,7 @@ cgn::TargetInfos CxxPrebuiltInterpreter::interpret(
         fd1 = (fd1 == file.npos? 0: fd1+1);
         if (fddot == file.npos || fddot < fd1)
             continue;
-        std::string fullp = api.locale_path(opt.src_prefix + file);
+        std::string fullp = api.locale_path(opt->src_prefix + file);
         std::string stem = file.substr(fd1, fddot-fd1);
         std::string ext  = file.substr(fddot);
         if (ext == ".so")
@@ -1091,12 +1084,12 @@ cgn::TargetInfos CxxPrebuiltInterpreter::interpret(
         else
             lrinfo->static_files.push_back(item.second);
 
-    auto *entry = opt.ninja->append_build();
+    // build.ninja
+    auto *entry = opt->ninja->append_build();
     entry->rule = "phony";
-    entry->order_only = x.ninja_target_dep;
-    entry->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
-
-    return rv;
+    entry->implicit_inputs = opt->quickdep_ninja_full;
+    entry->order_only      = opt->quickdep_ninja_dynhdr;
+    entry->outputs = {opt->out_prefix + opt->BUILD_ENTRY};
 }
 
 } //namespace cxx

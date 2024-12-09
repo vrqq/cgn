@@ -11,9 +11,9 @@
 #include <fstream>
 #include <cstdint>
 #include "graph.h"
-#include "configuration.h"
+#include "configuration_mgr.h"
 
-namespace cgn {
+namespace cgnv1 {
 
 ConfigurationManager::ConfigurationManager(
     const std::string &storage_dir, Graph *g
@@ -59,9 +59,9 @@ ConfigurationManager::ConfigurationManager(
 
             //Note: calling cfg[key]=xxx would clear cfg.hashid and calc .hash_hlp
             //      so set name later.
-            cfg.hashid = name;
-            auto iter = cfg_hashs.emplace(name, cfg).first;
-            cfg_indexs[CDataRef{&iter->second.data, iter->second.hash_hlp}] = name;
+            cfg._data->hashid = name;
+            auto &ref = cfg_hashs[name] = cfg;
+            cfg_indexs[CDataRef{&ref}] = name;
         }
 } //ConfigurationManager()
 
@@ -103,26 +103,26 @@ ConfigurationManager::get(const std::string name) const {
     return {nullptr, nullptr};
 }
 
-ConfigurationID ConfigurationManager::commit(Configuration cfg)
+ConfigurationID ConfigurationManager::commit(const Configuration &cfg)
 {
     //return if unchanged.
-    if (cfg.hashid.size())
-        return cfg.hashid;
+    if (cfg._data->hashid.size())
+        return cfg._data->hashid;
 
     //[entry]: find by content
-    CDataRef lastref{&cfg.data, cfg.hash_hlp};
+    CDataRef lastref{&cfg};
     if (auto fd = cfg_indexs.find(lastref); fd != cfg_indexs.end())
         return fd->second;
 
     //[entry]: create new
     std::string new_id = get_hash(CHasher()(lastref));
-    cfg.hashid = new_id;
-    auto iter = cfg_hashs.emplace(new_id, std::move(cfg));
-    cfg_indexs[CDataRef{&iter.first->second}] = new_id;
+    cfg._data->hashid = new_id;
+    auto [iter, nx] = cfg_hashs.emplace(new_id, std::move(cfg));
+    cfg_indexs[CDataRef{&iter->second}] = new_id;
 
     //[.cfg file]: create new
     std::ofstream fout(std::filesystem::path{storage_dir} / (new_id+".cfg"));
-    for (auto &[k, v]: iter.first->second.data)
+    for (auto &[k, v]: iter->second.data())
         fout<<k<<" = "<<v<<"\n";
 
     return new_id;

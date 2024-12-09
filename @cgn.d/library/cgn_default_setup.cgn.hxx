@@ -3,7 +3,7 @@
 #include "../cgn.h"
 #include "cgn_default_setup.cgn.h"
 
-void CGN_SETUP_IF cgn_setup(CGNInitSetup &x) {
+void CGN_SETUP_IF cgn_setup(cgn::CGNInitSetup &x) {
     
     x.configs["host_release"] = generate_host_release();
 

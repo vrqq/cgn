@@ -2,7 +2,7 @@
 
 #ifdef _WIN32
     #include "../pe_loader/pe_file.h"
-    namespace cgn {
+    namespace cgnv1 {
     struct DLHelper {
         DLHelper(const std::string &file);
         ~DLHelper();
@@ -11,13 +11,13 @@
         operator bool() const { return hnd; }
         
     private:
-        GlobalSymbol::DllHandle hnd;
+        ::cgn::GlobalSymbol::DllHandle hnd;
     };
     }
 
 #else
 
-    namespace cgn {
+    namespace cgnv1 {
     struct DLHelper {
         DLHelper(const std::string &file);
         ~DLHelper();

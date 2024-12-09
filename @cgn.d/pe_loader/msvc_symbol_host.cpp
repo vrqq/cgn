@@ -14,7 +14,7 @@
 #include <errhandlingapi.h>
 #pragma comment(lib,"ImageHlp")
 
-namespace cgn {
+namespace cgnv1 {
 
 // https://stackoverflow.com/a/4354755/12529885
 static std::vector<std::string> ListDLLFunctions(std::string sADllName)

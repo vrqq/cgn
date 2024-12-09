@@ -1,18 +1,15 @@
+// cgn.d internal, depend on Logger
+//
 #pragma once
-#include <list>
 #include <string>
 #include <vector>
-#include <deque>
-#include <memory>
-#include <map>
 #include <unordered_map>
 #include <unordered_set>
 #include <filesystem>
-#include <cstdio>
+#include "logger.h"
 
-namespace cgn
+namespace cgnv1
 {
-
 
 struct GraphNode;
 
@@ -79,10 +76,11 @@ public:
 
     void db_load(const std::string &filename);
 
-    Graph();
+    Graph(Logger *logger);
     ~Graph();
 
 private:
+    Logger *logger;
     std::unordered_map<std::string, GraphNode> nodes;
     std::vector<GraphEdge> edges;
     std::vector<GraphEdgeID> edge_recovery_pool;

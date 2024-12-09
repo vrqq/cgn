@@ -1,19 +1,23 @@
+// C/C++ Interpreter Example
+//
 #include <cgn>
 
 cxx_static("p1_static", x) {
     x.defines = {"PKG1_DLLEXPORT"};
-    x.srcs = {"pkg1/subimpl.cpp"};
+    x.srcs = {"pkg1/sub_fn_y.cpp"};
 }
 
 cxx_shared("p1_shared", x) {
     x.defines = {"PKG1_DLLEXPORT"};
-    x.srcs = {"pkg1/subimpl.cpp"};
+    x.srcs = {"pkg1/sub_fn_y.cpp"};
 }
 
-// select one from 2 above
 cxx_shared("pkg1", x) {
     x.defines = {"PKG1_DLLEXPORT"};
-    x.srcs = {"pkg1/subif.cpp"};
+    x.srcs = {"pkg1/sub_fn_x.cpp"};
+
+    // user can select one from two target aboves freely.
+    // --------------------------------------------------
     // x.add_dep(":p1_shared", cxx::inherit);
     x.add_dep(":p1_static", cxx::inherit);
 }

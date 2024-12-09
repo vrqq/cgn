@@ -1,9 +1,11 @@
 #include <filesystem>
+#include <fstream>
+#include <vector>
 #include <cstdlib>
 #include "pe_file.h"
-#include "../entry/debug.h"
+#include "../v1/cgn_api.h"
 
-namespace cgn {
+namespace cgnv1 {
 
 std::unordered_set<std::string> MSVCTrampo::sys_libs;
 std::unordered_set<std::string> MSVCTrampo::msvcrt_symbols;
@@ -27,9 +29,9 @@ void MSVCTrampo::add_msvcrt_lib(std::string libname)
         libname += + ".lib";
 
     static std::vector<std::string> libpath = [](){
-        std::string estr = cgn::Tools::getenv("LIB");
+        std::string estr = Tools::getenv("LIB");
         if (estr.empty()) {
-            logger.paragraph("cannot get environment 'LIB'");
+            // logger.paragraph("cannot get environment 'LIB'");
             throw std::runtime_error{"getenv('LIB')"};
         }
         std::vector<std::string> rv;
@@ -65,7 +67,7 @@ void MSVCTrampo::add_msvcrt_lib(std::string libname)
 void MSVCTrampo::add_lib(std::string libname)
 {
     std::ifstream fin(libname, std::ios::binary);
-    auto [rv, error_log] = cgn::LibraryFile::extract_exported_symbols(fin);
+    auto [rv, error_log] = LibraryFile::extract_exported_symbols(fin);
     if (error_log.size())
         throw std::runtime_error{"Load library " + libname + ": " + error_log};
     
@@ -75,7 +77,7 @@ void MSVCTrampo::add_lib(std::string libname)
 void MSVCTrampo::add_objfile(const std::string &filename)
 {
     std::ifstream fin(filename, std::ios::binary);
-    auto [rv1, elog1] = cgn::COFFFile::extract_somedata(fin);
+    auto [rv1, elog1] = COFFFile::extract_somedata(fin);
     if (elog1.size())
         throw std::runtime_error{"Objfile " + filename + ": " + elog1};
     

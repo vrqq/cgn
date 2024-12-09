@@ -1,4 +1,10 @@
-
+// cgn.d DLLEXPORT
+//         cgn_api.h : class CGN
+//      ninja_file.h : class NinjaFile
+//          logger.h : class Logger
+//   configuration.h : class Configuration
+//       base_type.h : ...
+//
 #ifdef CGN_EXE_IMPLEMENT
     #ifdef _WIN32
         #define CGN_EXPORT __declspec(dllexport)

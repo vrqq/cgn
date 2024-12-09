@@ -3,7 +3,7 @@
 ## ============================
 builddir = build_linux
 
-cflags = -I. -g -std=c++17 -fsanitize=address -fcolor-diagnostics $
+cflags = -I. -g -fPIC -std=c++17 -fsanitize=address -fcolor-diagnostics $
          -fshow-column -fshow-source-location -fcaret-diagnostics $
          -fstandalone-debug -fno-limit-debug-info -fsanitize=address -DCGN_EXE_IMPLEMENT
 
@@ -13,7 +13,7 @@ rule cc
     command = clang++ -MMD -MF $out.d $cflags -c $in -o $out
 
 rule ar
-    command = ar rcs ${out} ${in}
+    command = rm -f ${out} && ar rcs ${out} ${in}
 
 ## -Wl,--undefined=_Z9cgn_setupR12CGNInitSetup $
 ##
@@ -24,7 +24,10 @@ rule link
               -Wl,--export-dynamic -fvisibility=default -fsanitize=address $
               -Wl,-rpath=$$ORIGIN -MMD -MF $out.d $cflags $in -o $out
 
-include buildpart_ninjaport.ninja
-include buildpart_cgnentry.ninja
+include cgn_v1.ninja
+default $builddir/cgn
 
-default $output/cgn
+# include buildpart_ninjaport.ninja
+# include buildpart_cgnentry.ninja
+
+# default $output/cgn
