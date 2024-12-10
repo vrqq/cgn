@@ -142,10 +142,11 @@ private: friend struct CxxInterpreter; // field for interpreter
 
     // collection from deps, as the part of interpreter return value.
     // also with [CxxInfo] and [DefaultInfo] field inherit from deps.
-    // cgn::TargetInfos _pub_infos_fromdep;
+    // Added by this->add_dep(), consumed by TargetWorker::step30_prepare_opt().
     cgn::InfoTable _pub_infos;
 
     // collection from deps, only apply on current target.
+    // Added by this->add_dep(), consumed by TargetWorker::step2_merge_selfarg().
     cxx::CxxInfo        _cxx_to_self;
     cgn::LinkAndRunInfo _lnr_to_self;
 

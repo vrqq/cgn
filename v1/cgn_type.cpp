@@ -37,7 +37,7 @@ std::string CGNTarget::to_string(char type) const
     std::string rv;
     if (type == 'h' || type == 'H') {
         rv = "factory: " + this->factory_label
-           + "#" + trimmed_cfg.get_id();
+           + "#" + trimmed_cfg.get_id() + "\n";
         if (this->errmsg.size())
             rv += "error: " + this->errmsg;
         else
@@ -56,7 +56,8 @@ std::string CGNTargetOpt::path_separator = {std::filesystem::path::preferred_sep
 CGNTarget CGNTargetOptIn::quick_dep(const std::string &label, const Configuration &cfg, bool merge_infos)
 {
     CGNTargetOpt *opt = dynamic_cast<CGNTargetOpt*>(this);
-    CGNTarget early = api.analyse_target(label, cfg);
+    CGNTarget early = api.analyse_target(
+                        api.absolute_label(label, this->factory_label), cfg);
     if (early.errmsg.size())
         return early;
     if (early.ninja_dep_level == CGNTarget::NINJA_LEVEL_FULL)
