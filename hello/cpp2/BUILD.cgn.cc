@@ -12,14 +12,18 @@ cxx_shared("p1_shared", x) {
     x.srcs = {"pkg1/sub_fn_y.cpp"};
 }
 
+// If depend on ":p1_shared"
+//      [LinkAndRunInfo] { shared_files: [libpkg1.so, libp1_shared.so] }
+// If depend on ":p1_static"
+//      [LinkAndRunInfo] { shared_files: [libpkg1.so] }
 cxx_shared("pkg1", x) {
     x.defines = {"PKG1_DLLEXPORT"};
     x.srcs = {"pkg1/sub_fn_x.cpp"};
 
     // user can select one from two target aboves freely.
     // --------------------------------------------------
-    // x.add_dep(":p1_shared", cxx::inherit);
-    x.add_dep(":p1_static", cxx::inherit);
+    x.add_dep(":p1_shared", cxx::inherit);
+    // x.add_dep(":p1_static", cxx::inherit);
 }
 
 // entry

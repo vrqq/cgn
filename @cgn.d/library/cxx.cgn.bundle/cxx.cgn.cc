@@ -545,6 +545,9 @@ bool TargetWorker::step30_prepare_opt()
     if (opt->cache_result_found)
         return true;
     
+    // Merge infos from Context::_pub_infos
+    opt->result.merge_from(x._pub_infos);
+
     // init CxxInfo and LinkAndRunInfo for return value
     auto rvcxx = opt->result.get<CxxInfo>(true);
     rvcxx->cflags  += x.pub.cflags;
@@ -830,9 +833,10 @@ void TargetWorker::step31_unix()
         if (x.cfg["cxx_toolchain"] == "xcode")
             buildstr_a = " " + list2str(two_escape(x._wholearchive_a), "-Wl,-force_load ");
         else{
-            buildstr_a = " -Wl,--whole-archive " 
-                       + list2str(two_escape(x._wholearchive_a))
-                       + "-Wl,--no-whole-archive";
+            if (x._wholearchive_a.size())
+                buildstr_a = " -Wl,--whole-archive " 
+                           + list2str(two_escape(x._wholearchive_a))
+                           + "-Wl,--no-whole-archive";
             buildstr_start_group = "-Wl,--start-group";
             buildstr_end_group   = "-Wl,--end-group";
         }

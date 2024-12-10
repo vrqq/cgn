@@ -164,6 +164,10 @@ try{
         api.release();
     }
     if (args[0] == "query") {
+        {
+            cgnv1::CGNTarget tmp;
+            std::cerr<<(void*)tmp.anode<<"\n";
+        }
         if (args.size() < 2)
             return show_helper(argv[0]);
         std::string cfg_name = "DEFAULT";
@@ -177,16 +181,19 @@ try{
             api.release();
             return 1;
         }
+        {
         auto rv = api.analyse_target(args[1], *cfg);
 
         char type = api.get_kvargs().count("verbose")?'H':'h';
-        std::cout<<"\n--- Target: "<<args[1]<<" #"<<cfg->get_id()<<" ---";
+        std::cout<<"\n--- Target ---\n"
+                 <<args[1]<<" #"<<cfg->get_id()<<std::endl;
         std::cout<<"\n--- Configuration ---\n"
                  <<cgnv1::Logger::fmt_list(*cfg, "", 999) <<std::endl;
 
         std::cout<<"\n--- Analyse Result ---\n"<<rv.to_string(type)<<std::endl;
         if (rv.errmsg.size())
             std::cout<<rv.errmsg<<std::endl;
+        }
         api.release();
         return 0;
     }

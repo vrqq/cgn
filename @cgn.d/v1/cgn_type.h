@@ -92,7 +92,7 @@ struct InfoTable
     using list_type = std::unordered_map<std::string, std::shared_ptr<BaseInfo>>;
  
     template<typename T> void set(const T &rhs) {
-        _data[T::name()] = std::make_shared<T>();
+        _data[T::name()] = std::make_shared<T>(rhs);
     }
  
     template<typename T> T *get(bool create_if_nx = false) {
