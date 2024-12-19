@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <cstdint>
+#include <cassert>
 #include "graph.h"
 #include "configuration_mgr.h"
 
@@ -96,15 +97,17 @@ void ConfigurationManager::set_name(
 }
 
 // const Configuration *
-std::pair<const Configuration *, GraphNode *>
+std::pair<Configuration, GraphNode *>
 ConfigurationManager::get(const std::string name) const {
     if (auto fd = named_cfgs.find(name); fd != named_cfgs.end())
-        return {fd->second, graph->get_node(get_node_name(name, *fd->second))};
-    return {nullptr, nullptr};
+        return {*(fd->second), graph->get_node(get_node_name(name, *fd->second))};
+    return {Configuration{}, nullptr};
 }
 
-ConfigurationID ConfigurationManager::commit(const Configuration &cfg)
+ConfigurationID ConfigurationManager::commit(Configuration &cfg)
 {
+    assert(cfg.is_locked());
+
     //return if unchanged.
     if (cfg._data->hashid.size())
         return cfg._data->hashid;
@@ -112,7 +115,7 @@ ConfigurationID ConfigurationManager::commit(const Configuration &cfg)
     //[entry]: find by content
     CDataRef lastref{&cfg};
     if (auto fd = cfg_indexs.find(lastref); fd != cfg_indexs.end())
-        return fd->second;
+        return cfg._data->hashid = fd->second;
 
     //[entry]: create new
     std::string new_id = get_hash(CHasher()(lastref));

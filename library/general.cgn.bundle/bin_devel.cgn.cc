@@ -1,8 +1,6 @@
 #define GENERAL_CGN_BUNDLE_IMPL
 #include <map>
-#include "../../std_operator.hpp"
 #include "../../cgn.h"
-#include "../helper/helper.hpp"
 #include "bin_devel.cgn.h"
 
 GENERAL_CGN_BUNDLE_API const cgn::BaseInfo::VTable*
@@ -12,7 +10,12 @@ BinDevelInfo::_glb_bindevel_vtable()
         []() -> std::shared_ptr<cgn::BaseInfo> {
             return std::make_shared<BinDevelInfo>();
         },
-        [](void *ecx, const void *rhs) {
+        [](void *ecx, const cgn::BaseInfo *rhs) {
+            BinDevelInfo *self = (BinDevelInfo*)ecx;
+            if (self->base.empty() && self->include_dir.empty() && self->bin_dir.empty() && self->lib_dir.empty()) {
+                *self = *(BinDevelInfo*)rhs;
+                return true;
+            }
             return false;
         }, 
         [](const void *ecx, char type) -> std::string { 
@@ -27,6 +30,10 @@ BinDevelInfo::_glb_bindevel_vtable()
     return &v; 
 }
 
+// UNDER CONSTRUCTION BELOW
+// ========================
+
+/*
 void FileCollect::Context::_add_impl(
     const std::string src_dir, 
     const std::vector<std::string> &src_files,
@@ -80,9 +87,10 @@ static std::string two_escape(const std::string &in) {
 //         + "pushd " + api.shell_escape(srcls[0].src_cd)
 //         + " && cp --parent -r " + api.shell_escape(*srcls[0].file_full)
 //         + " $dst";
-cgn::TargetInfos FileCollect::interpret(
-    FileCollect::Context &x, cgn::CGNTargetOpt opt
+void FileCollect::interpret(
+    FileCollect::Context &x
 ) {
+    cgn::CGNTargetOpt &opt = x.opt.confirm();
     struct SrcFiles {
         bool recursive = false;
         std::string file_part1;  // "<opt.src_prefix>/path/in/src" (os-sep)
@@ -132,7 +140,7 @@ cgn::TargetInfos FileCollect::interpret(
                     if (fdslash > fdstar)
                         throw std::runtime_error{
                             "FileCollect: Unsupported file " + fp1 
-                            + " at " + opt.factory_ulabel
+                            + " at " + opt.factory_label
                         };
                     mid_path = fp1.substr(0, fdslash);
                     cpcmd.file_part2 = fp1.substr(fdslash+1);
@@ -245,22 +253,21 @@ cgn::TargetInfos FileCollect::interpret(
     return rv;
 } //FileCollect::interpret()
 
-cgn::TargetInfos FileCollect::Context::add_target_dep(
+cgn::CGNTarget FileCollect::Context::add_target_dep(
     const std::string &label, const cgn::Configuration &cfg
 ) {
-    auto rhs = api.analyse_target(
-        api.absolute_label(label, opt.factory_ulabel), cfg);
-    if (rhs.errmsg.size())
-        throw std::runtime_error{
-            opt.factory_ulabel + " add_target_dep(" + label + "): " + rhs.errmsg
-        };
+    auto rhs = opt.quick_dep(
+        api.absolute_label(label, opt.factory_label), cfg);
+    if (rhs.errmsg.size()) {
+        opt.confirm_with_error(" add_target_dep(" + label + "): " + rhs.errmsg);
+        return ;
+    }
 
-    api.add_adep_edge(rhs.adep, opt.adep);
     auto *inf = rhs.infos.get<cgn::DefaultInfo>(false);
     if (inf)
         _order_only_dep.push_back(inf->build_entry_name);
     
-    return rhs.infos;
+    return rhs;
 } //FileCollect::Context::add_target_dep()
 
 static std::string list2str(const std::vector<std::string> &in) {
@@ -433,3 +440,5 @@ cgn::TargetInfos BinDevelCollect::interpret(
     }
     return rv;
 } //BinDevelCollect::interpret()
+
+*/

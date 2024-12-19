@@ -28,6 +28,14 @@ public:
         const Configuration &cfg
     );
 
+    // re-assign this flag for each 'round' calling.
+    // 0 normal mode
+    // 'b' the build_check mode: in confirm_target_opt(), if cache_result
+    //     found or the target node 'Latest', return directly.
+    // 'a' analyse only mode: no ninja_file pointer created.
+    //                        (TODO: interpreter update)
+    char current_analysis_level = 0;
+
     CGNTargetOpt *confirm_target_opt(CGNTargetOptIn *in);
 
     void add_adep(GraphNode *early, GraphNode *late);

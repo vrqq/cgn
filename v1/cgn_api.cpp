@@ -45,7 +45,7 @@ void CGN::build(const std::string &label, const Configuration &cfg)
 // ConfigurationID commit_config(const Configuration &plat_cfg);
 
 // Query named configuration assigned in cgn_setup.cgn.cc
-std::pair<const Configuration *, GraphNode *>
+std::pair<Configuration, GraphNode *>
 CGN::query_config(const std::string &name) const
 {
     return pimpl->cfg_mgr->get(name);

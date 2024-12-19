@@ -125,7 +125,12 @@ public:
     }
 
     Configuration(const Configuration &rhs) {
-        _data = new DataBlock(*rhs._data); _data->locked = false;
+        _data = new DataBlock();
+        _data->remain = rhs._data->remain;
+        _data->remain.insert(rhs._data->visited.begin(), rhs._data->visited.end());
+        _data->hashid = rhs._data->hashid;
+        _data->hash_hlp = rhs._data->hash_hlp;
+        _data->locked = false;
     }
     Configuration &operator=(const Configuration &rhs) {
         if (_data)
@@ -161,6 +166,14 @@ public:
         for (auto iter = rhs.begin(); iter != rhs.end(); iter++)
             this->get(iter->first);
     }
+    
+    void visit_all_keys() const {
+        this->_data->visited.insert(
+            _data->remain.begin(),
+            _data->remain.end()
+        );
+        _data->remain.clear();
+    }
 
     std::size_t size() const { return _data->visited.size() + _data->remain.size(); }
     std::size_t count(const std::string &key) {
@@ -183,6 +196,8 @@ public:
     const type_data &data() const { visit_all(); return _data->visited; }
 
     ConfigurationID get_id() const { return _data->hashid; }
+
+    bool is_locked() const { return _data->locked; }
     void trim_lock() {
         for (auto &remain_entry : _data->remain)
             _data->hash_hlp -= hash_one(remain_entry.second);

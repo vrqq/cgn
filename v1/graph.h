@@ -1,6 +1,7 @@
 // cgn.d internal, depend on Logger
 //
 #pragma once
+#include <map>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -25,15 +26,42 @@ struct GraphEdge {
 };
 
 // A build graph with edge from Early-Node to Late-Node
-class Graph {
+class Graph
+{
 public:
-    struct DBStringBlock { // block id and offset in DB
-        const std::string* strkey;
-        uint32_t    db_id;      //block id in file
-        std::size_t db_offset;  //block offset in file
 
-        int64_t     mtime = 0;  //mtime for current path (only valid for filepath)
-        // GraphNode  *gnode = nullptr; //strkey as node title (only valid for GraphNode)
+    //[block_case 1 string] the fileDB data mirror
+    struct GraphString { // block id and offset in DB
+        // variable constant after constructor
+        const std::string* strkey;
+        
+        // variable constant after first assigned if existed in db, 
+        // or after db_flush() if newly added
+        uint32_t self_offset = 0;  //block offset in file
+
+        // mtime for current path (only valid for filepath)
+        // db_mtime and dbfile can updated by db_flush() if not equal below
+        int64_t mem_mtime = 0;  // the data read/write by class member
+        int64_t db_mtime = 0;   // the data in fileDB
+
+        std::size_t db_block_size() {
+            return sizeof(uint32_t) + sizeof(int64_t) + (strkey->size()+3)/4*4;
+        }
+    };
+
+    //[block_case 3 GraphNode] the fileDB data mirror in memory, update when db_flush() 
+    struct DBNodeBlock {
+        // variable constant after construct if existed in db, or db_flush() if not
+        uint32_t self_offset;   //current block offset in file
+        uint32_t title_offset;  //node title string block offset in file, zero when unassigned.
+
+        // variables can be updated by db_flush()
+        bool init_state_is_stale;      
+        std::vector<uint32_t> rel_off;  //related files[] or inbound_nodes[]
+
+        std::size_t db_block_size() {
+            return sizeof(uint32_t) + sizeof(int32_t) + rel_off.size()*sizeof(uint32_t);
+        }
     };
 
     GraphNode *get_node(const std::string &name);
@@ -43,26 +71,28 @@ public:
     void set_unknown_as_default_state(GraphNode *p);
     void set_stale_as_default_state(GraphNode *p);
 
+    // Add edge
     void add_edge(GraphNode *from, GraphNode *to);
     
+    // Remove all inbound edges of p, usually used on 
+    // re-analyse target and clear its deps.
     void remove_inbound_edges(GraphNode *p);
 
-    //Judge p->status if Unknown.
+    // Judge p->status if Unknown.
     void test_status(GraphNode *p);
-
-    // void remove_node(GraphNode *p = nullptr);
 
     // update db[files[*]].mtime and set p->status to Latest
     void set_node_status_to_latest(GraphNode *p);
 
-    // set p->status to Unknown
+    // set p->status and dfs(p)->status to Unknown
     //@param p : nullptr to set all node to Unknown status
     //           otherwise for p and dfs(p)
     void set_node_status_to_unknown(GraphNode *p = nullptr);
 
+    // set dfs(p)->status to Unknown and p->status to Stale.
     void set_node_status_to_stale(GraphNode *p);
 
-    // set p->files = in and set p and dfs(p)->status = Stale 
+    // set p->files = in and set p and dfs(p)->status = Unknown
     void set_node_files(GraphNode *p, std::vector<std::string> in);
 
     void clear_mtime_cache() { 
@@ -71,8 +101,8 @@ public:
 
     void clear_file0_mtime_cache(GraphNode *p);
 
-    // flush db modifications: node.files[] and node.inbound_edges[]
-    void db_flush_node();
+    // flush db_pending_write_str[] and db_pending_write_node[] into db
+    void db_flush();
 
     void db_load(const std::string &filename);
 
@@ -81,7 +111,10 @@ public:
 
 private:
     Logger *logger;
+
+    //GraphNode index by NodeTitle
     std::unordered_map<std::string, GraphNode> nodes;
+
     std::vector<GraphEdge> edges;
     std::vector<GraphEdgeID> edge_recovery_pool;
     
@@ -105,35 +138,33 @@ private:
     FILE* file_ = nullptr;
 
     // all db blocks
-    struct DBBlock {
-        DBStringBlock *as_string   = nullptr;
-        GraphNode     *as_nodename = nullptr;
-    };
-    std::vector<DBBlock> db_blocks;
+    // struct DBBlock {
+    //     DBStringBlock *as_string   = nullptr;
+    //     GraphNode     *as_nodename = nullptr;
+    // };
+    // std::vector<DBBlock> db_blocks;
 
     // string (as filepath) and mtime storage
-    std::unordered_map<std::string, DBStringBlock> db_strings;
+    std::unordered_map<std::string, GraphString> db_strings;
 
     //empty block (unused currently)
     //db_recycle[free block size] = offset in file
-    // std::multimap<std::size_t, std::size_t> db_recycle;
+    std::multimap<std::size_t, uint32_t> db_recycle_pool;
 
-    //The node updated in memory without written to fileDB.
-    std::unordered_set<GraphNode*> db_pending_write;
+    // Write from anywhere, utilized by db_flush().
+    std::unordered_set<GraphString*> db_pending_write_str;
+    std::unordered_set<GraphNode*>   db_pending_write_node;
 
     constexpr static std::size_t DB_VERSION_FIELD_SIZE = 1024;
     constexpr static uint32_t DB_BIT_NODE  = (0b11UL << 30);
     constexpr static uint32_t DB_BIT_EMPTY = (0b10UL << 30);
     constexpr static uint32_t DB_BIT_STR   = (0b00UL << 30);
 
-    DBStringBlock *db_fetch_string(std::string name);
+    GraphString *get_graph_string(const std::string &str);
 
-    DBStringBlock *db_fetch_path(std::string path, int64_t mtime);
+    void file_seek_new_block(std::size_t want_size);
 
-    void db_set_to_emptyblock(std::size_t offset, uint32_t whole_block_size);
-
-    // void *db_update_node() {}
-
+    void file_mark_recycle(std::size_t offset, uint32_t whole_block_size);
 }; //class Graph
 
 //
@@ -164,28 +195,35 @@ struct GraphNode {
     // system-specified path separator
     // files[0] is the output of current GraphNode, usually to check mtime with
     // rdfs(this).max_mtime
-    const std::vector<Graph::DBStringBlock*> &files{_file_blocks};
+    const std::vector<Graph::GraphString*> &files{_file_blocks};
     // const std::vector<std::string> &files{_files};
 
 private: friend class Graph;
-    Status _status = Unknown;
-    bool init_status_to_stale = false;
-    // std::vector<std::string> _files;
-    std::vector<Graph::DBStringBlock*> _file_blocks;
-    int64_t max_mtime = 0;
-
+    // Graph
     GraphEdgeID head = 0, rhead = 0;
-    
-    // block id and offset in DB
-    // uint32_t    db_block_id = 0;
-    uint32_t    db_selfname_id = 0;
-    std::size_t db_offset = 0;
-    std::size_t db_block_size = 0;
 
-    // db data (already sorted before last save)
-    bool db_enforce_write = true;
-    std::vector<uint32_t> lastdb_data;
+    // variable in memory
+    int64_t max_mtime = 0;  // for test_status() only.
+    Status _status = Unknown;
+    bool init_state_is_stale = false;
+    // std::vector<std::string> _files;
+    Graph::GraphString *_title = nullptr;
+    std::vector<Graph::GraphString*> _file_blocks;
+
+    // variable of db mirror
+    Graph::DBNodeBlock filedb;
+    // // block id and offset in DB
+    // // uint32_t    db_block_id = 0;
+    // uint32_t    db_selfname_id = 0;
+    // std::size_t db_offset = 0;
+    // std::size_t db_block_size = 0;
+
+    // // db data (already sorted before last save)
+    // bool db_enforce_write = true;
+    // std::vector<uint32_t> lastdb_data;
 
 }; //struct GraphNode
+
+struct DBFile {};
 
 } // namespace cgn

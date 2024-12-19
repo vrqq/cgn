@@ -1,6 +1,5 @@
 #pragma once
 #include "../../cgn.h"
-#include "../../provider_dep.h"
 #include "../cxx.cgn.bundle/cxx.cgn.h"
 #include "windef.h"
 
@@ -22,6 +21,9 @@ private:
     GENERAL_CGN_BUNDLE_API const static cgn::BaseInfo::VTable *_glb_bindevel_vtable();
 };
 
+// UNDER CONSTRUCTION BELOW
+// ========================
+
 // struct BinDevelContext : cgn::TargetInfoDep<true>
 // {
 //     void set_include_dir(const std::string &dir);
@@ -37,11 +39,12 @@ private:
 //     BinDevelInfo info;
 // };
 
+/*
 struct FileCollect
 {
     // copy src_files[] in src_basedir to dst_dir and keep its directory struct
     //  e.g. {.src_base="inc1", .src_files=["x/file1.h"] .dst="out"} will
-    //  copy "<cgn_script_dir>/inc1/x/file1.h" to "<target>/out/x/file1.h"
+    //  copy "<src_prefix>/inc1/x/file1.h" to "<target>/out/x/file1.h"
     //
     struct PatternSrc {
         // the 'src_files' based on, for example
@@ -81,13 +84,13 @@ struct FileCollect
             const std::string &dst_dir = ""
         ) { return _flat_add_impl(src_files, dst_dir, true); }
 
-        cgn::TargetInfos add_target_dep(const std::string &label, const cgn::Configuration &cfg);
+        cgn::CGNTarget add_target_dep(const std::string &label, const cgn::Configuration &cfg);
 
-        Context(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
-        : name(opt.factory_name), cfg(cfg), opt(opt) {}
+        Context(cgn::CGNTargetOptIn *opt)
+        : name(opt->factory_name), cfg(opt->cfg), opt(*opt) {}
 
     private: friend class FileCollect;
-        const cgn::CGNTargetOpt opt;  //self opt
+        cgn::CGNTargetOptIn &opt;  //self opt
         std::vector<std::string> _order_only_dep;
 
         void _add_impl(
@@ -109,7 +112,7 @@ struct FileCollect
         return {"@cgn.d//library/general.cgn.bundle"};
     }
 
-    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static void interpret(context_type &x);
 
 }; //FileCollect
 
@@ -168,11 +171,11 @@ struct BinDevelCollect
         //     std::unordered_map<std::string, std::string> vars
         // );
 
-        Context(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
-        : name(opt.factory_name), cfg(cfg), opt(opt), gp(cfg, opt) {}
+        Context(cgn::CGNTargetOptIn *opt)
+        : name(opt->factory_name), cfg(opt->cfg), opt(*opt), gp(opt) {}
 
     private: friend class BinDevelCollect;
-        const cgn::CGNTargetOpt opt;  //self opt
+        cgn::CGNTargetOptIn &opt;  //self opt
         FileCollect::context_type gp;
 
         // cxx_pkgcfg[full_label] = CxxInfo
@@ -193,10 +196,12 @@ struct BinDevelCollect
         return {"@cgn.d//library/general.cgn.bundle"};
     }
 
-    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static void interpret(context_type &x);
 }; //BinDevelCollect
 
 using BinDevelContext = BinDevelCollect::context_type;
 
 #define filegroup(name, x) CGN_RULE_DEFINE(FileCollect, name, x)
 #define bin_devel(name, x) CGN_RULE_DEFINE(BinDevelCollect, name, x)
+
+*/

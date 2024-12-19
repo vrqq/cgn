@@ -1,9 +1,6 @@
 #pragma once
 #include <string>
 #include "../../cgn.h"
-#include "../../rule_marco.h"
-#include "../../provider_dep.h"
-
 #include "windef.h"
 
 // Git DEPOT
@@ -13,7 +10,7 @@ struct GitContext
     const std::string name;
     
     //keep empty to use system git, or using tools like
-    //  "@cgn.d//git_depot"
+    //  "@cgn.d//git_depot" (TODO: dep unsolved)
     std::string using_depot_tool;
 
     // the source where git to
@@ -27,8 +24,11 @@ struct GitContext
         std::string cwd = ".";
     }post_script;
 
-    GitContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
-    : name(opt.factory_name) {}
+    GitContext(cgn::CGNTargetOptIn *opt)
+    : name(opt->factory_name), opt(opt) {}
+
+private: friend class GitFetcher;
+    cgn::CGNTargetOptIn *opt;
 };
 
 struct GitFetcher
@@ -38,7 +38,7 @@ struct GitFetcher
     constexpr static cgn::ConstLabelGroup<1> preload_labels() {
         return {"@cgn.d//library/general.cgn.bundle"};
     }
-    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static void interpret(context_type &x);
 };
 
 #define git(name, x) CGN_RULE_DEFINE(GitFetcher, name, x)
