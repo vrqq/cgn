@@ -81,6 +81,8 @@ struct CGN_EXPORT Tools {
     // remove duplicate items in list.
     static void remove_duplicate_inplace(std::vector<std::string> &data);
 
+    static std::string get_lowercase_extension(const std::string &filename);
+
     static int win_copy(const std::string &src, const std::string &dst);
 
 }; //struct Tools
@@ -112,7 +114,7 @@ public:
     // ConfigurationID commit_config(const Configuration &plat_cfg);
 
     // Query named configuration assigned in cgn_setup.cgn.cc
-    std::pair<const Configuration *, GraphNode *>
+    std::pair<Configuration, GraphNode *>
     query_config(const std::string &name) const;
     
     void add_adep_edge(GraphNode *early, GraphNode *late);

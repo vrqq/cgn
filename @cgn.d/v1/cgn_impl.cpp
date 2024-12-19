@@ -365,6 +365,7 @@ struct CGNTargetOptIntl : CGNTargetOpt {
     std::string script_label;
     GraphNode *script_anode;
 
+    std::string cfg_id_without_trim;
     std::string out_prefix_unixsep;
 };
 
@@ -376,11 +377,19 @@ CGNTarget CGNImpl::analyse_target(
     const Configuration &cfg
 ) {
     CGNTargetOptIntl opt;
+
     CGNTarget &rv = opt.result;
     rv.factory_label = label;
     rv.trimmed_cfg   = cfg;
 
-    ConfigurationID cfg_id_in = cfg_mgr->commit(cfg);
+    ConfigurationID cfg_id_in = cfg.get_id();
+    if (cfg_id_in.empty()) {
+        Configuration tmp = cfg;
+        tmp.visit_all_keys();
+        tmp.trim_lock();
+        cfg_id_in = cfg_mgr->commit(tmp);
+    }
+    opt.cfg_id_without_trim = cfg_id_in;
     logger.println("Analyse ", label + " #" + cfg_id_in);
 
     //expand short label and generate src_prefix and out_prefix
@@ -452,7 +461,7 @@ CGNTarget CGNImpl::analyse_target(
     if (auto fd = factories.find(opt.factory_label); fd != factories.end())
         fn_loader = fd->second;
     else
-        return adep_pop("Target_Factory not found.");
+        return adep_pop("target factory not found.");
     
     // call target builder (user lambda fn and interpreter inside)
     //  the API.confirm_target_opt() would process into next phase.
@@ -508,6 +517,7 @@ CGNTargetOpt *CGNImpl::confirm_target_opt(CGNTargetOptIn *in)
     // lock config and get cfg_id
     opt->cfg.trim_lock();
     ConfigurationID cfg_id = cfg_mgr->commit(opt->cfg);
+    logger.println("Analysing ", opt->factory_label + " #" + opt->cfg_id_without_trim + " -(trim)-> #" + cfg_id);
 
     // convert dir_in to dir_out (add '_' suffix for each folder in path)
     // complete variable in opt when out_dir confirmed.
@@ -528,22 +538,44 @@ CGNTargetOpt *CGNImpl::confirm_target_opt(CGNTargetOptIn *in)
         targets.erase(fd);
     }
 
-    // case 3: normal case, (re)generate ninja file.
+    // case 3 below: normal case, (re)generate ninja file.
+
+    opt->anode = graph.get_node("T" + cache_label);
+    opt->result.ninja_entry = opt->out_prefix + opt->BUILD_ENTRY;
+
+    // special case: build_check mode, only opt->result.ninja_entry utilized 
+    //               by caller.
+    if (current_analysis_level == 'b') {
+        graph.test_status(opt->anode);
+        if (opt->anode->status == GraphNode::Latest) {
+            opt->cache_result_found = true;
+            logger.verbose_paragraph("confirm_target_opt(" + cache_label 
+                + ") build_check quick-return: " + opt->result.ninja_entry);
+            return opt;
+        }
+        else
+            logger.verbose_paragraph("confirm_target_opt(" + cache_label 
+                + ") build_check but target stale, continue analysing...");
+    }
 
     // anode file[] (build.ninja) to GraphNode
     std::string ninja_file_ossep = opt->out_prefix + CGNTargetOpt::BUILD_NINJA;
     opt->ninja = new NinjaFile(ninja_file_ossep);
+    // if (current_analysis_level == 'a') {  //TODO
+    //     graph.test_status(opt->anode);
+    //     if (opt->anode->status != GraphNode::Latest) {
+    //         opt->ninja = new NinjaFile(ninja_file_ossep);
+    //         logger.verbose_paragraph("confirm_target_opt(" + cache_label 
+    //             + ") analysis_only but target stale, regenerate ninja file.");
+    //     }
+    // }
 
     // register GraphNode* and remove the previous adep information.
-    opt->anode = graph.get_node("T" + cache_label);
     graph.remove_inbound_edges(opt->anode);
     graph.set_node_files(opt->anode, {ninja_file_ossep});
     graph.add_edge(opt->script_anode, opt->anode);
     for (auto *early : opt->quickdep_early_anodes)
         graph.add_edge(early, opt->anode);
-
-    //Init CGNTarget (opt->result)
-    opt->result.ninja_entry = opt->out_prefix + opt->BUILD_ENTRY;
 
     return opt;
 }
@@ -559,6 +591,7 @@ void CGNImpl::start_new_round()
 {
     graph.clear_mtime_cache();
     adep_cycle_detection.clear();
+    current_analysis_level = 0;
 }
 
 
@@ -577,6 +610,7 @@ std::shared_ptr<void> CGNImpl::bind_target_builder(
 void CGNImpl::build_target(
     const std::string &label, const Configuration &cfg
 ) {
+    // current_analysis_level = 'b';
     auto rv = analyse_target(label, cfg);
     if (rv.errmsg.size())
         throw std::runtime_error{rv.errmsg};
@@ -589,7 +623,7 @@ void CGNImpl::build_target(
                        + "/obj/compile_commands.json";
     system(compdb.c_str());
     logger.println(label + " analysed", "");
-    graph.db_flush_node();
+    graph.db_flush();
     
     std::string cmd = "ninja -f " + obj_main_ninja.string() 
                     + " " + Tools::shell_escape(rv.ninja_entry);
@@ -779,7 +813,9 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     #endif
     if (x.log_message.size())
         logger.paragraph(x.log_message);
-    for (auto &[name, cfg] : x.configs){
+    for (auto &[name, cfg] : x.configs) {
+        cfg.visit_all_keys();
+        cfg.trim_lock();
         std::string uid = cfg_mgr->commit(cfg);
         cfg_mgr->set_name(name, uid);
     }

@@ -9,16 +9,15 @@
 // end exported zone
 
 #include "../../cgn.h"
-#include "../../rule_marco.h"
-#include "../../provider_dep.h"
-
 #include "windef.h"
 
 //Generate a ninja target which run command in shell
 struct ShellBinary
 {
-    struct Context : cgn::TargetInfoDep<true> {
-        const std::string name;
+    struct Context {
+        const std::string &name;
+        
+        cgn::Configuration &cfg;
 
         //cwd: current working directory
         //mnemonic: 'DESCRIPTION' field in ninja file
@@ -31,10 +30,19 @@ struct ShellBinary
         std::vector<std::string> cmd_analysis, cmd_build;
         
         //${in} and ${out} in build.ninja of current target
+        //path relative to current dir or absolute
         std::vector<std::string> inputs, outputs;
 
-        Context(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt) 
-        : cgn::TargetInfoDep<true>(cfg, opt), name(opt.factory_name) {}
+        Context(cgn::CGNTargetOptIn *opt) 
+        : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
+
+        cgn::CGNTarget add_dep(const std::string &label) { return add_dep(label); }
+        cgn::CGNTarget add_dep(const std::string &label, const cgn::Configuration &cfg) {
+            return opt->quick_dep(label, cfg);
+        }
+
+    private: friend class ShellBinary;
+        cgn::CGNTargetOptIn *opt;
     };
 
     using context_type = Context;
@@ -44,26 +52,30 @@ struct ShellBinary
         return {"@cgn.d//library/general.cgn.bundle"};
     }
 
-    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static void interpret(context_type &x);
 }; //ShellBinary
 
 struct CopyInterpreter
 {
-    struct Context : cgn::TargetInfoDep<true>{
+    struct Context {
         const std::string name;
+
+        cgn::Configuration &cfg;
 
         // Copy file from 'from' to 'to' one by one,
         // the size of from and to must be equal.
+        // path relative to current dir or absolute
         std::vector<std::string> from, to;
 
-        Context(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt) 
-        : cgn::TargetInfoDep<true>(cfg, opt), name(opt.factory_name) {}
+        Context(cgn::CGNTargetOptIn *opt) 
+        : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
 
-        friend class CopyInterpreter;
+    private: friend class CopyInterpreter;
+        cgn::CGNTargetOptIn *opt;
     };
 
     using context_type = Context;
-    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static void interpret(context_type &x);
 };
 
 
@@ -103,17 +115,17 @@ struct CopyInterpreter
 struct AliasInterpreter
 {
     struct AliasContext {
-        const std::string name;
+        const std::string &name;
         std::string actual_label;
-        cgn::Configuration cfg;
+        cgn::Configuration &cfg;
 
         void load_named_config(const std::string &cfg_name);
 
-        AliasContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
-        : name(opt.factory_name), cfg(cfg), opt(opt) {}
+        AliasContext(cgn::CGNTargetOptIn *opt)
+        : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
         
-    private:
-        cgn::CGNTargetOpt opt;
+    private: friend class AliasInterpreter;
+        cgn::CGNTargetOptIn *opt;
     };
     using context_type = AliasContext;
     
@@ -121,15 +133,15 @@ struct AliasInterpreter
         return {"@cgn.d//library/general.cgn.bundle"};
     }
 
-    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static void interpret(context_type &x);
 }; //AliasInterpreter
 
 struct DynamicAliasInterpreter
 {
     struct DynamicAliasContext {
-        const std::string name;
-        const cgn::Configuration last_cfg;
-        cgn::TargetInfos actual_target_infos;
+        const std::string &name;
+        const cgn::Configuration &last_cfg;
+        cgn::CGNTarget actual_target;
 
         cgn::CGNTarget load_target(const std::string &label) { 
             return load_target(label, last_cfg);
@@ -137,11 +149,11 @@ struct DynamicAliasInterpreter
         GENERAL_CGN_BUNDLE_API cgn::CGNTarget 
         load_target(const std::string &label, const cgn::Configuration &cfg);
 
-        DynamicAliasContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
-        : name(opt.factory_name), last_cfg(cfg) {}
+        DynamicAliasContext(cgn::CGNTargetOptIn *opt)
+        : name(opt->factory_name), last_cfg(opt->cfg) {}
         
         private: friend class DynamicAliasInterpreter;
-        cgn::DefaultInfo self_def;
+        cgn::CGNTargetOptIn *opt;
     };
     using context_type = DynamicAliasContext;
     
@@ -149,28 +161,31 @@ struct DynamicAliasInterpreter
         return {"@cgn.d//library/general.cgn.bundle"};
     }
 
-    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static void interpret(context_type &x);
 }; //DynamicAliasInterpreter
 
 
 struct GroupInterpreter
 {
-    struct GroupContext : cgn::TargetInfoDep<true> {
-        const std::string name;
+    struct GroupContext {
+        const std::string &name;
+        const cgn::Configuration &cfg;
 
-        std::vector<cgn::TargetInfos> add_deps(
+        std::vector<cgn::CGNTarget> add_deps(
             std::initializer_list<std::string> labels
         ) { return add_deps(labels, this->cfg); }
 
-        GENERAL_CGN_BUNDLE_API std::vector<cgn::TargetInfos> add_deps(
+        GENERAL_CGN_BUNDLE_API std::vector<cgn::CGNTarget> add_deps(
             std::initializer_list<std::string> labels,
             const cgn::Configuration &cfg
         );
 
-        GroupContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
-        : cgn::TargetInfoDep<true>(cfg, opt), name(opt.factory_ulabel) {}
+        GroupContext(cgn::CGNTargetOptIn *opt)
+        : name(opt->factory_label), cfg(opt->cfg) {}
 
-        friend class GroupInterpreter;
+    private: friend class GroupInterpreter;
+        cgn::CGNTargetOptIn *opt;
+        std::vector<std::string> deps_ninja_entry;
     };
     using context_type = GroupContext;
     
@@ -178,7 +193,7 @@ struct GroupInterpreter
         return {"@cgn.d//library/general.cgn.bundle"};
     }
     
-    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static void interpret(context_type &x);
 }; //GroupInterpreter
 
 
@@ -187,14 +202,14 @@ struct GroupInterpreter
 struct LinkAndRuntimeFiles {
     struct context_type : cgn::LinkAndRunInfo
     {
-        const std::string name;
-        const cgn::Configuration cfg;
+        const std::string &name;
+        const cgn::Configuration &cfg;
 
-        context_type(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt)
-        : name(opt.factory_name), cfg(cfg) {}
+        context_type(cgn::CGNTargetOptIn *opt)
+        : name(opt->factory_name), cfg(opt->cfg) {}
     };
 
-    GENERAL_CGN_BUNDLE_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    GENERAL_CGN_BUNDLE_API static void interpret(context_type &x);
 };
 
 #define sh_binary(name, x)  CGN_RULE_DEFINE(ShellBinary, name, x)
@@ -202,7 +217,7 @@ struct LinkAndRuntimeFiles {
 #define dynamic_alias(name, x) CGN_RULE_DEFINE(DynamicAliasInterpreter, name, x)
 #define alias(name, x) CGN_RULE_DEFINE(AliasInterpreter, name, x)
 #define group(name, x) CGN_RULE_DEFINE(GroupInterpreter, name, x)
-#define link_and_runtime_files(name, x) CGN_RULE_DEFINE(LinkAndRuntimeFiles, name, x)
+// #define link_and_runtime_files(name, x) CGN_RULE_DEFINE(LinkAndRuntimeFiles, name, x)
 
 // #ifdef CGN_PCH_MODE
 //     CGN_SPECIALIZATION_PCH(shell::ShellBinary)

@@ -509,6 +509,20 @@ void Tools::remove_duplicate_inplace(std::vector<std::string> &data)
     data.resize(i);
 }
 
+std::string Tools::get_lowercase_extension(const std::string &fpath)
+{
+    auto fd = fpath.rfind('.');
+    if (fd == fpath.npos)
+        return "";
+    
+    std::string ext = fpath.substr(fd+1);
+    for (char &c : ext)  // to lower case
+        if ('A' <= c && c <= 'Z')
+            c = c - 'A' + 'a';
+    
+    return ext;
+}
+
 int Tools::win_copy(const std::string &_src, const std::string &_dst)
 {
     std::string src = _src, dst = _dst;

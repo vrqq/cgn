@@ -128,8 +128,8 @@ int main(int argc, char **argv)
     auto init0 = [&]() {
         api.init(args_kv);
         auto [cfg, adep] = api.query_config("DEFAULT");
-        if (cfg)
-            return *cfg;
+        if (adep)
+            return cfg;
         else {
             std::cerr<<"'DEFAULT' config not found."<<std::endl;
             exit(2);
@@ -176,19 +176,19 @@ try{
 
         api.init(args_kv);
         auto [cfg, adep] = api.query_config(cfg_name);
-        if (cfg == nullptr) {
+        if (adep == nullptr) {
             std::cerr<<"Configuration "<<cfg_name<<" not found."<<std::endl;
             api.release();
             return 1;
         }
-        {
-        auto rv = api.analyse_target(args[1], *cfg);
+        { //TODO: variable 'rv' is asan-failed without this scope (after api.release())
+        auto rv = api.analyse_target(args[1], cfg);
 
         char type = api.get_kvargs().count("verbose")?'H':'h';
         std::cout<<"\n--- Target ---\n"
-                 <<args[1]<<" #"<<cfg->get_id()<<std::endl;
+                 <<args[1]<<" #"<<cfg.get_id()<<std::endl;
         std::cout<<"\n--- Configuration ---\n"
-                 <<cgnv1::Logger::fmt_list(*cfg, "", 999) <<std::endl;
+                 <<cgnv1::Logger::fmt_list(cfg, "", 999) <<std::endl;
 
         std::cout<<"\n--- Analyse Result ---\n"<<rv.to_string(type)<<std::endl;
         if (rv.errmsg.size())

@@ -19,14 +19,14 @@ public:
 
     // Get configuration by name
     // @return <Configuration*, adep> if found, otherwise <nullptr, nullptr>.
-    std::pair<const Configuration *, GraphNode *>
+    std::pair<Configuration, GraphNode *>
     get(const std::string name) const;
 
     std::string get_name_id_mapper(const std::string &name) const;
 
     //Save configuration and write into .cfg file.
     // @return: the configuration unique_hash
-    ConfigurationID commit(const Configuration &cfg);
+    ConfigurationID commit(Configuration &cfg);
 
     // @param storage_dir: cgn-out/configurations
     ConfigurationManager(const std::string &storage_dir, Graph *g);
