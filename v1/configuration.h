@@ -133,10 +133,13 @@ public:
         _data->locked = false;
     }
     Configuration &operator=(const Configuration &rhs) {
-        if (_data)
-            *_data = *rhs._data;
-        else
-            _data = new DataBlock(*rhs._data);
+        if (_data == nullptr)
+            _data = new DataBlock();
+        _data->visited.clear();
+        _data->remain = rhs._data->remain;
+        _data->remain.insert(rhs._data->visited.begin(), rhs._data->visited.end());
+        _data->hashid = rhs._data->hashid;
+        _data->hash_hlp = rhs._data->hash_hlp;
         _data->locked = false;
         return *this;
     }
@@ -164,7 +167,7 @@ public:
 
     void visit_keys(const Configuration &rhs) const {
         for (auto iter = rhs.begin(); iter != rhs.end(); iter++)
-            this->get(iter->first);
+            (std::string)this->get(iter->first);
     }
     
     void visit_all_keys() const {
@@ -201,8 +204,10 @@ public:
     void trim_lock() {
         for (auto &remain_entry : _data->remain)
             _data->hash_hlp -= hash_one(remain_entry.second);
-        _data->hashid.clear();
-        _data->remain.clear();
+        if (_data->remain.size()) {
+            _data->hashid.clear();
+            _data->remain.clear();
+        }
         _data->locked = true;
     }
 

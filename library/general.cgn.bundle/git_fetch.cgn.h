@@ -27,7 +27,7 @@ struct GitContext
     GitContext(cgn::CGNTargetOptIn *opt)
     : name(opt->factory_name), opt(opt) {}
 
-private: friend class GitFetcher;
+private: friend struct GitFetcher;
     cgn::CGNTargetOptIn *opt;
 };
 

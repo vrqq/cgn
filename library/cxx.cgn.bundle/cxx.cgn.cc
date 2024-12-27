@@ -992,7 +992,7 @@ cgn::CGNTarget CxxContext::add_dep(
     //   r_lnk.so link to current one
     //   r_lnk.rt processed later in interpreter
     if (role == 's' || role == 'x') {
-        if ((flag & cxx::inherit)) {
+        if ((flag & cxx::inherit) && r_lnr) {
             _wholearchive_a += std::move(r_lnr->static_files);  //move and clear this entry
             auto *pub_lr = _pub_infos.get<cgn::LinkAndRunInfo>(true);
             pub_lr->shared_files += r_lnr->shared_files;

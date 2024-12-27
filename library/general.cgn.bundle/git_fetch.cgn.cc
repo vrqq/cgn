@@ -20,12 +20,12 @@ GENERAL_CGN_BUNDLE_API void GitFetcher::interpret(context_type &x)
     std::string dest_dir = api.locale_path(opt->src_prefix + x.dest_dir);
     if (false && x.using_depot_tool.size()) {
         auto host_cfg = api.query_config("host_release");
-        if (host_cfg.first == nullptr) {
+        if (host_cfg.second == nullptr) {
             opt->result.errmsg = "config 'host_release' not found.";
             return ;
         }
         api.add_adep_edge(host_cfg.second, opt->anode);
-        auto tool = api.analyse_target(x.using_depot_tool, *host_cfg.first);
+        auto tool = api.analyse_target(x.using_depot_tool, host_cfg.first);
         if (tool.errmsg.size()) {
             opt->result.errmsg = "depot_tool: " + tool.errmsg;
             return ;
