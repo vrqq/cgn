@@ -441,7 +441,7 @@ void Graph::db_load(const std::string &filename)
             ss<<" Node["<<name<<"] off="<<node.filedb.self_offset
               <<" status="<< str_status(node.status) <<"\n";
             for (auto e = node.head; e; e=edges[e].next)
-                ss<<"   |--> "<< *edges[e].to->_title->strkey <<"\n";
+                ss<<"   |--> ["<< *edges[e].to->_title->strkey <<"]\n";
             for (auto it : node.files) {
                 ss<<"   | mtime="<< it->mem_mtime<< " "<<*(it->strkey)<<"\n";
             }

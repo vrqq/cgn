@@ -8,6 +8,7 @@ static std::string two_escape(const std::string &in) {
 
 // Shell binary
 // ------------
+// TODO: generate a shell script
 GENERAL_CGN_BUNDLE_API void ShellBinary::interpret(context_type &x)
 {
     cgn::CGNTargetOpt *opt = x.opt->confirm();
@@ -58,78 +59,36 @@ GENERAL_CGN_BUNDLE_API void ShellBinary::interpret(context_type &x)
     opt->result.outputs = x.outputs;
 } //ShellBinary::interpret()
 
-// Copy
-// ----
-GENERAL_CGN_BUNDLE_API void CopyInterpreter::interpret(context_type &x)
-{
-    cgn::CGNTargetOpt *opt = x.opt->confirm();
-    if (opt->cache_result_found)
-        return ;
-
-    if (x.from.size() != x.to.size()) {
-        opt->result.errmsg = "from[] and to[] are not same size.";
-        return ;
-    }
-
-    // Since ninja cannot recognize folder in INPUT, we have to let target
-    // re-analyse every time. For example someone was originally a regular 
-    // file, but now it has become a folder.
-
-    std::string rulepath = api.get_filepath("@cgn.d//library/general.cgn.bundle/rule.ninja");
-    if (!opt->ninja->is_file_included(rulepath))
-        opt->ninja->append_include(rulepath);
-
-    // using 'cp' in unix-like os (rule.ninja)
-    std::string rule = (api.get_host_info().os != "win"? "unix_cp" : "win_cp");
-
-    std::vector<std::string> collection;
-    for (std::size_t i=0; i<x.from.size(); i++) {
-        x.from[i] = api.locale_path(opt->src_prefix + x.from[i]);
-        x.to[i] = api.locale_path(opt->src_prefix + x.to[i]);
-        auto *build = opt->ninja->append_build();
-        build->rule    = rule;
-        build->inputs  = {opt->ninja->escape_path(x.from[i])};
-        build->outputs = {opt->ninja->escape_path(x.to[i])};
-        build->implicit_inputs = opt->quickdep_ninja_full;
-        build->order_only      = opt->quickdep_ninja_dynhdr;
-        collection += build->outputs;
-    }
-
-    // ninja phony entry: collection + deps
-    auto *phony = opt->ninja->append_build();
-    phony->rule = "PHONY";
-    phony->inputs = collection;
-
-    // Generate return value
-    cgn::TargetInfos &rv = x.merged_info;
-    auto *def = rv.get<cgn::DefaultInfo>(true);
-    def->outputs += x.to;
-
-    return rv;
-} //CopyInterpreter::interpret
-
 
 // Target Alias
 // ------------
-void AliasInterpreter::AliasContext::load_named_config(const std::string &cfg_name)
+bool AliasInterpreter::AliasContext::load_named_config(const std::string &cfg_name)
 {
     auto dep = api.query_config(cfg_name);
-    if (dep.first == nullptr) {
-        opt->confirm_with_error(cfg_name + " not found");
-        return ;
+    if (dep.second == nullptr) {
+        load_config_errormsg = cfg_name;
+        return false;
     }
-    this->cfg = *dep.first;
+    load_config_errormsg.clear();
+    this->cfg = dep.first;
     opt->quickdep_early_anodes.push_back(dep.second);
+    return true;
 }
 
 GENERAL_CGN_BUNDLE_API void AliasInterpreter::interpret(context_type &x)
 {
+    if (x.load_config_errormsg.size()) {
+        x.opt->confirm_with_error(x.load_config_errormsg + " config not found.");
+        return ;
+    }
     cgn::CGNTarget early = x.opt->quick_dep(
             api.absolute_label(x.actual_label, x.opt->factory_label), x.cfg);
     if (early.errmsg.size()) {
         x.opt->confirm_with_error(early.errmsg);
         return ;
     }
+    x.cfg.visit_keys(early.trimmed_cfg);
+
     cgn::CGNTargetOpt *opt = x.opt->confirm();
     if (opt->cache_result_found)
         return ;
@@ -143,30 +102,6 @@ GENERAL_CGN_BUNDLE_API void AliasInterpreter::interpret(context_type &x)
 } //AliasInterpreter::interpret
 
 
-GENERAL_CGN_BUNDLE_API cgn::CGNTarget DynamicAliasInterpreter::DynamicAliasContext::load_target(
-    const std::string &label, const cgn::Configuration &cfg
-) {
-    actual_target = opt->quick_dep(label, cfg);
-    return actual_target;
-} //DynamicAliasContext::load_target
-
-GENERAL_CGN_BUNDLE_API void DynamicAliasInterpreter::interpret(context_type &x)
-{
-    if (x.actual_target.errmsg.size()) {
-        x.opt->confirm_with_error(x.opt->factory_name + " no valid target loaded." );
-        return ;
-    }
-    cgn::CGNTargetOpt *opt = x.opt->confirm();
-    opt->result.merge_from(x.actual_target);
-    opt->result.outputs = x.actual_target.outputs;
-    
-    auto *field = opt->ninja->append_build();
-    field->rule = "phony";
-    field->inputs = {x.actual_target.ninja_entry};
-    field->outputs = {opt->out_prefix + opt->BUILD_ENTRY};
-} //DynamicAliasContext::interpret
-
-
 // Target Group
 // ------------
 GENERAL_CGN_BUNDLE_API std::vector<cgn::CGNTarget> GroupInterpreter::GroupContext::add_deps(
@@ -177,8 +112,8 @@ GENERAL_CGN_BUNDLE_API std::vector<cgn::CGNTarget> GroupInterpreter::GroupContex
         auto tgt = opt->quick_dep(it, cfg);
         if (tgt.errmsg.empty()) {
             deps_ninja_entry.push_back(tgt.ninja_entry);
-            rv.push_back(std::move(tgt));
         }
+        rv.push_back(std::move(tgt));
     }
     return rv;
 }
@@ -186,36 +121,13 @@ GENERAL_CGN_BUNDLE_API std::vector<cgn::CGNTarget> GroupInterpreter::GroupContex
 GENERAL_CGN_BUNDLE_API void GroupInterpreter::interpret(context_type &x)
 {
     cgn::CGNTargetOpt *opt = x.opt->confirm();
+    if (opt->cache_result_found)
+        return ;
+
     auto *field = opt->ninja->append_build();
     field->rule = "phony";
     field->inputs = x.deps_ninja_entry;
+    field->implicit_inputs = std::move(opt->quickdep_ninja_full);
+    field->order_only      = std::move(opt->quickdep_ninja_dynhdr);
     field->outputs = {opt->out_prefix + opt->BUILD_ENTRY};
-    for (auto )
-
-    auto *def = x.merged_info.get<cgn::DefaultInfo>(true);
-    def->target_label = opt.factory_ulabel;
-    def->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
-
-    return x.merged_info;
 } //GroupInterpreter::interpret
-
-/* TODO
-// LinkAndRuntimeFiles
-// -------------------
-GENERAL_CGN_BUNDLE_API cgn::TargetInfos LinkAndRuntimeFiles::interpret(
-    context_type &x, cgn::CGNTargetOpt opt
-) {
-    cgn::TargetInfos rv;
-    rv.set((const cgn::LinkAndRunInfo &)x);
-
-    auto *def = rv.get<cgn::DefaultInfo>(true);
-    def->target_label = opt.factory_ulabel;
-    def->build_entry_name = opt.out_prefix + opt.BUILD_ENTRY;
-
-    auto *field = opt.ninja->append_build();
-    field->rule = "phony";
-    field->outputs = {opt.out_prefix + opt.BUILD_ENTRY};
-
-    return rv;
-}
-*/

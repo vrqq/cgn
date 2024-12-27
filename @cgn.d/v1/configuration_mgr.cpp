@@ -64,6 +64,10 @@ ConfigurationManager::ConfigurationManager(
             auto &ref = cfg_hashs[name] = cfg;
             cfg_indexs[CDataRef{&ref}] = name;
         }
+
+    assert(cfg_hashs.size() == cfg_indexs.size());
+    // if (cfg_hashs.size() != cfg_indexs.size())
+    //     throw std::runtime_error{"CfgMgr: init failed, duplicate configs in cache."};
 } //ConfigurationManager()
 
 static std::string 
@@ -120,7 +124,7 @@ ConfigurationID ConfigurationManager::commit(Configuration &cfg)
     //[entry]: create new
     std::string new_id = get_hash(CHasher()(lastref));
     cfg._data->hashid = new_id;
-    auto [iter, nx] = cfg_hashs.emplace(new_id, std::move(cfg));
+    auto [iter, nx] = cfg_hashs.emplace(new_id, cfg);
     cfg_indexs[CDataRef{&iter->second}] = new_id;
 
     //[.cfg file]: create new

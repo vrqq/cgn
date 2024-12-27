@@ -1,6 +1,7 @@
 // cgn.d internal
 //
 #pragma once
+#include <cassert>
 #include "configuration.h"
 
 namespace cgnv1 {
@@ -45,7 +46,10 @@ private:
             return !(*this == rhs);
         }
         CDataRef(const CfgData *ptr, int hash_hlp) : rec_visited(ptr), hash_hlp(hash_hlp) {}
-        CDataRef(const Configuration *cfg) : rec_visited(&cfg->_data->visited), hash_hlp(cfg->_data->hash_hlp) {}
+        CDataRef(const Configuration *cfg) : rec_visited(&cfg->_data->visited), hash_hlp(cfg->_data->hash_hlp) {
+            assert(cfg->_data->remain.size() == 0 || cfg->_data->visited.size() == 0);
+            cfg->visit_all_keys();
+        }
     };
     struct CHasher {
         size_t operator()(const CDataRef &ref) const {

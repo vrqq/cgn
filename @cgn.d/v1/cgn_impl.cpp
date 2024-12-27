@@ -545,17 +545,18 @@ CGNTargetOpt *CGNImpl::confirm_target_opt(CGNTargetOptIn *in)
 
     // special case: build_check mode, only opt->result.ninja_entry utilized 
     //               by caller.
-    if (current_analysis_level == 'b') {
+    // the anode->files[] is empty for create by get_node() above right now.
+    if (current_analysis_level == 'b' && opt->anode->files.size()) {
         graph.test_status(opt->anode);
         if (opt->anode->status == GraphNode::Latest) {
             opt->cache_result_found = true;
-            logger.verbose_paragraph("confirm_target_opt(" + cache_label 
-                + ") build_check quick-return: " + opt->result.ninja_entry);
+            logger.verbose_paragraph("[build_check_mode] confirm_target_opt(" + cache_label 
+                + ") quick-return: " + opt->result.ninja_entry);
             return opt;
         }
         else
-            logger.verbose_paragraph("confirm_target_opt(" + cache_label 
-                + ") build_check but target stale, continue analysing...");
+            logger.verbose_paragraph("[build_check_mode] confirm_target_opt(" + cache_label 
+                + ") but target stale, continue analysing...");
     }
 
     // anode file[] (build.ninja) to GraphNode
@@ -610,7 +611,7 @@ std::shared_ptr<void> CGNImpl::bind_target_builder(
 void CGNImpl::build_target(
     const std::string &label, const Configuration &cfg
 ) {
-    // current_analysis_level = 'b';
+    current_analysis_level = 'b';
     auto rv = analyse_target(label, cfg);
     if (rv.errmsg.size())
         throw std::runtime_error{rv.errmsg};
