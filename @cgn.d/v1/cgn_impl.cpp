@@ -22,12 +22,23 @@
 extern void cgn_setup(cgnv1::CGNInitSetup &x) __attribute__((weak));
 #endif
 
+#ifdef _WIN32
+#include <windows.h>
+#include <shlwapi.h>
+std::string self_realpath()
+{
+    TCHAR name[4096];
+    ZeroMemory(name, sizeof(name));
+    if (auto len = GetModuleFileNameA(NULL, name, sizeof(name)); len > 0)
+        return name;
+    return "";
+}
+#endif
+
 // for only debug purpersal in dev
 // void cgn_setup(CGNInitSetup &x) {}
 
 namespace cgnv1 {
-
-std::string self_realpath();
 
 static void loop_dir(std::vector<std::string> *out, std::filesystem::path p)
 {
@@ -215,7 +226,7 @@ CGNImpl::active_script(const std::string &label)
                 //      1. use /FI to insert char that can't be defined in cmd
                 //      2. use TLS to storage CGN_ULABEL_PREFIX when load_library
                 //
-                frsp<< "/c " << it <<" /nologo /showIncludes /Od /Gy "
+                frsp<< "/c " << ("." / pt).string() <<" /nologo /showIncludes /Od /Gy "
                     "/DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
                     " /DCGN_VAR_PREFIX=" + def_var_prefix +
                     " /D\"CGN_ULABEL_PREFIX=\"" + def_ulabel_prefix + "\"\"" + 
@@ -647,6 +658,9 @@ CGNTargetOpt *CGNImpl::confirm_target_opt(CGNTargetOptIn *in)
     opt->anode = opt->result.anode = graph.get_node("T" + opt->cache_label);
     opt->result.ninja_entry = opt->out_prefix + opt->BUILD_ENTRY;
 
+    // create dir opt->out_prefix
+    api.mkdir(opt->out_prefix);
+
     // anode file[] (build.ninja) to GraphNode
     // if current target GraphNode is latest, build.ninja would not need to update.
     std::string ninja_file_ossep = opt->out_prefix + CGNTargetOpt::BUILD_NINJA;
@@ -922,7 +936,8 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
         cgn_setup(x);
     #else
         using FnSetup = void(*)(CGNInitSetup&);
-        FnSetup fn_setup = (FnSetup)GlobalSymbol::find("?cgn_setup@@YAXAEAUCGNInitSetup@@@Z");
+        // FnSetup fn_setup = (FnSetup)GlobalSymbol::find("?cgn_setup@@YAXAEAUCGNInitSetup@@@Z");
+        FnSetup fn_setup = (FnSetup)GlobalSymbol::find("?cgn_setup@@YAXAEAUCGNInitSetup@cgnv1@@@Z");
         if (!fn_setup)
             throw std::runtime_error{"cgn_setup() not found, not exported?"};
         fn_setup(x);

@@ -5,10 +5,10 @@
     
 namespace cgnv1 {
     DLHelper::DLHelper(const std::string &file) {
-        hnd = ::cgn::GlobalSymbol::WinLoadLibrary(file);
+        hnd = GlobalSymbol::WinLoadLibrary(file);
     }
     DLHelper::~DLHelper() {
-        ::cgn::GlobalSymbol::WinUnloadLibrary(hnd);
+        GlobalSymbol::WinUnloadLibrary(hnd);
     }
 }
 

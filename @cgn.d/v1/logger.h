@@ -3,7 +3,7 @@
 #include "api_export.h"
 
 namespace cgnv1 {
-    struct Logger {
+    struct CGN_EXPORT Logger {
         constexpr static const char *BLACK  = "\x1B[30m";
         constexpr static const char *RED    = "\x1B[31m";
         constexpr static const char *GREEN  = "\x1B[32m";

@@ -203,7 +203,7 @@ void Graph::clear_filelist_mtime_cache(std::vector<std::string> file_list)
         #ifdef _WIN32
             auto fp = std::filesystem::path{file}.make_preferred();
             std::filesystem::path basedir = fp.has_parent_path()?fp.parent_path():".";
-            win_mtime_cache.erase(*key);
+            win_mtime_cache.erase(file);
             win_mtime_folder_exist.erase(basedir.string());
         #else
             win_mtime_cache.erase(file);

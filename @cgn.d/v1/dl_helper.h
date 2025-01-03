@@ -11,7 +11,7 @@
         operator bool() const { return hnd; }
         
     private:
-        ::cgn::GlobalSymbol::DllHandle hnd;
+        GlobalSymbol::DllHandle hnd;
     };
     }
 

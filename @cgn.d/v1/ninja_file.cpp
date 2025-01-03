@@ -31,12 +31,12 @@ std::string NinjaFile::BuildSection::to_string() {
     if (implicit_inputs.size()) {
         rv += "|";
         for (auto &it: implicit_inputs)
-            rv += it + " ";
+            rv += " " + it;
     }
     if (order_only.size()) {
         rv += "||";
         for (auto &it: order_only)
-            rv += it + " ";
+            rv += " " + it;
     }
     return rv + varlist_to_string(variables);
 }

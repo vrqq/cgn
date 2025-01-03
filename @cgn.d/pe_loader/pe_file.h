@@ -4,6 +4,7 @@
 #include <string>
 #include <cstring>
 #include <unordered_set>
+#include <unordered_map>
 #include <cstdint>
 
 #ifdef _WIN32

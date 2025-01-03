@@ -2,9 +2,6 @@
 ## builddir : the output folder
 ## ============================
 
-# !!! WARNING! DO NOT USE windows version of cgn !!!
-# when calling cgn.exe it would erase source code in cgn.d
-
 builddir = build_win
 
 rule cc
@@ -21,7 +18,5 @@ rule link
     rspfile_content = /nologo /MACHINE:X64 /DEBUG /OUT:${out} ${in}
     command = link.exe @${out}.d
 
-include buildpart_ninjaport.ninja
-include buildpart_cgnentry.ninja
-
-default $output/cgn.exe
+include cgn_v1.ninja
+default $builddir/cgn.exe

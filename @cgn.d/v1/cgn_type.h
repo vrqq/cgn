@@ -109,9 +109,9 @@ struct InfoTable
 
     bool empty() const { return _data.empty(); }
 
-    void merge_from(const InfoTable &rhs);
+    CGN_EXPORT void merge_from(const InfoTable &rhs);
 
-    void merge_entry(const std::string &name, const BaseInfo *rhs);
+    CGN_EXPORT void merge_entry(const std::string &name, const BaseInfo *rhs);
 
 protected:
     list_type _data;
@@ -145,7 +145,7 @@ struct CGNTarget : InfoTable
     //@param type: 'j': json_full (not implemented)
     //             'h': human readable text with size=5
     //             'H': fully human readable data
-    std::string to_string(char type = 'h') const;
+    CGN_EXPORT std::string to_string(char type = 'h') const;
 
 }; //struct CGNTarget
 
@@ -175,11 +175,11 @@ struct CGNTargetOptIn
 
     std::vector<std::string> quickdep_ninja_dynhdr, quickdep_ninja_full;
     std::vector<GraphNode*>  quickdep_early_anodes;
-    CGNTarget quick_dep(const std::string &label, const Configuration &cfg, bool merge_infos = true);
+    CGN_EXPORT CGNTarget quick_dep(const std::string &label, const Configuration &cfg, bool merge_infos = true);
 
-    CGNTargetOpt *confirm();
+    CGN_EXPORT CGNTargetOpt *confirm();
 
-    void confirm_with_error(const std::string &errmsg);
+    CGN_EXPORT void confirm_with_error(const std::string &errmsg);
 
 protected:
     // Only allocate by CGNTargetOpt
@@ -220,7 +220,7 @@ struct CGNTargetOpt : CGNTargetOptIn
     // to disk since 'build.ninja' and its dependencies remain unchanged.
     bool file_unchanged = false;
 
-    CGNTargetOptIn *create_sub_target(const std::string &name, bool as_result = false);
+    CGN_EXPORT CGNTargetOptIn *create_sub_target(const std::string &name, bool as_result = false);
 
     CGNTargetOpt(const std::string &factory_name)
     : CGNTargetOptIn(factory_name, result.factory_label, result.trimmed_cfg) {}

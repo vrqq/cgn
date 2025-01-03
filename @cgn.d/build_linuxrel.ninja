@@ -22,7 +22,5 @@ rule link
               -Wl,--export-dynamic -fvisibility=default $
               -Wl,-rpath=$$ORIGIN -MMD -MF $out.d $cflags $in -o $out
 
-include buildpart_ninjaport.ninja
-include buildpart_cgnentry.ninja
-
-default $output/cgn
+include cgn_v1.ninja
+default $builddir/cgn
