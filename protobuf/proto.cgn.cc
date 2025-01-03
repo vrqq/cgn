@@ -1,3 +1,7 @@
+// Subunit target output layout
+// <out>/lang_pb/my_proto.pb.h  (if lang_out empty)
+// <out>/lang_pb/bin/my_proto.o
+#include <fstream>
 #include "@cgn.d/library/cxx.cgn.bundle/cxx.cgn.h"
 #include "proto.cgn.h"
 
@@ -8,67 +12,80 @@ static std::string two_escape(const std::string &in) {
 // BUGFIX:
 //  since the .proto filepath may starting with '@', so we have to generate
 //  a option file to `protoc @optfile`
-cgn::TargetInfos ProtobufInterpreter::interpret(
-    context_type &x, cgn::CGNTargetOpt opt
-) {
-    if (x.srcs.empty() || x.lang == x.UNDEFINED)
-        throw std::runtime_error{opt.factory_ulabel + "empty src or lang"};
+// CMDLINE:
+//  protoc -I<x.include_dirs>
+//      --cpp_out=<x.cpp_out> 
+//      --plugin=protoc-gen-grpc=<path(x.grpc_label)> --grpc_out=<x.cpp_out>
+//      <x.srcs>
+//
+void ProtobufInterpreter::interpret(context_type &x)
+{
+    if (x.srcs.empty() || x.lang != x.Cxx) {
+        x.opt->confirm_with_error("empty src or unsupported lang");
+        return ;
+    }
+
+    // load predefined config["host_release"]
+    // add adep to named-config
     auto host_cfg = api.query_config("host_release");
-    
-    // return via CxxInterpreter
-    cxx::CxxSourcesContext cxx_ctx(x.cfg, opt);
+    if (host_cfg.second == nullptr) {
+        x.opt->confirm_with_error("config 'host_release' not found");
+        return ;
+    }
+    x.opt->quickdep_early_anodes += {host_cfg.second};
 
     // load protoc exe
-    cgn::CGNTarget protoc = api.analyse_target(x.protoc, *host_cfg.first);
-    api.add_adep_edge(host_cfg.second, opt.adep);
-    auto *pbcout = protoc.infos.get<cgn::DefaultInfo>();
-    if (!pbcout || pbcout->outputs.empty())
-        throw std::runtime_error{opt.factory_ulabel +" protoc not found: " + x.protoc};
-    api.add_adep_edge(protoc.adep, opt.adep);
-    std::string pbcexe = pbcout->outputs[0];
+    cgn::CGNTarget protoc = x.opt->quick_dep(x.protoc, host_cfg.first, false);
+    if (protoc.errmsg.size()) {
+        x.opt->confirm_with_error(protoc.errmsg);
+        return ;
+    }
 
     // load grpc plugin
     std::string grpc_plugin_exe;
     if (x.grpc_plugin_label.size()) {
-        auto rv = cxx_ctx.add_dep(x.grpc_plugin_label, *host_cfg.first, cxx::private_dep);
-        grpc_plugin_exe = rv.get<cgn::DefaultInfo>()->outputs[0];
+        auto grpc = x.opt->quick_dep(x.grpc_plugin_label, host_cfg.first, false);
+        if (grpc.errmsg.size()) {
+            x.opt->confirm_with_error(grpc.errmsg);
+            return ;
+        }
+        grpc_plugin_exe = grpc.outputs[0];
     }
 
-    // make protoc @opt
-    std::string proto_argfile = opt.out_prefix + ".protorsp";
-    std::ofstream fout(proto_argfile);
-    
-    // args at {protoc '--cpp_out=...'}
-    if (x.lang_src_outdir.size())
-        x.lang_src_outdir = api.locale_path(opt.src_prefix + x.lang_src_outdir + "/");
+    // confirm target opt
+    cgn::CGNTargetOpt *pb_opt = x.opt->confirm();
+
+    // rebase lang_out_dir
+    if (x.lang_out.size())
+        x.lang_out = api.locale_path(pb_opt->src_prefix + x.lang_out + "/");
     else
-        x.lang_src_outdir = opt.out_prefix + "langsrc/";
-    cxx_ctx.include_dirs = cxx_ctx.pub.include_dirs 
-                     = {api.rebase_path(x.lang_src_outdir, opt.src_prefix)};
-    cxx_ctx.add_dep("@third_party//protobuf:libprotobuf", cxx::inherit);
+        x.lang_out = pb_opt->out_prefix + "cpp_out/";
 
-    // args at {protoc '-I...'}
-    // TBD: read protoc include_dir from CxxInfo target return?
-    for (auto it : x.include_dirs)
-        fout<<"-I" + api.locale_path(opt.src_prefix + it) + "\n";
-    fout<<"-I" + api.get_filepath("@third_party//protobuf/repo/src") + "\n";
+    // ninja[protoc] arg file: .protorsp
+    std::string proto_argfile = pb_opt->out_prefix + ".protorsp";
+    std::vector<std::string> ninja_input = {proto_argfile};
+    std::vector<std::string> ninja_out;
+    std::vector<std::string> cppctx_in;  // args for cxx_context
+    std::ofstream fout;
 
-    // arg for --cpp_out, --grpc_out
-    fout<<"--cpp_out=" + two_escape(x.lang_src_outdir)<<"\n";
-    if (grpc_plugin_exe.size())
-        fout<<"--plugin=protoc-gen-grpc=" + two_escape(grpc_plugin_exe)<<"\n"
-            <<"--grpc_out=" + two_escape(x.lang_src_outdir)<<"\n";
+    // regenerate arg file if ninja file changed
+    if (!pb_opt->file_unchanged) {
+        fout.open(proto_argfile);
 
-    // std::string ninja_args;
-    // for (auto it : x.include_dirs)
-    //     ninja_args += "-I" + two_escape(opt.src_prefix + it) + " ";
-    // ninja_args += "-I" 
-    //     + two_escape(api.get_filepath("@third_party//protobuf/repo/src"));
+        // ninja[protoc] arg file: {-I...}
+        for (auto it : x.include_dirs)
+            fout<<"-I" + api.locale_path(pb_opt->src_prefix + it) + "\n";
+        fout<<"-I" + api.get_filepath("@third_party//protobuf/repo/src") + "\n";
+        // fout<<"-I" + api.get_filepath("@third_party//protobuf/repo/src") + "\n";
 
-    // arg at {protoc '.proto'}
-    std::vector<std::string> ninja_inputfiles = {proto_argfile};
+        // ninja[protoc] arg file: {--cpp_out=... --grpc_out=...}
+        fout<<"--cpp_out=" + two_escape(x.lang_out)<<"\n";
+        if (grpc_plugin_exe.size())
+            fout<<"--plugin=protoc-gen-grpc=" + two_escape(grpc_plugin_exe)<<"\n"
+                <<"--grpc_out=" + two_escape(x.lang_out)<<"\n";
+    }
 
-    std::vector<std::string> lang_pbout_njesc;
+
     for (auto it : x.srcs) {
         if (it.size() < 6 || it.substr(it.size()-6) != ".proto")
             continue;
@@ -85,45 +102,54 @@ cgn::TargetInfos ProtobufInterpreter::interpret(
                 break;
             }
         }
-        if (out_stem.empty())
-            throw std::runtime_error{"Protoc: you must assign a include_dir"
-                "which is the prefix of src file. " + opt.factory_ulabel};
-
-        std::string protofile = api.locale_path(opt.src_prefix + it);
-        fout<<protofile<<"\n";
-        ninja_inputfiles += {protofile};
-        
-        if (x.lang == x.Cxx) {
-            std::string s1 = x.lang_src_outdir + out_stem;
-            lang_pbout_njesc += {opt.ninja->escape_path(s1 + ".pb.cc"), 
-                                 opt.ninja->escape_path(s1 + ".pb.h")};
-            cxx_ctx.srcs += {api.rebase_path(s1 + ".pb.cc", opt.src_prefix)};
-            if (grpc_plugin_exe.size()) {
-                lang_pbout_njesc += {opt.ninja->escape_path(s1 + ".grpc.pb.cc"),
-                                     opt.ninja->escape_path(s1 + ".grpc.pb.h")};
-                cxx_ctx.srcs += {
-                    api.rebase_path(s1 + ".grpc.pb.cc", opt.src_prefix)
-                };
-            }
+        if (out_stem.empty()) {
+            pb_opt->result.errmsg = "Protoc: you must assign a include_dir "
+                                 "which is the prefix of src file. ";
+            return ;
         }
+
+        std::string s1 = x.lang_out + out_stem;
+
+        // ninja[protoc] arg file: {xx.proto}
+        if (!pb_opt->cache_result_found) {
+            std::string protofile = api.locale_path(pb_opt->src_prefix + it);
+            fout<<protofile<<"\n";
+            ninja_input += {protofile};
+
+            ninja_out += {pb_opt->ninja->escape_path(s1 + ".pb.cc"), 
+                          pb_opt->ninja->escape_path(s1 + ".pb.h")};
+        }
+
+        // cpp src in: <it>.pb.cc
+        cppctx_in += {api.rebase_path(s1 + ".pb.cc", pb_opt->src_prefix)};
+    } //end_for(x.srcs[])
+
+    if (!pb_opt->cache_result_found) {
+        // ninja[protoc] run
+        pb_opt->ninja->append_include(
+            api.get_filepath("@cgn.d//library/general.cgn.bundle/rule.ninja")
+        );
+
+        // *.proto => *.pb.h / *.pb.cc
+        auto *field = pb_opt->ninja->append_build();
+        field->rule = "run";
+        field->inputs = {pb_opt->ninja->escape_path(protoc.outputs[0])};
+        field->implicit_inputs = pb_opt->ninja->escape_path(ninja_input);
+        field->variables["args"] = "@" + proto_argfile;
+        field->variables["desc"] = "PROTOC " + pb_opt->factory_label;
+        field->outputs = ninja_out;
     }
 
-    opt.ninja->append_include(
-        api.get_filepath("@cgn.d//library/general.cgn.bundle/rule.ninja")
-    );
+    // create sub-unit-target for CxxInterpreter {xx.pb.h, xx.pb.cc}
+    // return via CxxInterpreter
+    cgn::CGNTargetOptIn *cxx_optin = pb_opt->create_sub_target("cpp", true);
+    cxx::CxxSourcesContext cxx_ctx(cxx_optin);
+    cxx_ctx.include_dirs = cxx_ctx.pub.include_dirs 
+                         = {api.rebase_path(x.lang_out, pb_opt->src_prefix)};
+    cxx_ctx.srcs = cppctx_in;
+    cxx_ctx.add_dep("@third_party//protobuf:libprotobuf", cxx::inherit);
+    cxx::CxxInterpreter::interpret(cxx_ctx);
 
-    // *.proto => *.pb.h / *.pb.cc
-    auto *field = opt.ninja->append_build();
-    field->rule = "run";
-    field->inputs  = {opt.ninja->escape_path(pbcexe)};
-    field->implicit_inputs = ninja_inputfiles;
-    field->variables["args"] = "@" + proto_argfile;
-    field->variables["desc"] = "PROTOC " + opt.factory_ulabel;
-    field->outputs = lang_pbout_njesc;
-
-
-    auto rv = cxx::CxxInterpreter::interpret(cxx_ctx, opt);
-    rv.get<cgn::DefaultInfo>()->enforce_keep_order = true;
-    
-    return rv;
+    // TODO
+    // api.add_adep_edge(pb_opt->anode, cxx_optin->confirm()->anode);
 }
