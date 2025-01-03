@@ -98,7 +98,8 @@ public:
     void clear_mtime_cache() { 
         win_mtime_folder_exist.clear(); win_mtime_cache.clear();
     }
-
+    
+    void clear_filelist_mtime_cache(std::vector<std::string> file_list);
     void clear_file0_mtime_cache(GraphNode *p);
 
     // flush db_pending_write_str[] and db_pending_write_node[] into db

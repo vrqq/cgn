@@ -6,8 +6,8 @@
 
 // when lang == Cxx, the TargetInfos made by cxx_sources() would be returned.
 struct ProtobufContext {
-    const std::string name;
-    const cgn::Configuration cfg;
+    const std::string &name;
+    const cgn::Configuration &cfg;
 
     // 'c':cxx  'r':rust  'p':python  'j':java
     enum Lang {
@@ -28,9 +28,11 @@ struct ProtobufContext {
     // relative path. Commonly, the list is set to ["."].
     std::vector<std::string> include_dirs;
 
-    // keep empty: cgn-out/obj/...
-    // not empty: relpath of current folder
-    std::string lang_src_outdir;
+    // If empty:
+    //  cgn-out/obj/<target_out>/lang_out
+    // If not empty:
+    //  relative-path of current folder
+    std::string lang_out;
 
     // [depecrated: replaced by include_dirs]
     // The prefix to add to the paths of the .proto files in this rule.
@@ -59,11 +61,11 @@ struct ProtobufContext {
     std::string grpc_plugin_label;
     // void load_grpc_plugin(const std::string &label);
 
-    ProtobufContext(cgn::Configuration cfg, cgn::CGNTargetOpt opt)
-    : name(opt.factory_name), cfg(cfg), opt(opt) {}
+    ProtobufContext(cgn::CGNTargetOptIn *opt)
+    : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
 
-private: friend class ProtobufInterpreter;
-    cgn::CGNTargetOpt opt;
+private: friend struct ProtobufInterpreter;
+    cgn::CGNTargetOptIn *opt;
 };
 
 struct ProtobufInterpreter
@@ -76,7 +78,7 @@ struct ProtobufInterpreter
                 "@cgn.d//library/general.cgn.bundle"};
     }
 
-    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    static void interpret(context_type &x);
 };
 
 #define protobuf(name, x) CGN_RULE_DEFINE(ProtobufInterpreter, name, x)

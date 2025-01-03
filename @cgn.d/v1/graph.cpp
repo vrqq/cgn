@@ -197,18 +197,26 @@ void Graph::set_node_files(GraphNode *p, std::vector<std::string> in)
 }
 
 
+void Graph::clear_filelist_mtime_cache(std::vector<std::string> file_list)
+{
+    for (auto &file : file_list) {
+        #ifdef _WIN32
+            auto fp = std::filesystem::path{file}.make_preferred();
+            std::filesystem::path basedir = fp.has_parent_path()?fp.parent_path():".";
+            win_mtime_cache.erase(*key);
+            win_mtime_folder_exist.erase(basedir.string());
+        #else
+            win_mtime_cache.erase(file);
+        #endif
+    }
+}
+
+
 void Graph::clear_file0_mtime_cache(GraphNode *p)
 {
     assert(p->_file_blocks.size());
     const std::string *key = p->_file_blocks[0]->strkey;
-    #ifdef _WIN32
-        auto fp = std::filesystem::path{*key}.make_preferred();
-        std::filesystem::path basedir = fp.has_parent_path()?fp.parent_path():".";
-        win_mtime_cache.erase(*key);
-        win_mtime_folder_exist.erase(basedir.string());
-    #else
-        win_mtime_cache.erase(*key);
-    #endif
+    clear_filelist_mtime_cache({*key});
 }
 
 
@@ -525,24 +533,38 @@ void Graph::db_flush()
             fseek(file_, n->filedb.self_offset + sizeof(uint32_t), SEEK_SET);
             fwrite(&field_titleoff_u4, sizeof(uint32_t), 1, file_);
             fwrite(newdata.data(), sizeof(uint32_t), newdata.size(), file_);
+
+            n->filedb.init_state_is_stale = n->init_state_is_stale;
+            n->filedb.rel_off = newdata;
         }
         else {
-            if (n->filedb.self_offset)
+
+            if (n->filedb.self_offset) {
                 file_mark_recycle(n->filedb.self_offset, n->filedb.db_block_size());
+                n->filedb.self_offset = 0;
+            }
+
+            // assign n->filedb.rel_off[] then n->filedb.db_block_size() could
+            // get the right value
+            n->filedb.init_state_is_stale = n->init_state_is_stale;
+            n->filedb.rel_off = newdata;
+
+            // skip if no data included (rel_list=[], init_state_is_stale==DEFAULT)
+            if (n->init_state_is_stale == false && newdata.empty())
+                continue;
+            
             file_seek_new_block(n->filedb.db_block_size());
 
             uint32_t field_blktype_u4 = newdata.size() + DB_BIT_NODE;
             uint32_t field_titleoff_u4 = n->_title->self_offset;
             if (n->init_state_is_stale)
                 field_titleoff_u4 |= (1<<31);
+            n->filedb.self_offset = ftell(file_);
+            n->filedb.title_offset = n->_title->self_offset;
             fwrite(&field_blktype_u4,  sizeof(field_blktype_u4),  1, file_);
             fwrite(&field_titleoff_u4, sizeof(field_titleoff_u4), 1, file_);
             fwrite(newdata.data(), sizeof(uint32_t), newdata.size(), file_);
-            n->filedb.self_offset = ftell(file_);
-            n->filedb.title_offset = n->_title->self_offset;
         }
-        n->filedb.init_state_is_stale = n->init_state_is_stale;
-        n->filedb.rel_off = newdata;
         { //debug
             std::string logtxt = "GraphDB upsert Node[" + *n->_title->strkey + "] : ";
             for (auto it : n->files)

@@ -236,7 +236,8 @@ try{
 
 }catch(std::exception &e) { //windows CRT won't show anything for unhandled exception.
     std::cerr<<"\n---EXCEPTION---\n"
-             <<e.what()<<std::endl;
+             <<e.what()
+             <<"\n==============="<<std::endl;
     api.release();
     return 1;
 }
