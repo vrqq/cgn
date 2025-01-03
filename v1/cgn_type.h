@@ -163,9 +163,9 @@ struct CGNTargetOptIn
                                 BUILD_ENTRY[] = ".stamp";
 
     // factory_label : "//demo:hello_world"
-    // factory_name   : "hello_world"
-    std::string factory_name;
-    std::string &factory_label;
+    // factory_name  : "hello_world"
+    const std::string &factory_name;
+    const std::string &factory_label;
 
     Configuration &cfg;
 
@@ -183,8 +183,8 @@ struct CGNTargetOptIn
 
 protected:
     // Only allocate by CGNTargetOpt
-    CGNTargetOptIn(std::string &label, Configuration &cfg) 
-    : factory_label(label), cfg(cfg) {};
+    CGNTargetOptIn(const std::string &name, const std::string &label, Configuration &cfg) 
+    : factory_name(name), factory_label(label), cfg(cfg) {};
 
     virtual ~CGNTargetOptIn() {}
 
@@ -201,21 +201,36 @@ struct CGNTargetOpt : CGNTargetOptIn
 
     // Node for current target{factory_label + trimmed_config} 
     // with files[] '<out_dir>/build.ninja' and 'obj/.../libBUILD.so'
-    // alias for result.anode
-    GraphNode* &anode;
+    // only for this target
+    GraphNode *anode;
 
     // a relative path or absolute path that trailing with '/' or '\' (system-path-separator)
     // like "cgn-out/obj/project1_/hello_FFFF1234/" (linux) 
     //   or "D:\\project1_output\\" (win-abspath)
     std::string out_prefix;
 
-    // if true, pointers 'ninja' and 'anode' keep nullptr and 'result' would 
-    // filled by last cache, then interpreter should return directly.
+    // if true, 'result' is filled from the last cache, so the user does not 
+    // need to generate it. Both 'ninja' and 'anode' will remain nullptr, and 
+    // 'file_unchanged' will be set to true.
     bool cache_result_found = false;
     CGNTarget result;
 
-    CGNTargetOpt();
+    // If true, the pointers 'ninja' and 'anode' will have valid values. The 
+    // user should populate 'result' as usual, but no files need to be written 
+    // to disk since 'build.ninja' and its dependencies remain unchanged.
+    bool file_unchanged = false;
+
+    CGNTargetOptIn *create_sub_target(const std::string &name, bool as_result = false);
+
+    CGNTargetOpt(const std::string &factory_name)
+    : CGNTargetOptIn(factory_name, result.factory_label, result.trimmed_cfg) {}
+    
     virtual ~CGNTargetOpt() {}
+
+private: //function inaccessable in CGNTargetOptIn
+    CGNTarget quick_dep(const std::string &label, const Configuration &cfg, bool merge_infos);
+    CGNTargetOpt *confirm();
+    void confirm_with_error(const std::string &errmsg);
 }; //struct CGNTargetOpt
 
 // C++ 11 do not support std::array .

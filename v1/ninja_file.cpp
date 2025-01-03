@@ -117,6 +117,8 @@ bool NinjaFile::is_file_included(const std::string &file) {
 }
 
 void NinjaFile::flush() {
+    if (filepath.empty())
+        return ;
     std::filesystem::path p(filepath);
     if (std::filesystem::exists(p.parent_path()) == false)
         std::filesystem::create_directories(p.parent_path());

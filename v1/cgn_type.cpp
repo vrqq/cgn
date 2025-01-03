@@ -83,8 +83,8 @@ void CGNTargetOptIn::confirm_with_error(const std::string &errmsg)
     opt->result.errmsg = errmsg;
 }
 
-CGNTargetOpt::CGNTargetOpt()
-: CGNTargetOptIn(result.factory_label, result.trimmed_cfg), anode(result.anode) {}
+// defined in cgn_impl.cpp
+// CGNTargetOptIn *CGNTargetOpt::create_sub_target(const std::string &name);
 
 // === LinkAndRunInfo implement ===
 

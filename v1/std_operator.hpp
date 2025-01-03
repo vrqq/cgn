@@ -32,6 +32,25 @@ inline StrList &operator+=(StrList &lhs, StrList &&rhs) {
     return lhs;
 }
 
+// TODO: dirty patch
+namespace cgnv1 { struct GraphNode; }
+inline std::vector<cgnv1::GraphNode*> &operator+=(
+    std::vector<cgnv1::GraphNode*> &lhs, const std::vector<cgnv1::GraphNode*> &rhs
+) {
+    lhs.insert(lhs.end(), rhs.begin(), rhs.end());
+    return lhs;
+}
+inline std::vector<cgnv1::GraphNode*> &operator+=(
+    std::vector<cgnv1::GraphNode*> &lhs, std::vector<cgnv1::GraphNode*> &&rhs
+) {
+    lhs.insert(lhs.end(), 
+        std::make_move_iterator(rhs.begin()), 
+        std::make_move_iterator(rhs.end()));
+    rhs.clear();
+    return lhs;
+}
+
+
 inline StrSet operator+(const StrSet &lhs, const StrSet &rhs) {
     StrSet rv{lhs};
     rv.insert(rhs.begin(), rhs.end());
