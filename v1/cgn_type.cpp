@@ -40,9 +40,23 @@ std::string CGNTarget::to_string(char type) const
            + "#" + trimmed_cfg.get_id() + "\n";
         if (this->errmsg.size())
             rv += "error: " + this->errmsg;
-        else
+        else {
+            rv += "ninja_target_entry: " + this->ninja_entry + "\n";
+            rv += "ninja_depend_level: ";
+            if (this->ninja_dep_level == NINJA_LEVEL_FULL)
+                rv += "FULL\n";
+            else if (this->ninja_dep_level == NINJA_LEVEL_DYNDEP)
+                rv += "DYNDEP\n";
+            else
+                rv += "NONEED\n";
+
+            rv += "OUTPUTS: (" + std::to_string(this->outputs.size()) + " elements)\n";
+            for (auto it : this->outputs)
+                rv += "    " + it + "\n";
+
             for (auto &[name, inf] : _data)
                 rv += "[" + name + "] " + inf->to_string(type) + "\n";
+        }
     }
     if (type == 'j') {}
     return rv;

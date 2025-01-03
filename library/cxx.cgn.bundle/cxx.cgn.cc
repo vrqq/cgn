@@ -126,7 +126,7 @@ static std::string lower_substr(
 // @return type of src: A/+/C/0 (asm, c++, c, 0:igonre)
 static char src_path_convert(
     const std::string &file1, const cgn::CGNTargetOpt &opt,
-    std::string *path_in, std::string *path_out 
+    std::string *path_in, std::string *path_out, bool dot_obj = false
 ) {
     // get extension
     auto fd_slash = file1.rfind('/');
@@ -141,10 +141,10 @@ static char src_path_convert(
         std::string probe1 = api.rebase_path(*path_in, opt.out_prefix);
         if (probe1[0] != '.' && probe1[1] != '.') {// path_in is inside out_prefix
             left = probe1.substr(0, probe1.rfind('.'));
-            *path_out = opt.out_prefix + "__" + left + ".o";
+            *path_out = opt.out_prefix + "__" + left + (dot_obj?".obj":".o");
         }
         else
-            *path_out = cgn::Tools::locale_path(opt.out_prefix + "_" + left + ".o");
+            *path_out = cgn::Tools::locale_path(opt.out_prefix + "_" + left + (dot_obj?".obj":".o"));
     };
     
     // check current file is c/cpp source file
@@ -580,7 +580,7 @@ void TargetWorker::step31_win()
     std::vector<std::string> obj_out_ninja_esc;
     for (auto &file : x.srcs) {
         std::string path_in, path_out;
-        auto file_type = src_path_convert(file, *opt, &path_in, &path_out);
+        auto file_type = src_path_convert(file, *opt, &path_in, &path_out, true);
         if (file_type == 0)
             continue;
         auto *field = opt->ninja->append_build();

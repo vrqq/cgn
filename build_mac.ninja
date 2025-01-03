@@ -1,6 +1,10 @@
 ## CGN Development bootstrap
 ## builddir : the output folder
 ## ============================
+##
+## WARNING: UNTESTED ##
+## ================= ##
+
 builddir = build_mac
 
 cflags = -I. -g -std=c++17 -fsanitize=address -fcolor-diagnostics $
@@ -24,7 +28,5 @@ rule link
               -Wl,-U,__Z9cgn_setupR12CGNInitSetup $
               -Wl,-all_load -fvisibility=default $in -o $out
 
-include buildpart_ninjaport.ninja
-include buildpart_cgnentry.ninja
-
-default $output/cgn
+include cgn_v1.ninja
+default $builddir/cgn

@@ -4,7 +4,7 @@
 #include "pe_file.h"
 #include "../v1/cgn_api.h"
 
-#define devout std::cout
+// #define devout std::cout
 
 namespace cgnv1 {
 

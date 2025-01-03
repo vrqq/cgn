@@ -26,8 +26,3 @@ rule link
 
 include cgn_v1.ninja
 default $builddir/cgn
-
-# include buildpart_ninjaport.ninja
-# include buildpart_cgnentry.ninja
-
-# default $output/cgn
