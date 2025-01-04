@@ -6,6 +6,7 @@
 // exported zone
 #include "git_fetch.cgn.h"
 #include "bin_devel.cgn.h"
+#include "url_download.cgn.h"
 // end exported zone
 
 #include "../../cgn.h"

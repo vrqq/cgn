@@ -195,6 +195,9 @@ std::vector<std::shared_ptr<void>> factory_stub_list = [](){
 ```
 CGNTargetOptIn *sub_opt = opt.create_sub_target(CGNTargetOptOptIn *current_opt);
 ```
+然后在主target 的interpreter结束, 返回到`analyse_target()`时, 自动更新主target及所有subtarget的ninjafile 和 GraphNode.  
+为了简化GraphNode的依赖关系, 我们默认AnalyseGraph为: MainTarget -> subTarget -> subsubTarget ...  
+并且对于每个边, 在上层target的 interpreter内部 创建subtarget时, 指定当前subtarget是否为真实的`CGNTarget result`.
 
 **为何不能创建anonymous target**
 最终编译还是由ninja执行, 其依赖于解析 build.ninja 文件, 而 anonymous target 不知道将该文件放在哪里.  
@@ -218,8 +221,17 @@ ProtobufInterpreter("myproto", x) {
 原GraphNode名称为"T + factory_label + ConfigID" 因增加subconfig, 现改为
 
 **思考 subtarget和其上级target能否共用`GraphNode *anode`**
-不能? 以protobuf为例, 其生成的GraphNode为`T//hello/proto#00000000`, 而其在debug和release模式下, subtarget应指向不同的点.
+不能. 以protobuf为例, 其生成的GraphNode为`T//hello/proto#00000000`, 而其在debug和release模式下, subtarget应指向不同的点.
 
-**结论**: 考虑方案2并修改`struct CGNTargetOpt`, 增加创建subtarget的函数.
+**结论**: 考虑方案2并修改`struct CGNTargetOpt`, 增加创建subtarget的函数, 在创建时就指定当前subtarget是否为result, 且subtarget之间无法互相依赖, 仅能subTarget依赖mainTarget.  
+(虽然逻辑上不完整 但暂时解决了问题 以后有需求在考虑更新这个设计)
 
 
+## 目前尚未解决的语义问题 `cfg[“host_os”]`
+以`url_download()`为例, 当我们 同一个workingRoot目录 被不同host (windows、linux等) 以共享文件夹挂载时, 我们希望git() 下载的第三方源码 直接下载到 workingRoot里面, 而不是 cgn-out里面.  
+同一个输出文件夹 `xxx\repo` 只能对应一个build.ninja下的taget, 可linux(curl)和windows(certutil)的下载命令不同.  
+可能的解决方案: 对于不同host_os生成不同的build.ninja, 在执行命令时检测sha1.  
+
+对于git() 也可考虑使用其他的depot工具例如libgit2.  
+
+类似的问题 对于c++ with clang compiler, host_os不同 其参数格式也不同, 故尔也不应该是同一个 build.ninja. 不过这个可以通过`cfg["host_os"]`解决而不增加资源浪费.

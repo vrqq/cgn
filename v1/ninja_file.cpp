@@ -132,7 +132,7 @@ std::string NinjaFile::parse_ninja_str(const std::string &in)
 {
     std::string rv;
     for (std::size_t i=0; i<in.size(); i++)
-        if (in[i] == '$' && (in[i+1] == '\n' || in[i+1] == ' ' || in[i+1] == '$'))
+        if (in[i] == '$' && (in[i+1] == '\n' || in[i+1] == ' ' || in[i+1] == '$' || in[i+1] == ':'))
             rv.push_back(in[++i]);
         else
             rv += in[i];
@@ -143,7 +143,7 @@ std::string NinjaFile::escape_path(const std::string &in)
 {
     std::string out;
     for (auto ch : in)
-        if (ch == '\n' || ch == ' ' || ch == '$')
+        if (ch == '\n' || ch == ' ' || ch == ':' || ch == '$')
             out += "$" + std::string{ch};
         else
             out += ch;
@@ -154,7 +154,7 @@ std::vector<std::string> NinjaFile::escape_path(const std::vector<std::string> &
 {
     std::vector<std::string> rv;
     for (auto &ss : in)
-        rv.push_back(ss);
+        rv.push_back(escape_path(ss));
     return rv;
 }
 

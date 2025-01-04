@@ -81,6 +81,7 @@ private:
     std::string script_cc;
     std::string cgnapi_winimp;
     bool scriptcc_debug_mode = false;
+    bool halt_on_error = false;
 
     std::unordered_set<std::string> adep_cycle_detection;
 

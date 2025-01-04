@@ -25,6 +25,13 @@
 * `llvm_stl` : `libc++` or empty
 * `msvc_runtime` : `MD`, `MDd`, `MT`, `MTd`
 * `msvc_subsystem` : `CONSOLE`, `WINDOW`
+* `cxx_asan`  : AddressSanitizer
+* `cxx_tsan`  : ThreadSanitizer
+* `cxx_msan`  : MemorySanitizer
+* `cxx_ubsan` : UndefinedBehaviorSanitizer
+* `cxx_dfsan` : DataFlowSanitizer
+* `cxx_lsan`  : LeakSanitizer
+* `cxx_rtsan` : RealtimeSanitizer
 
 **props**
 * `srcs[]` : 源代码, 相对于当前BUILD.cgn.cc的相对路径, 或直接指定绝对路径.

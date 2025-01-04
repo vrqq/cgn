@@ -123,8 +123,11 @@ CGNImpl::active_script(const std::string &label)
 {
     logger.println("ActiveScript ", label);
     auto [labe2, _expand_err] = _expand_cell(label);
-    if (_expand_err.size())
+    if (_expand_err.size()) {
+        if (halt_on_error)
+            throw std::runtime_error{_expand_err};
         return {nullptr, _expand_err};
+    }
     if (std::string_view{labe2.data(), 3} == "../")
         throw std::runtime_error{"Invalid label " + label};
     
@@ -161,8 +164,11 @@ CGNImpl::active_script(const std::string &label)
     //        then build cgn script and goto case 4 if build successful.
     if (s.anode->files.empty() || s.anode->status == GraphNode::Stale) {
         auto fpath = std::filesystem::path{labe2}.make_preferred();
-        if (std::filesystem::exists(fpath) == false)
+        if (std::filesystem::exists(fpath) == false) {
+            if (halt_on_error)
+                throw std::runtime_error{fpath.string() + " not found."};
             return {nullptr, fpath.string() + " not found."};
+        }
 
         //(re)generate GraphNode.files[]
         // script_srcs: file in fetched bundle or .rsp
@@ -254,8 +260,11 @@ CGNImpl::active_script(const std::string &label)
                 "\"" + script_cc + "\" @" + rspname
             );
             // logger.printer.SetConsoleLocked(false);
-            if (build_rv.exitstatus != 0)
+            if (build_rv.exitstatus != 0){
+                if (halt_on_error)
+                    throw std::runtime_error{outname + " " + build_rv.output};
                 return {nullptr, outname + " " + build_rv.output};
+            }
             
             // (windows only) parse .obj and find UNDEFINED symbol
             if (is_win)
@@ -317,8 +326,11 @@ CGNImpl::active_script(const std::string &label)
                 build_rv = raymii::Command::exec(
                     "\"ml.exe\" /nologo /c /Cx /Fo " + asm_obj + " " + asm_in
                 );
-            if (build_rv.exitstatus != 0)
+            if (build_rv.exitstatus != 0) {
+                if (halt_on_error)
+                    throw std::runtime_error{asm_obj + " " + build_rv.output};
                 return {nullptr, asm_obj + " " + build_rv.output};
+            }
             linker_in += asm_obj + " ";
 
             // linking
@@ -327,6 +339,10 @@ CGNImpl::active_script(const std::string &label)
             clpar.includes_.insert(script_srcs.begin(), script_srcs.end());
             node_vals.insert(node_vals.end(), clpar.includes_.begin(), 
                              clpar.includes_.end());
+            
+            // (windows only) convert 'c:\' to 'c:/'
+            for (auto &it : node_vals)
+                std::replace(it.begin(), it.end(), '\\', '/');
         }
         else if (is_unix) {
             std::string dbg_flag = scriptcc_debug_mode?" -g":"";
@@ -354,6 +370,7 @@ CGNImpl::active_script(const std::string &label)
         }
         graph.set_node_files(s.anode, node_vals);
         graph.clear_file0_mtime_cache(s.anode);
+        graph.forward_status(s.anode);
         graph.set_node_status_to_latest(s.anode);
     }
 
@@ -573,15 +590,17 @@ CGNTarget CGNImpl::analyse_target(
                 ptr->ninja = nullptr;
             }
 
-            // if ninja file and it's inner dependency changed, 
-            // update GraphNode and write down ninja file.
-            if (!ptr->file_unchanged && ptr->result.errmsg.empty()) {
+            if (ptr->result.errmsg.empty()) {
                 // insert into main_subninja if interpreter successed.
                 // subninja command enforce '/' path-sep
                 std::string ninja_file_unixsep = ptr->out_prefix_unixsep + CGNTargetOpt::BUILD_NINJA;
                 if (main_subninja.insert(ninja_file_unixsep).second)
                     fout<<"subninja "<<NinjaFile::escape_path(ninja_file_unixsep)<<"\n";
+            }
 
+            // if ninja file and it's inner dependency changed, 
+            // update GraphNode and write down ninja file.
+            if (!ptr->file_unchanged && ptr->result.errmsg.empty()) {
                 // TODO: we want all sub-target have its own factory_label
                 //       then they could call ctx.add_dep() by its own way.
                 //       USER should add adep relations manually
@@ -591,6 +610,7 @@ CGNTarget CGNImpl::analyse_target(
                 //update mtime in fileDB after interpreter returned successful.
                 // file[0] : usually 'libSCRIPT.cgn.so' or 'build.ninja of target'
                 graph.clear_file0_mtime_cache(ptr->anode);
+                graph.forward_status(ptr->anode);
                 graph.set_node_status_to_latest(ptr->anode);
             }
         }
@@ -601,8 +621,11 @@ CGNTarget CGNImpl::analyse_target(
     } //end while(DFS stack not empty)
 
     for (auto i = &opt; ; i=i->result_opt)
-        if (i->result_opt == nullptr)
+        if (i->result_opt == nullptr) {
+            if (halt_on_error && i->result.errmsg.size())
+                throw std::runtime_error{i->result.errmsg};
             return i->result;
+        }
 } //CGNImpl::analyse()
 
 // case1: target_cache[] existed, graph(target) Latest
@@ -647,6 +670,8 @@ CGNTargetOpt *CGNImpl::confirm_target_opt(CGNTargetOptIn *in)
         if (fd->second.anode->status == GraphNode::Latest){
             opt->cache_result_found = opt->file_unchanged = true;
             opt->result = fd->second;
+            logger.verbose_paragraph("confirm_target_opt(" 
+                + opt->cache_label + ") in_memory cache found");
             return opt;
         }
         
@@ -668,6 +693,8 @@ CGNTargetOpt *CGNImpl::confirm_target_opt(CGNTargetOptIn *in)
         if (graph.test_status(opt->anode); opt->anode->status == GraphNode::Latest) {
             opt->ninja = new NinjaFile("");
             opt->file_unchanged = true;
+            logger.verbose_paragraph("confirm_target_opt(" 
+                + opt->cache_label + ") ninja file unchanged.");
         }
     }
     if (opt->ninja == nullptr)
@@ -794,7 +821,7 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     //init logger system
     // (always true, current in development)
     scriptcc_debug_mode = cmd_kvargs.count("scriptcc_debug");
-    // scriptcc_debug_mode = true;
+    halt_on_error = cmd_kvargs.count("halt_on_error");
     logger.set_verbose(cmd_kvargs.count("verbose"));
 
     logger.verbose_paragraph("CWD: " + std::filesystem::current_path().string());
@@ -804,7 +831,7 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     cgn_out = cmd_kvargs.at("cgn-out");
     cgn_out_unixsep = cgn_out.string();
     #ifdef _WIN32
-    std::replace(cgn_out_unixsep.begin(), cgn_out_unixsep.end(), '/', '\\');
+    std::replace(cgn_out_unixsep.begin(), cgn_out_unixsep.end(), '\\', '/');
     #endif
     analysis_path = cgn_out / ("analysis_" + Tools::get_host_info().os + dsuffix);
     obj_main_ninja = cgn_out / "obj" / "main.ninja";

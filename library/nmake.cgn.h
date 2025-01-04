@@ -9,8 +9,6 @@
 #endif
 
 #include "../cgn.h"
-#include "../rule_marco.h"
-#include "../provider_dep.h"
 #include "cxx.cgn.bundle/cxx.cgn.h"
 
 // variables assigned by Interpeter
@@ -22,9 +20,11 @@
 //  CPP = cxx::test_param(cfg["cxx_toolchain"])
 //  CXX = cxx::test_param(cfg["cxx_toolchain"]) 
 //  RC  = cxx::test_param(cfg["cxx_toolchain"]) Resource Compiler
-struct NMakeContext : cgn::TargetInfoDep<true>
+struct NMakeContext
 {
     const std::string &name;
+
+    cgn::Configuration &cfg;
 
     //the file path base on 'cwd'
     std::string makefile = "Makefile";
@@ -51,8 +51,11 @@ struct NMakeContext : cgn::TargetInfoDep<true>
     // the nmake target which to clear build
     std::string clean_target_name   = "clean";
 
-    NMAKE_CGN_API NMakeContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt);
-    friend class NMakeInterpreter;
+    NMAKE_CGN_API NMakeContext(cgn::CGNTargetOptIn *opt)
+    : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
+
+private: friend class NMakeInterpreter;
+    cgn::CGNTargetOptIn *opt;
 };
 
 struct NMakeInterpreter
@@ -63,7 +66,7 @@ struct NMakeInterpreter
         return {"@cgn.d//library/cxx.cgn.bundle",
                 "@cgn.d//library/nmake.cgn.cc"};
     }
-    NMAKE_CGN_API static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    NMAKE_CGN_API static void interpret(context_type &x);
 };
 
 #define nmake(name, x) CGN_RULE_DEFINE(::NMakeInterpreter, name, x)

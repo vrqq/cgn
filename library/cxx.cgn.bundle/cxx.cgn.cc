@@ -417,6 +417,19 @@ void TargetWorker::step1_linux_gcc()
         interp_arg.cflags += {
             "--sysroot=" + two_escape(x.cfg["cxx_sysroot"])
         };
+
+    //["cxx_asan/..."]
+    std::string sanitizer;
+    auto append_sanitizer = [&](bool cond, const std::string &ss) {
+        if(cond) sanitizer += (sanitizer.size()?",":"") + ss;
+    };
+    append_sanitizer((x.cfg["cxx_asan"] != ""), "address");
+    append_sanitizer((x.cfg["cxx_ubsan"] != ""), "undefined");
+    append_sanitizer((x.cfg["cxx_tsan"] != ""), "thread");
+    append_sanitizer((x.cfg["cxx_msan"] != ""), "memory");
+    append_sanitizer((x.cfg["cxx_lsan"] != ""), "leak");
+    interp_arg.cflags  += {"--fsanitize=" + sanitizer};
+    interp_arg.ldflags += {"--fsanitize=" + sanitizer};
 } //TargetWorker::step1_linux_gcc()
 
 
@@ -494,6 +507,19 @@ void TargetWorker::step1_linuxllvm_and_xcode()
             cpu = "aarch64";
         interp_arg.cflags += {"--target=" + cpu + "-pc-" + (std::string)x.cfg["os"]};
     }
+    
+    //["cxx_asan/..."]
+    std::string sanitizer;
+    auto append_sanitizer = [&](bool cond, const std::string &ss) {
+        if(cond) sanitizer += (sanitizer.size()?",":"") + ss;
+    };
+    append_sanitizer((x.cfg["cxx_asan"] != ""), "address");
+    append_sanitizer((x.cfg["cxx_ubsan"] != ""), "undefined");
+    append_sanitizer((x.cfg["cxx_tsan"] != ""), "thread");
+    append_sanitizer((x.cfg["cxx_msan"] != ""), "memory");
+    append_sanitizer((x.cfg["cxx_lsan"] != ""), "leak");
+    interp_arg.cflags  += {"-fsanitize=" + sanitizer};
+    interp_arg.ldflags += {"-fsanitize=" + sanitizer};
 } //TargetWorker::step1_linuxllvm_and_xcode()
 
 CxxInfo TargetWorker::export_unix(

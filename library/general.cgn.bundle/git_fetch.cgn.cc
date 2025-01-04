@@ -80,13 +80,13 @@ GENERAL_CGN_BUNDLE_API void GitFetcher::interpret(context_type &x)
         field->variables["cmd"] = cmd;
         field->variables["desc"] = "GIT FETCH " + x.repo;
         // field->outputs = {opt.ninja->escape_path(opt.src_prefix + opt.BUILD_ENTRY)};
-        field->outputs = {touchfile};
+        field->outputs = {opt->ninja->escape_path(touchfile)};
         field->rule = "quick_run";
 
         auto *entry = opt->ninja->append_build();
         entry->rule = "phony";
-        entry->outputs = {opt->out_prefix + opt->BUILD_ENTRY};
-        entry->inputs  = {touchfile};
+        entry->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
+        entry->inputs  = {opt->ninja->escape_path(touchfile)};
     }
 
     opt->result.outputs = {dest_dir};

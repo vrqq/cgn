@@ -8,6 +8,8 @@ build $builddir/cgn_impl.o : cc v1/cgn_impl.cpp
 
 build $builddir/cgn_tools_fileglob.o : cc v1/cgn_tools_fileglob.cpp 
 
+build $builddir/cgn_tools_parentproc.o : cc v1/cgn_tools_parentproc.cpp 
+
 build $builddir/cgn_tools.o : cc v1/cgn_tools.cpp
 
 build $builddir/cgn_type.o : cc v1/cgn_type.cpp
@@ -46,6 +48,7 @@ build $builddir/cgn_v1.a : ar $
     $builddir/cgn_api.o $
     $builddir/cgn_impl.o $
     $builddir/cgn_tools_fileglob.o $
+    $builddir/cgn_tools_parentproc.o $
     $builddir/cgn_tools.o $
     $builddir/cgn_type.o $
     $builddir/configuration_mgr.o $
