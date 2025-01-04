@@ -8,5 +8,5 @@
 #include "@cgn.d/library/cxx.cgn.bundle/cxx.cgn.h"
 // #include "@cgn.d/library/xcode.cgn.bundle/xcode.cgn.h"
 #include "@cgn.d/library/cmake.cgn.h"
-// #include "@cgn.d/library/nmake.cgn.h"
+#include "@cgn.d/library/nmake.cgn.h"
 #include "@third_party/protobuf/proto.cgn.h"

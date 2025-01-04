@@ -7,10 +7,11 @@
 //
 #define LANGCXX_CGN_BUNDLE_IMPL
 #include <cassert>
+#include <cstring>
 #include "cxx.cgn.h"
 
 // CxxInterpreter
-// ------------- -------------
+// --------------------------
 namespace cxx {
 
 const cgn::BaseInfo::VTable &CxxInfo::_glb_cxx_vtable()
@@ -91,17 +92,6 @@ list2str(const T &in, const std::string prefix="")
     return rv;
 }
 
-// keep element first seen and remove duplicate in 'ls'
-// static void remove_dup(std::vector<std::string> &ls)
-// {
-//     std::unordered_set<std::string> visited;
-//     std::size_t i=0;
-//     for (std::size_t j=0; j<ls.size(); j++)
-//         if (visited.insert(ls[j]).second == true)
-//             std::swap(ls[i++], ls[j]);
-//     ls.resize(i);
-// }
-
 // get substr and convert to lowercase
 static std::string lower_substr(
     const std::string &in, std::size_t b, std::size_t e = std::string::npos
@@ -138,8 +128,14 @@ static char src_path_convert(
 
     auto gen = [&]() {
         *path_in = cgn::Tools::locale_path(opt.src_prefix + file1);
-        std::string probe1 = api.rebase_path(*path_in, opt.out_prefix);
-        if (probe1[0] != '.' && probe1[1] != '.') {// path_in is inside out_prefix
+
+        // since path_in and opt.out_prefix is not in same driver in windows,
+        // using rebase_path() can only get the abspath of path_in and it's 
+        // hard to check.
+        bool start_with_outprefix = (path_in->size() > opt.out_prefix.size()
+            && memcmp(path_in->c_str(), opt.out_prefix.c_str(), opt.out_prefix.size())==0);
+        if (start_with_outprefix) {// path_in is inside out_prefix
+            std::string probe1 = api.rebase_path(*path_in, opt.out_prefix);
             left = probe1.substr(0, probe1.rfind('.'));
             *path_out = opt.out_prefix + "__" + left + (dot_obj?".obj":".o");
         }
@@ -252,6 +248,7 @@ void TargetWorker::step1_win_msvc()
         "/Zc:forScope", // Enforce Standard C++ for scoping rules (on by default).
         // "/WX-",      // /WX Treat Linker Warnings as Errors (default in vs project)
         "/Gd",          // x86 __cdecl calling convention
+        "/sdl",   // Enables recommended Security Development Lifecycle (SDL) checks.
         "/utf-8", "/wd4828",   // illegal character in UTF-8
         // "/nologo",      // /nologo is in ninja file
         "/diagnostics:column",
@@ -602,6 +599,7 @@ void TargetWorker::step31_win()
     std::string dyn_def_file;
 
     // build.ninja : source file => .o
+    std::string pdbfile = opt->out_prefix + "__vc.pdb";
     std::vector<std::string> obj_out;
     std::vector<std::string> obj_out_ninja_esc;
     for (auto &file : x.srcs) {
@@ -628,6 +626,7 @@ void TargetWorker::step31_win()
                 + list2str(carg.cflags)
                 + list2str(carg.include_dirs, "/I")
                 + list2str(carg.defines, "/D");
+            field->variables["pdb"] = opt->ninja->escape_path(pdbfile);
         }
         obj_out.push_back(path_out);
         obj_out_ninja_esc.push_back(field->outputs[0]);
