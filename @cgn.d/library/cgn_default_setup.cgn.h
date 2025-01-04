@@ -54,17 +54,33 @@ inline cgn::Configuration config_guessor(std::unordered_set<std::string> &argls)
     cgn::HostInfo host = cgn::Tools::get_host_info();
     cgn::Configuration cfg;
     
+    cfg["host_os"]  = host.os;
+    cfg["host_cpu"] = host.cpu;
+    
     if ((cfg["os"] = extract(argls, {"win", "mac", "linux"})) == "")
         cfg["os"] = host.os;
     
     if ((cfg["cpu"] = extract(argls, {"x86", "x86_64", "arm64", "ia64", "mips64"})) == "")
         cfg["cpu"] = host.cpu;
     
-    if ((cfg["shell"] = extract(argls, {"cmd", "powershel", "bash"})) == "") {
-        if (host.os == "win")
-            cfg["shell"] = "cmd";
+    if ((cfg["host_shell"] = extract(argls, {"cmd", "powershel", "bash"})) == "") {
+        std::string parent_proc = cgn::Tools::get_parent_process_name();
+        for (auto &ch : parent_proc)
+            if ('A' <= ch && ch <= 'Z')
+                ch = ch - 'A' + 'a';
+        
+        if (parent_proc == "cmd.exe")
+            cfg["host_shell"] = "cmd";
+        if (parent_proc == "powershell.exe")
+            cfg["host_shell"] = "cmd";
+        else if (parent_proc == "bash.exe" || parent_proc == "bash")
+            cfg["host_shell"] = "bash";
+        else if (parent_proc == "zsh")
+            cfg["host_shell"] = "zsh";
+        else if (host.os == "win")
+            cfg["host_shell"] = "cmd";
         else
-            cfg["shell"] = "bash";
+            cfg["host_shell"] = "bash";
     }
 
     if ((cfg["cxx_toolchain"] = extract(argls, {"gcc", "llvm", "msvc", "xcode"})) == "") {
@@ -79,6 +95,12 @@ inline cgn::Configuration config_guessor(std::unordered_set<std::string> &argls)
     if ((cfg["optimization"] = extract(argls, {"debug", "release"})) == "")
         cfg["optimization"] = "release";
     
+    cfg["cxx_asan"]  = extract(argls, {"asan"});
+    cfg["cxx_tsan"]  = extract(argls, {"tsan"});
+    cfg["cxx_msan"]  = extract(argls, {"msan"});
+    cfg["cxx_lsan"]  = extract(argls, {"lsan"});
+    cfg["cxx_ubsan"] = extract(argls, {"ubsan"});
+
     if (cfg["os"] == "win") {
         if ((cfg["msvc_runtime"] = extract2(argls, 
             {{"msvc_MD", "MD"}, {"msvc_MDd", "MDd"}, {"msvc_MT", "MT"}, {"msvc_MTd", "MTd"}})
@@ -111,6 +133,8 @@ inline cgn::Configuration generate_host_release()
         args.insert({"msvc", "msvc_MD", "CONSOLE", "cmd"});
     else if (hinfo.os == "linux")
         args.insert({"gcc", "bash"});
+    else if (hinfo.os == "mac")
+        args.insert({"xcode", "zsh"});
     else
         args.insert({"llvm", "bash"});
     return config_guessor(args);

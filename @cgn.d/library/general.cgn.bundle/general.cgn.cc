@@ -41,20 +41,20 @@ GENERAL_CGN_BUNDLE_API void ShellBinary::interpret(context_type &x)
     if (x.outputs.size()) {
         for (auto &file : x.outputs) {
             file = api.locale_path(opt->src_prefix + file);
-            field->outputs.push_back(opt->ninja->escape_path(file));
+            field->outputs += {opt->ninja->escape_path(file)};
         }
 
         auto *entry    = opt->ninja->append_build();
         entry->rule    = "phony";
-        entry->outputs = {opt->out_prefix + opt->BUILD_ENTRY};
+        entry->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
         entry->inputs  = field->outputs;
     }
     else
-        field->outputs = {opt->out_prefix + opt->BUILD_ENTRY};
+        field->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
 
     for (auto &fname : x.outputs)
-        field->implicit_outputs.push_back(opt->out_prefix 
-                        + cgn::Tools::locale_path(fname));
+        field->implicit_outputs += {opt->ninja->escape_path(
+                opt->out_prefix + cgn::Tools::locale_path(fname))};
 
     opt->result.outputs = x.outputs;
 } //ShellBinary::interpret()
@@ -98,8 +98,8 @@ GENERAL_CGN_BUNDLE_API void AliasInterpreter::interpret(context_type &x)
     
     auto *field = opt->ninja->append_build();
     field->rule = "phony";
-    field->inputs = {early.ninja_entry};
-    field->outputs = {opt->out_prefix + opt->BUILD_ENTRY};
+    field->inputs = {opt->ninja->escape_path(early.ninja_entry)};
+    field->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
 } //AliasInterpreter::interpret
 
 
@@ -127,8 +127,8 @@ GENERAL_CGN_BUNDLE_API void GroupInterpreter::interpret(context_type &x)
 
     auto *field = opt->ninja->append_build();
     field->rule = "phony";
-    field->inputs = x.deps_ninja_entry;
-    field->implicit_inputs = std::move(opt->quickdep_ninja_full);
-    field->order_only      = std::move(opt->quickdep_ninja_dynhdr);
-    field->outputs = {opt->out_prefix + opt->BUILD_ENTRY};
+    field->inputs = opt->ninja->escape_path(x.deps_ninja_entry);
+    field->implicit_inputs = opt->ninja->escape_path(opt->quickdep_ninja_full);
+    field->order_only      = opt->ninja->escape_path(opt->quickdep_ninja_dynhdr);
+    field->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
 } //GroupInterpreter::interpret

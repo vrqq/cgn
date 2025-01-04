@@ -22,6 +22,7 @@ int show_helper(const char *arg0) {
              <<"     -V / --verbose\n"
              <<"     --winenv\n"
              <<"     --scriptcc_debug\n"
+             <<"     --halt_on_error\n"
              <<"     --scriptcc + xxx.exe\n"
              <<std::endl;
     return 1;
@@ -84,7 +85,7 @@ int main(int argc, char **argv)
 {
     //parse input cmdline
     std::unordered_set<std::string> single_options{
-        "scriptcc_debug", "verbose", "winenv"
+        "scriptcc_debug", "halt_on_error", "verbose", "winenv"
     };
     std::vector<std::string> args;
     std::unordered_map<std::string, std::string> args_kv;
@@ -200,15 +201,23 @@ try{
     if (args[0] == "preload")
         return cgn_preload_all();
     if (args[0] == "tool") {
+        if (args.size() == 2 && args[1] == "parentprocess") {
+            std::cout<<api.get_parent_process_name()<<"\n";
+            return 0;
+        }
         if (args.size() == 4 && args[1] == "abslabel") {
             std::cout<<api.absolute_label(args[2], args[3])<<"\n";
             return 0;
         }
-        if (args.size() > 4 && args[1] == "rebase") {
+        if (args.size() >= 4 && args[1] == "rebase") {
             if (args.size() == 4)
                 std::cout<<api.rebase_path(args[2], args[3])<<"\n";
             if (args.size() > 4)
                 std::cout<<api.rebase_path(args[2], args[3], args[4])<<"\n";
+            return 0;
+        }
+        if (args.size() > 2 && args[1] == "locale") {
+            std::cout<<api.locale_path(args[2])<<"\n";
             return 0;
         }
         // if (args.size() == 2 && args[1] == "dev")

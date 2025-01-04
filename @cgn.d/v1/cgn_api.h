@@ -78,6 +78,11 @@ struct CGN_EXPORT Tools {
 
     static std::string getenv(const std::string &key);
 
+    //return parent process name, for example
+    // windows: "cmd.exe" or "powershell.exe"
+    // linux: "bash", "zsh" or "fish"
+    static std::string get_parent_process_name();
+
     // remove duplicate items in list.
     static void remove_duplicate_inplace(std::vector<std::string> &data);
 

@@ -169,10 +169,10 @@ void CMakeInterpreter::interpret(context_type &x)
         // target cmake gen
         auto *gen = opt->ninja->append_build();
         gen->rule    = "quick_run";
-        gen->inputs  = {api.locale_path(src_dir + "/CMakeLists.txt")};
-        gen->implicit_inputs = opt->quickdep_ninja_full;
-        gen->order_only      = opt->quickdep_ninja_dynhdr;
-        gen->outputs = {api.locale_path(build_dir + "/CMakeCache.txt")};
+        gen->inputs  = {opt->ninja->escape_path(api.locale_path(src_dir + "/CMakeLists.txt"))};
+        gen->implicit_inputs = opt->ninja->escape_path(opt->quickdep_ninja_full);
+        gen->order_only      = opt->ninja->escape_path(opt->quickdep_ninja_dynhdr);
+        gen->outputs = {opt->ninja->escape_path(api.locale_path(build_dir + "/CMakeCache.txt"))};
         gen->variables["cmd"] = prepare_cmdgen(&two_escape) + nul_suffix;
         gen->variables["desc"] = "CMAKE_GEN " + src_dir;
 
@@ -205,7 +205,7 @@ void CMakeInterpreter::interpret(context_type &x)
         auto *efield = opt->ninja->append_build();
         efield->rule = "phony";
         efield->inputs  = build->outputs;
-        efield->outputs = {opt->out_prefix + opt->BUILD_ENTRY};
+        efield->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
     }
     else { // [NINJA FILE] cmake_nodep_mode below
         x.vars["CMAKE_NINJA_OUTPUT_PATH_PREFIX"] = build_dir;
@@ -219,8 +219,8 @@ void CMakeInterpreter::interpret(context_type &x)
 
         auto *efield = opt->ninja->append_build();
         efield->rule = "phony";
-        efield->inputs  = {build_dir + "/install"};
-        efield->outputs = {opt->out_prefix + opt->BUILD_ENTRY};
+        efield->inputs  = {opt->ninja->escape_path(build_dir + "/install")};
+        efield->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
 
         // Generate ninja result-field and return value
         // TODO: fetch by cmake script like "cmake_install.cmake"
@@ -282,10 +282,10 @@ void CMakeConfigInterpeter::interpret(
     // target cmake gen
     auto *gen = opt->ninja->append_build();
     gen->rule    = "quick_run";
-    gen->inputs  = {api.locale_path(src_dir + "/CMakeLists.txt")};
-    gen->implicit_inputs = opt->quickdep_ninja_full;
-    gen->order_only      = opt->quickdep_ninja_dynhdr;
-    gen->outputs = {api.locale_path(build_dir + "/CMakeCache.txt")};
+    gen->inputs  = {opt->ninja->escape_path(api.locale_path(src_dir + "/CMakeLists.txt"))};
+    gen->implicit_inputs = opt->ninja->escape_path(opt->quickdep_ninja_full);
+    gen->order_only      = opt->ninja->escape_path(opt->quickdep_ninja_dynhdr);
+    gen->outputs = {opt->ninja->escape_path(api.locale_path(build_dir + "/CMakeCache.txt"))};
     gen->variables["cmd"] = cmd + nul_suffix;
     gen->variables["desc"] = "CMAKE_GEN " + src_dir;
 
@@ -293,7 +293,7 @@ void CMakeConfigInterpeter::interpret(
     auto *entry = opt->ninja->append_build();
     entry->rule = "phony";
     entry->inputs  = gen->outputs;
-    entry->outputs = {opt->out_prefix + opt->BUILD_ENTRY};
+    entry->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
 
     // Generate BinDevelInfo
     // BinDevelContext devel_ctx{x.cfg, opt};

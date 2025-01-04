@@ -71,7 +71,6 @@ void Graph::test_status(GraphNode *p)
         p->max_mtime = std::max(p->max_mtime, p->files[i]->mem_mtime);
     }  //for(p->files[])
 
-    int64_t max_mtime_from_rnode = 0;
     for (GraphEdgeID e = _iter_edge(p->rhead, false); e && !is_stale; e=_iter_edge(edges[e].rnext, false)) {
         if (edges[e].from->status == GraphNode::Unknown)
             test_status(edges[e].from);
@@ -84,6 +83,15 @@ void Graph::test_status(GraphNode *p)
 
     p->_status = is_stale? GraphNode::Stale : GraphNode::Latest;
 } //Graph::test_status()
+
+void Graph::forward_status(GraphNode *p)
+{
+    if (p->status == GraphNode::Stale)
+        for (GraphEdgeID eid = _iter_edge(p->head, true); eid; 
+             eid = _iter_edge(edges[eid].next, true))
+                set_node_status_to_stale(edges[eid].to);
+}
+
 
 GraphNode *Graph::get_node(const std::string &name)
 {
@@ -515,8 +523,16 @@ void Graph::db_flush()
 
         // skip if same with last data
         // (the first file is output file[0])
-        if (newdata.size())
+        if (newdata.size()) {
             std::sort(++newdata.begin(), newdata.end());
+            std::size_t compressed_size = 1;
+            for(std::size_t i=1; i<newdata.size(); i++) {
+                while(i+1<newdata.size() && newdata[i] == newdata[i+1])
+                    i++;
+                newdata[compressed_size++] = newdata[i];
+            }
+            newdata.resize(compressed_size);
+        }
         if (n->filedb.self_offset != 0 &&
             n->init_state_is_stale == n->filedb.init_state_is_stale &&
             newdata == n->filedb.rel_off)

@@ -3,8 +3,9 @@ sidebar_position: 1
 ---
 
 # CGN
-受GN和bazel/buck启发，用 C++11 编写编译脚本(BUILD.cgn.cc)，并由cgn.exe扫描目录并自动将每一个`BUILD.cgn.cc` 编译为独立dll，然后由cgn.exe依次dlopen后，自动解析target然后生成ninja脚本。 
-使用`cgn build @cell//folder:target` 执行编译
+受GN和bazel/buck启发，用 C++11 编写编译脚本(BUILD.cgn.cc)，并由cgn.exe扫描目录并自动将每一个`BUILD.cgn.cc` 编译为独立dll，然后由cgn.exe依次dlopen后，自动解析target然后生成ninja脚本, 最后由ninja完成实际编译。  
+
+用户运行 `cgn build @cell//folder:target` 触发编译某个target
 
 ## Getting Started
 进入 @cgn.d 文件夹 根据当前系统编译相应版本的 cgn
@@ -21,7 +22,7 @@ sidebar_position: 1
 **Pros**
 * 受buck2启发，既然buck2仅是starlark解释器，那么c++语言就是天然的解释器，只要规定好脚本习惯，即可扩充其他支持的语言
 * 无需考虑语法解释器 和新的语言语法，c++大多数系统自带，同时也有语法提示
-* 依赖及函数实时解析 类似chrome GN, 比 buck2/bazel 有更强的灵活性.
+* 依赖及函数实时解析 类似chrome GN, 比 buck2/bazel 有更强的灵活性
 * ninja做了依赖，文件检查，并行编译
 
 **Cons**

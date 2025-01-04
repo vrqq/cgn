@@ -81,6 +81,11 @@ public:
     // Judge p->status if Unknown.
     void test_status(GraphNode *p);
 
+    // Propagate the status from node U to its connected node V via edge U->V.
+    // - If U's status is 'Stale', set V's status to 'Stale'.
+    // - If U's status is 'Unknown' or 'Latest', do not modify V's state.
+    void forward_status(GraphNode *p);
+
     // update db[files[*]].mtime and set p->status to Latest
     void set_node_status_to_latest(GraphNode *p);
 
