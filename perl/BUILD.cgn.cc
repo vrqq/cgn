@@ -2,7 +2,7 @@
 
 git("perl.git", x) {
     x.repo = "https://github.com/Perl/perl5.git";
-    x.commit_id = "e9f8aee2bc0fcdce0a13746848aad38c23073ef7"; //5.41.1
+    x.commit_id = "3a3761b09845d0d6d68f91eb45c52ae70de89489"; //5.41.7
     x.dest_dir = "repo";
 }
 
@@ -21,4 +21,6 @@ nmake("perl_win", x) {
     x.install_prefix_varname = "INST_TOP";
     x.override_vars["CCTYPE"] = "MSVC143"; //VS2022 (TODO: fetch from cxx interpreter)
 
+    if (api.is_directory_case_sensitive(x.opt->src_prefix))
+        x.opt->confirm_with_error("Perl on windows can only be compiled on case insensitive directory.");
 }

@@ -1,6 +1,16 @@
 // Protobuf interpreter
 // see also : https://bazel.build/reference/be/protocol-buffer
 //
+#ifdef _WIN32
+    #ifdef PROTOC_CGN_IMPL
+        #define PROTOC_CGN_API  __declspec(dllexport)
+    #else
+        #define PROTOC_CGN_API
+    #endif
+#else
+    #define PROTOC_CGN_API __attribute__((visibility("default")))
+#endif
+
 #pragma once
 #include <cgn>
 
@@ -78,7 +88,7 @@ struct ProtobufInterpreter
                 "@cgn.d//library/general.cgn.bundle"};
     }
 
-    static void interpret(context_type &x);
+    PROTOC_CGN_API static void interpret(context_type &x);
 };
 
 #define protobuf(name, x) CGN_RULE_DEFINE(ProtobufInterpreter, name, x)
