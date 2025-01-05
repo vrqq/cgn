@@ -453,6 +453,16 @@ CGNTargetOptIn *CGNTargetOpt::create_sub_target(const std::string &name, bool as
     return &rv;
 }
 
+CGNTarget *CGNTargetOpt::get_real_result()
+{
+    for (auto i = dynamic_cast<CGNTargetOptIntl*>(this); ; i=i->result_opt)
+        if (i->result_opt == nullptr){
+            if (i->target_confirmed)
+                return &(i->result);
+            return nullptr;
+        }
+}
+
 // cache supported (cache detection in API::confirm_target_opt())
 // Prepare variable and call
 // @param label: //hello:world
@@ -765,7 +775,7 @@ std::shared_ptr<void> CGNImpl::bind_target_builder(
 }
 
 void CGNImpl::build_target(
-    const std::string &label, const Configuration &cfg
+    const std::string &label, const Configuration &cfg, bool need_run
 ) {
     // current_analysis_level = 'b';
     auto rv = analyse_target(label, cfg);
@@ -787,7 +797,9 @@ void CGNImpl::build_target(
     if (logger.is_verbose())
         cmd += " --verbose";
     logger.paragraph(cmd + "\n");
-    system(cmd.c_str());
+    int exitcode = system(cmd.c_str());
+    if (exitcode == 0 && need_run && rv.outputs.size())
+        system(rv.outputs[0].c_str());
 }
 
 std::pair<std::string, std::string> CGNImpl::_expand_cell(const std::string &ss) const

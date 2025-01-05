@@ -25,13 +25,11 @@ CMakeContext::CMakeContext(cgn::CGNTargetOptIn *opt)
 : name(opt->factory_name), cfg(opt->cfg), opt(opt) {
     auto cinfo = cxx::CxxInterpreter::test_param(cfg);
 
-
     // vars["CMAKE_MESSAGE_LOG_LEVEL"] = "ERROR";
     // vars["CMAKE_INSTALL_MESSAGE"] = "NEVER";
     vars["CMAKE_C_COMPILER"]   = cinfo.c_exe;
     vars["CMAKE_CXX_COMPILER"] = cinfo.cxx_exe;
     
-
     if (cfg["optimization"] == "debug")
         vars["CMAKE_BUILD_TYPE"] = "DEBUG";
     if (cfg["optimization"] == "release")
@@ -48,6 +46,22 @@ CMakeContext::CMakeContext(cgn::CGNTargetOptIn *opt)
     
     if (cfg["sysroot"] != "")
         vars["CMAKE_SYSROOT"] = cfg["sysroot"];
+
+    std::string sans;
+    auto append_san = [&](const char *cfgname, const std::string &ss) {
+        if (opt->cfg[cfgname] != "")
+            sans += (sans.size()? ",": "") + ss;
+    };
+    append_san("cxx_asan", "address");
+    append_san("cxx_msan", "memory");
+    append_san("cxx_lsan", "leak");
+    append_san("cxx_tsan", "thread");
+    append_san("cxx_ubsan", "undefined");
+    if (sans.size()) {
+        vars["CMAKE_CXX_FLAGS"] += " -fsanitize=" + sans;
+        vars["CMAKE_C_FLAGS"]   += " -fsanitize=" + sans;
+        vars["CMAKE_SHARED_LINKER_FLAGS"] += " -fsanitize=" + sans;
+    }
     
     auto host = api.get_host_info();
     if (cfg["cpu"] != host.cpu || cfg["os"] != host.os) {

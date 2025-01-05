@@ -154,6 +154,10 @@ private: friend struct CxxInterpreter; // field for interpreter
     // path of xxx.a, param to /WHOLEARCHIVE
     std::vector<std::string> _wholearchive_a;
 
+    // The maximum result->ninja_dep_level collect from deps,
+    // the value is max(all_deps with cxx::inherit) .
+    char _max_pub_ninja_level = cgn::CGNTarget::NINJA_LEVEL_NONEED;
+
     // target name in build.ninja when cxx::order_dep
     //   build current_cxx : ... || <phony_order_only...>
     // std::vector<std::string> phony_order_only;

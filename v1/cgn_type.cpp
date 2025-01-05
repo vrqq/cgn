@@ -97,8 +97,9 @@ void CGNTargetOptIn::confirm_with_error(const std::string &errmsg)
     opt->result.errmsg = errmsg;
 }
 
-// defined in cgn_impl.cpp
+// These functions are defined in cgn_impl.cpp
 // CGNTargetOptIn *CGNTargetOpt::create_sub_target(const std::string &name);
+// CGNTarget *CGNTargetOpt::get_real_result();
 
 // === LinkAndRunInfo implement ===
 

@@ -222,6 +222,9 @@ struct CGNTargetOpt : CGNTargetOptIn
 
     CGN_EXPORT CGNTargetOptIn *create_sub_target(const std::string &name, bool as_result = false);
 
+    // return nullptr if not confirmed.
+    CGNTarget *get_real_result();
+
     CGNTargetOpt(const std::string &factory_name)
     : CGNTargetOptIn(factory_name, result.factory_label, result.trimmed_cfg) {}
     

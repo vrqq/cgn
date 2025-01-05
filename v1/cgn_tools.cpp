@@ -560,6 +560,56 @@ std::string Tools::getenv(const std::string &key)
     #endif
 }
 
+bool Tools::is_directory_case_sensitive(const std::string& directory)
+{
+#ifdef _WIN32 // Windows: Check FILE_CASE_SENSITIVE_SEARCH
+    std::filesystem::path dir(directory);
+    WCHAR volume_name[MAX_PATH + 1] = {0};
+    DWORD flags = 0;
+    if (GetVolumeInformationW(
+            dir.root_path().c_str(),
+            volume_name,
+            sizeof(volume_name) / sizeof(volume_name[0]),
+            nullptr,
+            nullptr,
+            &flags,
+            nullptr,
+            0)) {
+        return (flags & FILE_CASE_SENSITIVE_SEARCH) != 0;
+    }
+    return false;
+
+#else // Linux/macOS: Compare inodes of different case file names
+    std::filesystem::path dir(directory);
+    // Find an existing file in the directory
+    for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+        if (entry.is_regular_file()) {
+            std::string original_filename = entry.path().filename().string();
+            std::string altered_filename = original_filename;
+
+            // Change the case of the first character (if it's alphabetic)
+            if (!altered_filename.empty() &&
+                ((altered_filename[0] >= 'a' && altered_filename[0] <= 'z') ||
+                    (altered_filename[0] >= 'A' && altered_filename[0] <= 'Z'))) {
+                altered_filename[0] = (altered_filename[0] >= 'a' && altered_filename[0] <= 'z')
+                                            ? std::toupper(altered_filename[0])
+                                            : std::tolower(altered_filename[0]);
+
+                // Get the stat of the original and altered file names
+                struct stat original_stat, altered_stat;
+                bool original_exists = (::stat((dir / original_filename).c_str(), &original_stat) == 0);
+                bool altered_exists  = (::stat((dir / altered_filename).c_str(),  &altered_stat) == 0);
+
+                // Case-sensitive if altered file does not exist
+                return !(original_exists && altered_exists);
+            }
+        }
+    }
+    // If no files are found, assume case-sensitive (safe default for most systems)
+    return true;
+#endif
+} //Tools::is_directory_case_sensitive()
+
 void Tools::remove_duplicate_inplace(std::vector<std::string> &data)
 {
     std::unordered_set<std::string> visited;

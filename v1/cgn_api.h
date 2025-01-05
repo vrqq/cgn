@@ -83,6 +83,8 @@ struct CGN_EXPORT Tools {
     // linux: "bash", "zsh" or "fish"
     static std::string get_parent_process_name();
 
+    static bool is_directory_case_sensitive(const std::string& directory);
+
     // remove duplicate items in list.
     static void remove_duplicate_inplace(std::vector<std::string> &data);
 
@@ -114,7 +116,7 @@ public:
     );
 
     // Build specific target
-    void build(const std::string &label, const Configuration &cfg);
+    void build(const std::string &label, const Configuration &cfg, bool run_target = false);
 
     // ConfigurationID commit_config(const Configuration &plat_cfg);
 

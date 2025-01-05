@@ -721,6 +721,7 @@ void TargetWorker::step31_win()
                             + rvlnr->shared_files;
 
         opt->result.outputs = {outfile, outfile_implib};
+        opt->result.ninja_dep_level = x._max_pub_ninja_level;
     } // if (role=='s' or 'x')
 
 } //TargetWorker::step31_win()
@@ -897,6 +898,7 @@ void TargetWorker::step31_unix()
         rvlnr->shared_files = std::vector<std::string>{outfile} + rvlnr->shared_files;
 
         opt->result.outputs = {outfile};
+        opt->result.ninja_dep_level = x._max_pub_ninja_level;
         return ;
     } // if (role=='s' or 'x')
 } //TargetWorker::step31_unix()
@@ -981,6 +983,9 @@ cgn::CGNTarget CxxContext::add_dep(
     // Ignore remote CGNTarget value and return.
     if (flag == cxx::order_dep)
         return early;
+
+    if (flag & cxx::inherit)
+        _max_pub_ninja_level = std::max(_max_pub_ninja_level, early.ninja_dep_level);
 
     // call merge() for unused field
     for (auto &rhs : early.data())
