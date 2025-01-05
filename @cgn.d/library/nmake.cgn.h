@@ -54,7 +54,7 @@ struct NMakeContext
     NMAKE_CGN_API NMakeContext(cgn::CGNTargetOptIn *opt)
     : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
 
-private: friend class NMakeInterpreter;
+// private: friend class NMakeInterpreter;
     cgn::CGNTargetOptIn *opt;
 };
 

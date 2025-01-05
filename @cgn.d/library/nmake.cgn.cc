@@ -60,7 +60,7 @@ void NMakeInterpreter::interpret(context_type &x)
         throw std::runtime_error{"nmake_interpret : cannot create " 
                                 + opt->out_prefix + "nmake_build.bat"};
         fout<<"@pushd " + wr_cwd + "\n"
-            <<"nmake.exe /NOLOGO /E /f " + api.shell_escape(cwd_mkfile) + " " 
+            <<"nmake.exe /NOLOGO /f " + api.shell_escape(cwd_mkfile) + " " 
             + argstr_shesc + api.shell_escape(x.install_target_name) + "\n"
             <<"@set ret_value=%ERRORLEVEL%\n"
             <<"@popd\n"

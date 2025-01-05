@@ -1,10 +1,10 @@
 #include <cgn>
-#include "file_list.cgn.h"
+#include "protobuf_src_list.cgn.h"
 
-// v26.1
+// v29.2
 git("protobuf.git", x) {
     x.repo = "https://github.com/protocolbuffers/protobuf.git";
-    x.commit_id = "2434ef2adf0c74149b9d547ac5fb545a1ff8b6b5";
+    x.commit_id = "233098326bc268fc03b28725c941519fc77703e6";
     x.dest_dir = "repo";
 }
 
@@ -84,7 +84,7 @@ cxx_static("libprotoc", x) {
     x.include_dirs = {"repo/src", "repo"};
     x.pub.include_dirs = {"repo/src"};
     x.cflags  = COPTS(x.cfg);
-    x.srcs = add_prefix(libprotoc_srcs, "repo");
+    x.srcs = add_prefix(libprotoc_srcs, "repo/");
     x.add_dep(":libprotobuf", cxx::private_dep);
     x.add_dep("@third_party//abseil-cpp", cxx::inherit);
 }
@@ -107,7 +107,7 @@ cxx_static("libprotobuf-lite", x) {
     x.include_dirs = {"repo/src", "repo"};
     x.pub.include_dirs = {"repo/src"};
     x.cflags = COPTS(x.cfg);
-    x.srcs = add_prefix(libprotobuf_lite_srcs, "repo");
+    x.srcs = add_prefix(libprotobuf_lite_srcs, "repo/");
     x.add_dep(":utf8_validity", cxx::inherit);
     x.add_dep("@third_party//abseil-cpp", cxx::inherit);
 }
@@ -121,7 +121,7 @@ cxx_static("libprotobuf", x) {
     x.include_dirs = {"repo/src", "repo"};
     x.pub.include_dirs = {"repo/src"};
     x.cflags = COPTS(x.cfg);
-    x.srcs = add_prefix(libprotobuf_srcs, "repo");
+    x.srcs = add_prefix(libprotobuf_srcs, "repo/");
     x.add_dep(":utf8_validity", cxx::inherit);
     x.add_dep("@third_party//abseil-cpp", cxx::inherit);
 }

@@ -1,10 +1,10 @@
 // Subunit target output layout
 // <out>/lang_pb/my_proto.pb.h  (if lang_out empty)
 // <out>/lang_pb/bin/my_proto.o
+#define PROTOC_CGN_IMPL
 #include <fstream>
 #include "@cgn.d/library/cxx.cgn.bundle/cxx.cgn.h"
 #include "proto.cgn.h"
-
 static std::string two_escape(const std::string &in) {
     return cgn::NinjaFile::escape_path(cgn::CGN::shell_escape(in));
 }
@@ -149,6 +149,8 @@ void ProtobufInterpreter::interpret(context_type &x)
     cxx_ctx.srcs = cppctx_in;
     cxx_ctx.add_dep("@third_party//protobuf:libprotobuf", cxx::inherit);
     cxx::CxxInterpreter::interpret(cxx_ctx);
+    
+    pb_opt->get_real_result()->ninja_dep_level = cgn::CGNTarget::NINJA_LEVEL_DYNDEP;
 
     // TODO
     // api.add_adep_edge(pb_opt->anode, cxx_optin->confirm()->anode);

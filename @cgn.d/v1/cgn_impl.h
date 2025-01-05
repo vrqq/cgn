@@ -51,7 +51,7 @@ public:
     );
 
     void build_target(
-        const std::string &label, const Configuration &cfg);
+        const std::string &label, const Configuration &cfg, bool need_run);
 
     CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs);
 
