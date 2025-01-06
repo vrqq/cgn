@@ -58,9 +58,12 @@ CMakeContext::CMakeContext(cgn::CGNTargetOptIn *opt)
     append_san("cxx_tsan", "thread");
     append_san("cxx_ubsan", "undefined");
     if (sans.size()) {
-        vars["CMAKE_CXX_FLAGS"] += " -fsanitize=" + sans;
-        vars["CMAKE_C_FLAGS"]   += " -fsanitize=" + sans;
-        vars["CMAKE_SHARED_LINKER_FLAGS"] += " -fsanitize=" + sans;
+        auto append_var = [](std::string &out, std::string ss) {
+            out += (out.size()?" ":"") + ss;
+        };
+        append_var(vars["CMAKE_CXX_FLAGS"], "-fsanitize=" + sans);
+        append_var(vars["CMAKE_C_FLAGS"],   "-fsanitize=" + sans);
+        append_var(vars["CMAKE_SHARED_LINKER_FLAGS"], "-fsanitize=" + sans);
     }
     
     auto host = api.get_host_info();
