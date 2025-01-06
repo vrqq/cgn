@@ -13,9 +13,9 @@ cmake("absl", x) {
     x.vars["ABSL_PROPAGATE_CXX_STD"] = "ON";
 
     if (x.cfg["cxx_asan"] != "")
-        x.vars["CMAKE_CXX_FLAGS"] = "-DADDRESS_SANITIZER";
+        x.vars["CMAKE_CXX_FLAGS"] += " -DADDRESS_SANITIZER";
     else if (x.cfg["cxx_lsan"] != "")
-        x.vars["CMAKE_CXX_FLAGS"] = "-DLEAK_SANITIZER";
+        x.vars["CMAKE_CXX_FLAGS"] += " -DLEAK_SANITIZER";
 
     x.outputs = {
         "lib64/libabsl_bad_any_cast_impl.a", 
