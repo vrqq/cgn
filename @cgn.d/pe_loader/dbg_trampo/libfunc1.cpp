@@ -1,3 +1,6 @@
+// This is the first library loaded by tr_debug.exe
+// no dependency
+//
 #include <iostream>
 #include "publ.h"
 

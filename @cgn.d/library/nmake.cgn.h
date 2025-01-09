@@ -51,6 +51,10 @@ struct NMakeContext
     // the nmake target which to clear build
     std::string clean_target_name   = "clean";
 
+    cgn::CGNTarget add_dep(const std::string &label, const cgn::Configuration &cfg) {
+        return opt->quick_dep(label, cfg);
+    }
+
     NMAKE_CGN_API NMakeContext(cgn::CGNTargetOptIn *opt)
     : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
 

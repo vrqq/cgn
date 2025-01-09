@@ -62,6 +62,8 @@ public:
     std::unique_ptr<ConfigurationManager> cfg_mgr;
     std::unordered_map<std::string, std::string> cmd_kvargs;
 
+    RuntimeEnv runtime_env;
+
     Logger logger;
 
 private:

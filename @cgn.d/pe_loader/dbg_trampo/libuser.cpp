@@ -1,3 +1,6 @@
+// The second library loaded by tr_debug.exe
+// it deps on some function defined in libfunc1.cpp via cgn::MSVCTrampo
+//
 #include <string>
 #include <iostream>
 #include "publ.h"

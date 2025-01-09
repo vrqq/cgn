@@ -101,6 +101,11 @@ const std::unordered_map<std::string, std::string> &CGN::get_kvargs() const
     return pimpl->cmd_kvargs;
 }
 
+const RuntimeEnv &CGN::get_runtime() const
+{
+    return pimpl->runtime_env;
+}
+
 CGN::~CGN()
 {
     release();
