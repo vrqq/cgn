@@ -116,6 +116,10 @@ inline cgn::Configuration config_guessor(std::unordered_set<std::string> &argls)
             cfg["llvm_stl"] = "libstdc++";
     }
 
+    std::string FIX_src_case_sensitive = extract(argls, {"src_no_caps"});
+    if (FIX_src_case_sensitive.size())
+        cfg["FIX_src_case_sensitive"] = "True";
+
     return cfg;
 } //config_guessor()
 

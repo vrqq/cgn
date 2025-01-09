@@ -56,7 +56,7 @@ GENERAL_CGN_BUNDLE_API void GitFetcher::interpret(context_type &x)
                         + " && cd " + two_escape(dest_dir)
                         + " && (git init || " + cmd_true + ")"
                         + " && (git remote add origin " + x.repo + " || " + cmd_true + ")"
-                        + " && git fetch --depth=1 origin " + x.commit_id
+                        + " && git fetch --depth=1 --recurse-submodules=on-demand origin " + x.commit_id
                         + " && git reset --hard " + x.commit_id
                         + " && cd " + api.rebase_path(".", dest_dir); //cdback
 

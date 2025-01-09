@@ -46,6 +46,9 @@ struct CGN_EXPORT Tools {
     // relative paths. If the parent path does not exist, return ".".
     static std::string parent_path(const std::string &in);
 
+    // Retrive filename of the input
+    static std::string filename_of_path(const std::string &in);
+
     static std::unordered_map<std::string, std::string> read_kvfile(
         const std::string &filepath);
 
@@ -58,6 +61,8 @@ struct CGN_EXPORT Tools {
 
     // Checks if the given file status or path corresponds to a regular file.
     static bool is_regular_file(const std::string &path);
+
+    // static bool is_absolute_path(const std::string &path);
 
     // Creates a directory.
     static void mkdir(const std::string &path);
@@ -171,6 +176,8 @@ public:
 
     // Return kvargs assigned from init().
     const std::unordered_map<std::string, std::string> &get_kvargs() const;
+
+    const RuntimeEnv &get_runtime() const;
 
     ~CGN();
 

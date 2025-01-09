@@ -1,4 +1,16 @@
 ## This is a standalone ninja-build file for development in windows
+##
+## ------ Demo for debug MSVCTrampo ------
+## 1. build tr_debug.exe, libfunc1.dll, libuser.obj
+##    ninja -f dev_build.ninja dbg_trampo/tr_debug.exe
+##
+## 2. build libuser_autogen.dll: by using tr_debug.exe to parse libuser.obj and generate libuser_trampo_autogen.asm
+##    ninja -f dev_build.ninja dbg_trampo/libuser_autogen.dll
+##
+## 3. using tr_debug.exe to load libfunc1.dll and libuser_autogen.dll in order.
+##    pushd dbg_trampo && tr_debug.exe T libuser_autogen.dll && popd
+##    or using debug target
+##    ninja -f dev_build.ninja .run_autogen_test
 ## ----------------------------------------------------------------
 
 rule link
@@ -36,12 +48,15 @@ build msvc_trampo.obj       : cc msvc_trampo.cpp
     def = /DCGN_EXE_IMPLEMENT
 build msvc_symbol_host.obj  : cc msvc_symbol_host.cpp
     def = /DCGN_EXE_IMPLEMENT
-build cgn_tools.obj         : cc ../entry/cgn_tools.cpp
+build cgn_tools.obj         : cc ../v1/cgn_tools.cpp
+    def = /DCGN_EXE_IMPLEMENT
+build logger.obj            : cc ../v1/logger.cpp
     def = /DCGN_EXE_IMPLEMENT
 build line_printer.obj      : cc ../ninjabuild/src/line_printer.cc
 build util.obj              : cc ../ninjabuild/src/util.cc
 build string_piece_util.obj : cc ../ninjabuild/src/string_piece_util.cc
 build edit_distance.obj     : cc ../ninjabuild/src/edit_distance.cc 
+build elide_middle.obj      : cc ../ninjabuild/src/elide_middle.cc
 
 
 ## part of debug (pe_debug)
@@ -55,9 +70,9 @@ build dbg_tgt/entry0.obj   dbg_tgt/entry0.obj.txt   dbg_tgt/entry0.dll $
 
 build dbg_tgt/pefmt_debug.obj : cc dbg_tgt/pefmt_debug.cpp
 
-build dbg_tgt/pe_debug.exe : link dbg_tgt/pefmt_debug.obj pe_file.obj $
-                    cgn_tools.obj line_printer.obj util.obj $
-                    string_piece_util.obj edit_distance.obj $
+build dbg_tgt/pe_debug.exe : link dbg_tgt/pefmt_debug.obj pe_file.obj  $
+                    cgn_tools.obj logger.obj line_printer.obj util.obj $
+                    string_piece_util.obj edit_distance.obj elide_middle.obj $
             || dbg_tgt/entry0.dll dbg_tgt/base.dll dbg_tgt/objmaker.dll
 
 
@@ -71,9 +86,9 @@ build dbg_trampo/libfunc1.dll | dbg_trampo/libfunc1.lib : linkdll dbg_trampo/lib
 
 # -- dll host && libuser_xxx.dll loader and tester
 build dbg_trampo/tr_debug.exe | dbg_trampo/tr_debug.lib : link dbg_trampo/entry.obj $
-                pe_file.obj msvc_trampo.obj msvc_symbol_host.obj $
-                cgn_tools.obj line_printer.obj util.obj $
-                string_piece_util.obj edit_distance.obj $
+                pe_file.obj msvc_trampo.obj msvc_symbol_host.obj   $
+                cgn_tools.obj logger.obj line_printer.obj util.obj $
+                string_piece_util.obj edit_distance.obj elide_middle.obj $
                 || dbg_trampo/libfunc1.dll
 
 # -- asm manual gen                
@@ -87,3 +102,11 @@ build dbg_trampo/libuser_trampo_autogen.obj : masm dbg_trampo/libuser_trampo_aut
 build dbg_trampo/libuser_autogen.dll : linkdll dbg_trampo/libuser.obj dbg_trampo/libuser_trampo_autogen.obj dbg_trampo/tr_debug.lib
 
 default dbg_tgt/pe_debug.exe dbg_trampo/libuser_manualgen.dll dbg_trampo/libuser_autogen.dll
+
+# 
+# ==========
+rule run
+    command = cmd.exe /c ${cmd}
+
+build .run_autogen_test : run | dbg_trampo/tr_debug.exe dbg_trampo/libuser_autogen.dll
+    cmd = pushd dbg_trampo && tr_debug.exe T libuser_autogen.dll && popd

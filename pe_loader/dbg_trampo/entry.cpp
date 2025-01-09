@@ -1,6 +1,9 @@
+// The source file of tr_debug.exe
+//
 #include <iostream>
 #include "../pe_file.h"
 #include "publ.h"
+namespace cgn = cgnv1;
 
 int load_libuser_dll(const std::string &userdll) {
     // Load libfunc1.dll
@@ -11,7 +14,7 @@ int load_libuser_dll(const std::string &userdll) {
     
     // Show all registered table
     std::cout << "=== Global Symbol Table ===\n";
-    for (auto& [sym, addr] : cgn::GlobalSymbol::symbol_table)
+    for (auto& [sym, addr] : *cgn::GlobalSymbol::get_symbol_table())
         std::cout<<"   0x" << std::hex << addr << " " << sym << "\n";
 
     // Load libuser.dll (within ASM trampo)
@@ -25,7 +28,7 @@ int load_libuser_dll(const std::string &userdll) {
             std::cout<<"  "<<sym<<"\n";
     }
     std::cout << "\n=== AfterLoad "<< userdll <<" Global Symbols ===\n";
-    for (auto& [sym, addr] : cgn::GlobalSymbol::symbol_table)
+    for (auto& [sym, addr] : *cgn::GlobalSymbol::get_symbol_table())
         std::cout << "   0x" << std::hex << addr << " " << sym << "\n";
 
     // Call function inside libuser.dll
@@ -55,7 +58,9 @@ int gen_asm()
     std::cout << "=== add objfile\n";
     helper.add_objfile("libuser.obj");
     std::cout << "=== output asm\n";
-    helper.make_asmfile("libuser_trampo_autogen.asm");
+    std::string libfile = "libuser_trampo_autogen.lib";
+    helper.make_asmfile("libuser_trampo_autogen.asm", libfile);
+    //libfile should be cleared here since there's no long function symbol required.
     std::cout << "=== done\n";
     return 0;
 }

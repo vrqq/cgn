@@ -192,7 +192,10 @@ public:
     void add_objfile(const std::string &filename);
     // void add_jmpfunc(const std::string &func_name);
 
-    void make_asmfile(const std::string &file_out);
+    // @param asm_out: the .asm filename (output only)
+    // @param exp_out: if symbol rename occured, the exp_out keeps its value and write to this file,
+    //                 otherwise set exp_out to empty.
+    void make_asmfile(const std::string &asm_path, std::string &def_path);
 };
 
 // Class for create cgn API for calling from .asm file

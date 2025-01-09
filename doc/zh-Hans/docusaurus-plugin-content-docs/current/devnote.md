@@ -235,3 +235,52 @@ ProtobufInterpreter("myproto", x) {
 对于git() 也可考虑使用其他的depot工具例如libgit2.  
 
 类似的问题 对于c++ with clang compiler, host_os不同 其参数格式也不同, 故尔也不应该是同一个 build.ninja. 不过这个可以通过`cfg["host_os"]`解决而不增加资源浪费.
+
+
+## copy() 提案
+prerequisite: 在BUILD.cgn.cc中, 我们无法提前得知输出到cgn-out下哪个文件夹.
+
+它要做的事情:
+* copy from workingRoot to cgn-out (cgn-out在其他磁盘) 用于windows下编译perl.exe
+    * `result.output` 设置为 文件夹or所有文件 用户手动指定
+* collect to .output from workingRoot or cgn-out without copy any file 用于给未来的 `ssh()` 准备素材
+    * `result.output` 直接记录原始路径
+* copy from workingRoot to workingRoot 用于一些灵活准备
+
+现在的问题
+* 和 git, url_download 这些面临同样问题, 在不同的host_os上 有不同的copy.exe, 可BUILD.ninja要监测输出的target变化来决定是否运行copy.
+* BUILD.ninja中, 同一个文件 只能对应一个target的output, 同一个文件可以当作很多input 但他必须存在 或 是某个target的output.
+
+**考虑一种备选方案**, 以copy举例, copy的输出 在 build.ninja 的target里写为输入, 输出stamp文件(输出无意义), ninja文档如下.
+> phony can also be used to create dummy targets for files which may not exist at build time. If a phony build statement is written without any dependencies, the target will be considered out of date if it does not exist. Without a phony build statement, Ninja will report an error if the file does not exist and is required by the build.
+
+```ninja
+rule write
+    command = (echo IN > $in) && (echo OUT > $out)
+
+build y.stamp : write x.txt
+build x.txt : phony
+```
+
+这种方案难以对protobuf的输出自发形成依赖, 以下考虑多个target都将myproto.pb.h 和 myproto.pb.cc作为input, 仅有phony作output. 不能在ninja文件内部定位到正确的输出myproto.pb.cc的那个target.  
+但可以迂回曲折 将myproto.pb.cc 以 (header) ninja_dep_order_only的形式, 传给 cxx_sources() 生成的那个target, 例子如下
+```ninja
+
+build src/pbout/myproto.pb.cc src/pbout/myproto.pb.h : phony
+
+build out/obj/hostwin_tgtarm/myproto.stamp : run | src/myproto.proto src/pbout/myproto.pb.cc src/pbout/myproto.pb.h
+    cmd = out/obj/win_hostrel/protoc src/myproto.proto --cpp_out=src/pbout/
+build out/obj/hostwin_tgtarm/myproto.o : cxx src/pbout/myproto.pb.cc | out/obj/hostwin_tgtarm/myproto.stamp
+
+build out/obj/hostlinux_tgtmips/myproto.stamp : run | src/myproto.proto src/pbout/myproto.pb.cc src/pbout/myproto.pb.h
+    cmd = out/obj/linux_hostrel/protoc src/myproto.proto --cpp_out=src/pbout/
+build out/obj/hostlinux_tgtmips/myproto.o : cxx src/pbout/myproto.pb.cc | out/obj/hostlinux_tgtmips/myproto.stamp
+
+default out/obj/hostlinux_tgtmips/myproto.o
+```
+以上方案相当于两套不同平台的target都把 src/pbout/myproto.pb.cc 当作输出
+
+
+**第二种备选方案是**, 每次调用cgn时写config.ninja 内置诸多用于redirection的变量
+
+**下一种备选方案是**, 通过dyndep重定向到 当前cfg_id目录下的 真实target

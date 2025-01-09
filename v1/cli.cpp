@@ -220,6 +220,11 @@ try{
             std::cout<<api.locale_path(args[2])<<"\n";
             return 0;
         }
+        if (args.size() > 2 && args[1] == "caps") {
+            std::cout<<(api.is_directory_case_sensitive(args[2])?
+                    "Case-Sensitive\n": "Case-Insensitive\n");
+            return 0;
+        }
         // if (args.size() == 2 && args[1] == "dev")
         //     return dev_helper();
         if (args.size() == 4 && args[1] == "wincp")

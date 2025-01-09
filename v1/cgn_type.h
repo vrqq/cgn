@@ -45,6 +45,11 @@ struct HostInfo {
     std::string glibc_version, glibc_release;
 }; //struct HostInfo
 
+// TBD
+struct RuntimeEnv {
+    std::string src_prefix;
+};
+
 struct BaseInfo
 {
     struct VTable {

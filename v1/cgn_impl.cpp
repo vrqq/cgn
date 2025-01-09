@@ -313,25 +313,56 @@ CGNImpl::active_script(const std::string &label)
             // generate .asm trampoline
             std::string asm_in  = s.sofile + "_asmplugin.asm";
             std::string asm_obj = s.sofile + "_asmplugin.obj";
-            win_trampo.make_asmfile(asm_in);
+            std::string asm_def = s.sofile + "_asmplugin.def";
+            std::string asm_lib = s.sofile + "_asmplugin.lib";
+            std::string asm_dll = s.sofile + "_asmplugin.dll";
+            win_trampo.make_asmfile(asm_in, asm_def);
+
+            std::string cmd_suffix;
+            if (asm_def.size()) {
+                std::ofstream asm_rsp(asm_dll + ".rsp");
+                asm_rsp<<" /nologo /Cx /Fo " + asm_obj + " " + asm_in 
+                       + " /link /nologo /DLL /ENTRY:DllMain /DEF:" + asm_def 
+                       + " /OUT:" + asm_dll
+                       + " " + cgnapi_winimp;
+                asm_rsp.close();
+                cmd_suffix = "@" + asm_dll + ".rsp";
+            }
+            else
+                cmd_suffix = "/nologo /c /Cx /Fo " + asm_obj + " " + asm_in;
 
             // compile .asm to .obj
             logger.println("ScriptCC(ml64) ", asm_obj);
             auto build_rv = raymii::Command::exec(
-                "\"ml64.exe\" /nologo /c /Cx /Fo " + asm_obj + " " + asm_in
+                "\"ml64.exe\" " + cmd_suffix
             );
             // 'ml64.exe' is not recognized as an internal or external command,
             // operable program or batch file.
             if (build_rv.exitstatus == 9009)
                 build_rv = raymii::Command::exec(
-                    "\"ml.exe\" /nologo /c /Cx /Fo " + asm_obj + " " + asm_in
+                    "\"ml.exe\" " + cmd_suffix
                 );
             if (build_rv.exitstatus != 0) {
                 if (halt_on_error)
                     throw std::runtime_error{asm_obj + " " + build_rv.output};
                 return {nullptr, asm_obj + " " + build_rv.output};
             }
-            linker_in += asm_obj + " ";
+            
+            // if rename function_symbol required, pack .obj to .lib
+            if (asm_def.size()) {
+                // auto libpack_rv = raymii::Command::exec(
+                //     "link.exe /nologo /DLL /OUT:" + asm_dll + " /DEF:" + asm_def + " " + asm_obj
+                //     // "\"lib.exe\" /nologo /OUT:" + asm_lib + " /DEF:" + asm_def + " " + asm_obj
+                // );
+                // if (libpack_rv.exitstatus != 0) {
+                //     if (halt_on_error)
+                //         throw std::runtime_error{asm_lib + " " + libpack_rv.output};
+                //     return {nullptr, asm_lib + " " + build_rv.output};
+                // }
+                linker_in += asm_lib + " ";
+            }
+            else
+                linker_in += asm_obj + " ";
 
             // linking
             std::string dbg_flag = scriptcc_debug_mode?"/DEBUG ":"";
@@ -562,7 +593,9 @@ CGNTarget CGNImpl::analyse_target(
     
     // call target builder (user lambda fn and interpreter inside)
     //  the API.confirm_target_opt() would process into next phase.
+    this->runtime_env.src_prefix = opt.src_prefix;
     fn_loader(&opt);
+    this->runtime_env.src_prefix = "";
 
     // pop up adep_cycle_detection
     adep_cycle_detection.erase(cycle_check_ss); 
