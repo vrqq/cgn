@@ -8,13 +8,13 @@ REM ==========================================
 REM Ensure correct number of arguments
 if "%~1"=="" (
     echo ERROR: Source file or folder is missing.
-    echo Usage: %~0 <source> <destination>
+    echo Usage: %~0 ^<source^> ^<destination^>
     exit /b 1
 )
 
 if "%~2"=="" (
     echo ERROR: Destination directory is missing.
-    echo Usage: %~0 <source> <destination>
+    echo Usage: %~0 ^<source^> ^<destination^>
     exit /b 1
 )
 
@@ -28,14 +28,13 @@ if not exist "%SOURCE%" (
 )
 
 REM Get the full path of the source and its drive root
-for %%I in ("%SOURCE%") do set "FULL_SOURCE=%%~fI"
-for %%I in ("%SOURCE%") do set "ROOT=%%~dI\"
-
-REM Calculate the relative path by removing the root from the source
-set "RELATIVE_PATH=%FULL_SOURCE:%ROOT%=%"
+for %%I in ("%SOURCE%") do set "FILE_NAME=%%~nxI"
+echo Ensuring FILE_NAME: "%FILE_NAME%"
 
 REM Combine the destination with the relative path
-set "FINAL_DEST=%DEST%\%RELATIVE_PATH%"
+REM Remove trailing backslash from the folder name 
+set "DEST=%DEST:~0,-1%"
+set "FINAL_DEST=%DEST%\%FILE_NAME%"
 
 REM Ensure the destination directory exists
 echo Ensuring destination directory: "%FINAL_DEST%"

@@ -46,7 +46,7 @@ void CopyInterpreter::interpret(context_type &x)
         opt->ninja->append_include(rulepath);
 
     auto esc = [&](const std::string &in) {
-        return opt->ninja->escape_path(api.shell_escape(api.locale_path(in)));
+        return opt->ninja->escape_path(api.locale_path(in));
     };
 
     auto *phony = opt->ninja->append_build();
@@ -55,9 +55,9 @@ void CopyInterpreter::interpret(context_type &x)
     for (auto rec : x.records) {
         auto *field = opt->ninja->append_build();
         field->rule = cprule;
-        field->variables["out_dir"] = esc(opt->out_prefix + rec.out_dir + "/");
+        field->variables["out_dir"] = esc(opt->out_prefix + rec.out_dir + opt->path_separator);
         field->inputs  = {esc(rec.src_path)};
-        field->outputs = {esc(opt->out_prefix + rec.out_dir + "/" + rec.out_filename)};
+        field->outputs = {esc(opt->out_prefix + rec.out_dir + opt->path_separator + rec.out_filename)};
         field->implicit_inputs = opt->quickdep_ninja_full;
         field->order_only      = opt->quickdep_ninja_dynhdr;
         phony->inputs += field->outputs;

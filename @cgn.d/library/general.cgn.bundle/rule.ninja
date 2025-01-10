@@ -35,6 +35,7 @@ rule unix_cp_to_dir
     command = mkdir -p `dirname ${out}` && cp -r ${in} ${out_dir}
     description = COPY ${in} INTO DIR ${out_dir}
 
+# cmd.exe shell escape: " => "" if double-quote-string
 rule win_cp_to_dir
-    command = cmd.exe /c @cgn.d/library/general.cgn.bundle/win_cp_to_dir.bat ${in} ${out_dir}
+    command = cmd.exe /c """@cgn.d\library\general.cgn.bundle\wincp_to_dir.bat"" ${in} ${out_dir}"
     description = COPY ${in} INTO DIR ${out_dir}
