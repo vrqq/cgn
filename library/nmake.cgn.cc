@@ -30,8 +30,8 @@ void NMakeInterpreter::interpret(context_type &x)
     cxx::CxxToolchainInfo cxx = cxx::CxxInterpreter::test_param(x.cfg);
     cgn::CGNTargetOpt *opt = x.opt->confirm();
 
-    std::string wr_cwd    = api.locale_path(opt->src_prefix + x.cwd);
-    std::string wr_mkfile = api.locale_path(opt->src_prefix + x.cwd + "/" + x.makefile);
+    std::string wr_cwd    = api.locale_path(api.rebase_path(x.cwd, ".", opt->src_prefix));
+    std::string wr_mkfile = api.locale_path(api.rebase_path(x.cwd, ".", opt->src_prefix) + "/" + x.makefile);
     std::string wr_instl  = opt->out_prefix + "install";
     std::string cwd_build  = api.rebase_path(opt->out_prefix + "build", wr_cwd);
     std::string cwd_instl  = api.rebase_path(opt->out_prefix + "install", wr_cwd);
@@ -78,6 +78,8 @@ void NMakeInterpreter::interpret(context_type &x)
 
     build->implicit_inputs  = {opt->ninja->escape_path(wr_mkfile)};
     build->implicit_inputs += rebase_and_njesc(opt->src_prefix, x.inputs);
+    build->implicit_inputs += opt->ninja->escape_path(opt->quickdep_ninja_full);
+    build->order_only       = opt->ninja->escape_path(opt->quickdep_ninja_dynhdr);
     build->outputs          = rebase_and_njesc(wr_instl, x.outputs);
     build->variables["desc"] = "NMAKE " + opt->ninja->escape_path(wr_mkfile);
 
