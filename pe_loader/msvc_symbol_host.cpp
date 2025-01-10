@@ -1,6 +1,7 @@
 // GlobalSymbol register table
 //  only loaded in cgn.exe host process
 
+#include <filesystem>
 #include "pe_file.h"
 
 #ifdef _WIN32
@@ -112,7 +113,7 @@ void* GlobalSymbol::find(const char *sym)
     return nullptr;
 }
 
-GlobalSymbol::DllHandle GlobalSymbol::WinLoadLibrary(const std::string& dllpath)
+GlobalSymbol::DllHandle GlobalSymbol::WinLoadLibrary(const std::string& _dllpath)
 {
     // GetProcAddress cannot iterator the exported symbol
     // So we load .lib here
@@ -126,6 +127,7 @@ GlobalSymbol::DllHandle GlobalSymbol::WinLoadLibrary(const std::string& dllpath)
     //if (elog.size())
     //    throw std::runtime_error{ "Parse failure " + libpath };
     
+    std::string dllpath = std::filesystem::absolute(_dllpath).string();
     auto *tbl = get_symbol_table();
     if (tbl == nullptr)
         throw std::runtime_error{"GlobalSymbol::symbol_table destroyed."};
@@ -134,7 +136,7 @@ GlobalSymbol::DllHandle GlobalSymbol::WinLoadLibrary(const std::string& dllpath)
     // 
     // Load .dll and GetProcAddress() for all exported symbols
     DllHandle rv;
-    rv.m_ptr = ::LoadLibrary(dllpath.c_str());
+    rv.m_ptr = ::LoadLibraryEx(dllpath.c_str(), NULL, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS | LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR);
     //std::vector<std::string> exp = EnumerateExportedFunctions(rv.m_ptr);
     if (rv.m_ptr) {
         for (auto& sym : exp)

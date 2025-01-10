@@ -10,7 +10,8 @@
 namespace cgnv1 {
     DLHelper::DLHelper(const std::string &file) {
         // std::filesystem::path p{file};
-        // if (!::SetDllDirectory(p.parent_path().string().c_str()))
+        // auto cookie = ::AddDllDirectory(p.parent_path().string().c_str());
+        // if (cookie == nullptr)
         //     throw std::runtime_error{"Cannot set DLL search path"};
         hnd = GlobalSymbol::WinLoadLibrary(file);
     }
