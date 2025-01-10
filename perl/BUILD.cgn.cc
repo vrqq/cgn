@@ -12,6 +12,13 @@ sh_binary("perl.curl", x) {
     x.outputs   = {"perl-5.40.0.tar.gz"};
 }
 
+copy("copy_to_output", x) {
+    x.target_results = {
+        x.flat_copy_thisbase_to_output({"repo"})
+    };
+}
+
+
 // There has bug in perl build script 'win32/Makefile'
 // It cannot be built in case-sensitive partition
 nmake("perl_win", x) {
@@ -21,6 +28,11 @@ nmake("perl_win", x) {
     x.install_prefix_varname = "INST_TOP";
     x.override_vars["CCTYPE"] = "MSVC143"; //VS2022 (TODO: fetch from cxx interpreter)
 
-    if (api.is_directory_case_sensitive(x.opt->src_prefix))
-        x.opt->confirm_with_error("Perl on windows can only be compiled on case insensitive directory.");
+    // win32 bug fixed
+    if (x.cfg["FIX_src_case_sensitive"] != "") {
+        auto srcdir = x.add_dep(":copy_to_output", x.cfg).outputs[0];
+        x.cwd = api.rebase_path(srcdir, api.get_runtime().src_prefix);
+    }
+    // if (api.is_directory_case_sensitive(x.opt->src_prefix))
+    //     x.opt->confirm_with_error("Perl on windows can only be compiled on case insensitive directory.");
 }
