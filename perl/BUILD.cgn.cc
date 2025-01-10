@@ -31,7 +31,7 @@ nmake("perl_win", x) {
     // win32 bug fixed
     if (x.cfg["FIX_src_case_sensitive"] != "") {
         auto srcdir = x.add_dep(":copy_to_output", x.cfg).outputs[0];
-        x.cwd = api.rebase_path(srcdir, api.get_runtime().src_prefix);
+        x.cwd = api.rebase_path(srcdir + "/win32", api.get_runtime().src_prefix);
     }
     // if (api.is_directory_case_sensitive(x.opt->src_prefix))
     //     x.opt->confirm_with_error("Perl on windows can only be compiled on case insensitive directory.");
