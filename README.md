@@ -15,3 +15,29 @@ Still in development
 [Interpreter](@cgn.d/doc/zh-Hans/docusaurus-plugin-content-docs/current/interpreter.md)
 
 [DevNote](@cgn.d/doc/zh-Hans/docusaurus-plugin-content-docs/current/devnote.md)
+
+## How to start
+
+1. build cgn itself  
+For linux: ```pushd @cgn.d && ninja -f build_linux.ninja && popd```  
+For windows:  ```pushd @cgn.d && ninja -f build_msvc.ninja && popd```  
+
+2. (Linux LLVM) build hello-world  
+(CWD is the project root dir), see also debug.sh  
+```./@cgn.d/build_linux/cgn --halt_on_error --target llvm,debug,asan build //hello/cpp0```  
+
+2 (Windows MSVC) build hello-world  
+(CWD is the project root dir), see also dbgwin.sh  
+```"@cgn.d\build_win\cgn.exe" --halt_on_error --target msvc,debug build //hello/cpp0```  
+
+More examples can be found in the 'hello' folder.
+
+## Advance
+**Query target info**
+```"@cgn.d\build_win\cgn.exe" --halt_on_error --target msvc,debug query //hello/cpp0```  
+
+**Assign cgn-out folder**
+```"@cgn.d\build_win\cgn.exe" --cgn-out c:\\workingdir\\cgntmp --target msvc,debug build //hello/cpp0```  
+
+**Customize relation of cmdline and the real 'configuration'**
+Imitate '@cgn.d/library/cgn_default_setup.cgn.hxx' to write your own `CGNSetup()` function in 'cgn_setup.cgn.cc'
