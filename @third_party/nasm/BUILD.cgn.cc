@@ -38,7 +38,7 @@ cxx_executable("nasm", x) {
                         "include",
                         "output",
                         "x86"});
-    x.defines = {"HAVE_CONFIG_H"};
+    x.defines = {"HAVE_CONFIG_H", "_CRT_NONSTDC_NO_WARNINGS"};
     x.srcs = add_prefix("repo/", nasmlib_sources) + add_prefix("repo/", nasm_sources);
 
     if (x.cfg["cxx_toolchain"] == "llvm") {
@@ -85,6 +85,9 @@ cxx_executable("nasm", x) {
 
             // # NASM uses "(-x) & 0xFF" pattern to negate byte.
             "/wd4146",  //# unary minus operator applied to unsigned type
+
+            // asm\nasm.c(1018) : error C4703: potentially uninitialized local pointer variable 'param' used
+            "/wd4703", 
         };
     }
 }

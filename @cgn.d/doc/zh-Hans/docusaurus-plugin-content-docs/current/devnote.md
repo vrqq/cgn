@@ -177,6 +177,41 @@ set_node_default_state(node) {}
 
 ```
 
+
+## AnalysisGraph的状态更新过程
+起初, 所有的Node都是Unknown的, 整个Graph的规则如下:
+* 若有两个点U和V 且有一条边 U->V  == "V依赖U"
+* Unknown 和 Stale 点, 可以依赖任何状态的点
+* Latest点, 其依赖及递归的依赖, 均只能为Latest
+
+`class Graph`提供了一些函数, 用以修改node状态, 于是我们起初设计了如下函数:
+* `test_status()` 如果当前点是unknown, 根据其依赖和自身的files[] mtime更新情况, determinate it 到 Stale 或 Latest 状态.
+* `set_node_status_to_unknown()` 将Stale 或 Latest的node 设置为Unknwon, 同时为了确保图合理, 将递归设置其依赖的状态
+    * 若 Unknown -> Unknown : return
+    * 若 Latest -> Unknown: 正向dfs该点, 后面的一串若有Latest 都修改为Unknown
+    * 若 Stale -> Unknown: 直接修改即可
+* `set_node_status_to_latest()`
+    * assert(检查其所有依赖点 是否均为Latest)
+    * 将当前点所列文件 数据库里面的mtime更新到当前磁盘的mtime值, 然后设置为Latest, 可以从任何状态转移到Latest
+* `set_node_status_to_stale()`
+    * Stale -> Stale : return
+    * Unknown or Latest -> Stale : 正向dfs其后续的链上所有点均设置为Stale. (解释: 有一条边U->V 程序检查U时 发现需要更新 先设置为Stale, 然后重新编译U, 然后设置U到Latest. 接下来程序再检查V时 理应重新编译V, 但发现U是Latest. )
+
+值得注意的是 NodeStatus不落盘 仅存储在数据库里面.
+
+**一个错误优化: 起初, 我考虑了_forward_status(), 但这和 test_status() 是冲突的**
+每次修改点状态时, 仅修改当前点和其一层dfs(), 详情如下:
+* 若当前点是unknown 检查其下一层点如果有Latest 设置为unknown
+* 若当前点是stale, 设置其下一层所有点为stale
+考虑一个比较长的图, 祖先点Stale后 hot-reload, 后面依赖他的点均应该先设置为Stale并重新触发编译检查. 如果仅设置一层, 比较晚辈的点仍然可能是Latest
+
+**对于Named-config点的tricky**
+按照我们的设计, 表示 "ConfigName和ConfigID对应关系" 的点, 其初始状态为Stale, 初始化ConfigMgr时如果发现该对应关系没变, 则把这个点设置为Latest(), 否则置之不理. (因为它没有file[] 可用)
+设置初始值时不能用`set_node_status_to_stale()`, 因为我们本意他是个 undetermined state, 我们不希望递延它的状态.
+
+另一个方案, 或许更好理解 `ConfigNode.files[] = cgn-out/configuration/FFFE1122.cfg`, graph新增遍历接口, 在CfgMgr的初始化过程中 遍历所有的Config点设置其初始状态为stale. 无用接口和多余的遍历比较浪费, 故放弃这个方案.
+
+
 ## 以protobuf为例 如何处理复杂的interperter
 `@third_party//protobuf/protoc.cgn.cc` 例如有一文件 a.proto 其经过protoc生成 a.pb.h 和 a.pb.cc, 我们想通过`rule protobuf()`向外提供 `cxx_sources()` 相同的返回值. 若我们将.pb.cc文件输出到cgn-out, 就需要先`opt.confirm()`确定输出目录, 然后填充 `CxxContext.pub.include_dirs[]`, 然后再调用`CxxInterpreter`生成返回值. 可是在`CxxInterpreter`内部也需要`opt.confirm()`, 显然这两次`confirm()`得到的结果不一样, 考虑通用性 我们也不能要求其一样, 于是有如下2种方案.
 
@@ -284,3 +319,5 @@ default out/obj/hostlinux_tgtmips/myproto.o
 **第二种备选方案是**, 每次调用cgn时写config.ninja 内置诸多用于redirection的变量
 
 **下一种备选方案是**, 通过dyndep重定向到 当前cfg_id目录下的 真实target
+
+**TODO**

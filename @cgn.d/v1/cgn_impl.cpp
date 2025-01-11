@@ -399,9 +399,9 @@ CGNImpl::active_script(const std::string &label)
             logger.verbose_paragraph("CGNScript "
                 + label +" rebuilt with files[]: " + content + "\n");
         }
+        // graph.forward_status(s.anode);
         graph.set_node_files(s.anode, node_vals);
         graph.clear_file0_mtime_cache(s.anode);
-        graph.forward_status(s.anode);
         graph.set_node_status_to_latest(s.anode);
     }
 
@@ -653,7 +653,7 @@ CGNTarget CGNImpl::analyse_target(
                 //update mtime in fileDB after interpreter returned successful.
                 // file[0] : usually 'libSCRIPT.cgn.so' or 'build.ninja of target'
                 graph.clear_file0_mtime_cache(ptr->anode);
-                graph.forward_status(ptr->anode);
+                // graph.forward_status(ptr->anode);
                 graph.set_node_status_to_latest(ptr->anode);
             }
         }
@@ -766,6 +766,9 @@ CGNTargetOpt *CGNImpl::confirm_target_opt(CGNTargetOptIn *in)
     //             + ") analysis_only but target stale, regenerate ninja file.");
     //     }
     // }
+
+    // forward GraphNode::Stale
+    // graph.forward_status(opt->anode);
 
     // register GraphNode* and remove the previous adep information.
     if (!opt->file_unchanged) {
@@ -956,7 +959,7 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
         if (fin.close(); need_rebuild) {
             std::ofstream fout{obj_main_ninja};
             for (auto ln : main_subninja)
-                fout<<"subninja " + ln + "\n";
+                fout<<"subninja " + NinjaFile::escape_path(ln) + "\n";
             fout.close();
         }
     }
@@ -964,6 +967,10 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     // graph init (load previous one)
     logger.println("Loading fileDB");
     graph.db_load((analysis_path / ".cgn_deps").string());
+    if (cmd_kvargs.count("verbose")) {
+        std::ofstream fmermaid(analysis_path / ".memraid");
+        fmermaid<<graph.get_memraid_flowchart();
+    }
 
     //CGN cell init
     // scan folder starting with '@' at working-root

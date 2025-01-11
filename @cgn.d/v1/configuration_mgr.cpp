@@ -89,7 +89,7 @@ void ConfigurationManager::set_name(
             if (last_cfg == &(fdnow->second))
                 return ;
             std::string last = get_node_name(name, *last_cfg);
-            graph->set_node_status_to_stale(graph->get_node(last));
+            graph->set_node_status_to_stale_recursively(graph->get_node(last));
         }
 
         // then create the new GraphNode represent for "name->hash" relation

@@ -81,16 +81,12 @@ void Graph::test_status(GraphNode *p)
     if (p->files.size()) //file[0] is output of current GraphNode
         is_stale |= (p->files[0]->mem_mtime < p->max_mtime);
 
-    p->_status = is_stale? GraphNode::Stale : GraphNode::Latest;
+    if (is_stale)
+        set_node_status_to_stale_recursively(p);
+    else
+        p->_status = GraphNode::Latest;
+    // p->_status = is_stale? GraphNode::Stale : GraphNode::Latest;
 } //Graph::test_status()
-
-void Graph::forward_status(GraphNode *p)
-{
-    if (p->status == GraphNode::Stale)
-        for (GraphEdgeID eid = _iter_edge(p->head, true); eid; 
-             eid = _iter_edge(edges[eid].next, true))
-                set_node_status_to_stale(edges[eid].to);
-}
 
 
 GraphNode *Graph::get_node(const std::string &name)
@@ -163,23 +159,32 @@ void Graph::set_node_status_to_latest(GraphNode *p)
 void Graph::set_node_status_to_unknown(GraphNode *p)
 {
     if (p == nullptr) {
-        for (auto &[name, node] : nodes)
+        for (auto &[name, node] : nodes) {
+            if (node.init_state_is_stale && node.status == GraphNode::Stale)
+                continue;  //skip init value
             node._status = GraphNode::Unknown;
+        }
     }
     else {
         if (p->status == GraphNode::Unknown)
             return ;
+        
+        if (p->status == GraphNode::Latest)
+            for (GraphEdgeID eid = _iter_edge(p->head, true); eid; 
+                eid = _iter_edge(edges[eid].next, true))
+                    if (edges[eid].to->status == GraphNode::Latest)
+                        set_node_status_to_unknown(edges[eid].to);
         p->_status = GraphNode::Unknown;
-        for (GraphEdgeID eid = _iter_edge(p->head, true); eid; 
-             eid = _iter_edge(edges[eid].next, true))
-                set_node_status_to_unknown(edges[eid].to);
     }
 } //Graph::set_node_status_to_unknown()
 
-void Graph::set_node_status_to_stale(GraphNode *p)
+void Graph::set_node_status_to_stale_recursively(GraphNode *p)
 {
-    set_node_status_to_unknown(p);
     p->_status = GraphNode::Stale;
+    for (GraphEdgeID eid = _iter_edge(p->head, true); eid; 
+        eid = _iter_edge(edges[eid].next, true))
+            if (edges[eid].to->status != GraphNode::Stale)
+                set_node_status_to_stale_recursively(edges[eid].to);
 } //Graph::set_node_status_to_stale()
 
 void Graph::set_node_files(GraphNode *p, std::vector<std::string> in)
@@ -624,6 +629,40 @@ void Graph::file_mark_recycle(std::size_t offset, uint32_t whole_block_size)
     fwrite(&block_type, sizeof(block_type), 1, file_);
 
     db_recycle_pool.insert({offset, whole_block_size});
+}
+
+
+std::string Graph::get_memraid_flowchart()
+{
+    auto str_status = [](const GraphNode::Status &in) {
+        if (in == GraphNode::Latest)
+            return "Latest";
+        else if (in == GraphNode::Stale)
+            return "Stale";
+        return "Unknown";
+    };
+    
+    std::stringstream ss;
+    ss<<"---\n"
+        "title: CGN AnalysisGraph\n"
+        "---\n"
+        "flowchart LR\n";
+    
+    for (auto &[name, anode] : nodes) {
+        ss << "  " << anode._title->self_offset 
+           << "[\"`" + name + " (" + str_status(anode.status) + ")";
+        for (auto file : anode.files) {
+            ss<<"\n    | mtime="<<file->mem_mtime<<" "<<*(file->strkey);
+        }
+        ss << "`\"]\n";
+
+        for (auto e = anode.head; e; e=edges[e].next)
+            if (edges[e].to != nullptr)
+                ss<< "  " << anode._title->self_offset << " --> " 
+                  << edges[e].to->_title->self_offset <<"\n";
+    }
+
+    return ss.str();
 }
 
 } //namespace
