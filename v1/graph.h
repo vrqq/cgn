@@ -81,11 +81,6 @@ public:
     // Judge p->status if Unknown.
     void test_status(GraphNode *p);
 
-    // Propagate the status from node U to its connected node V via edge U->V.
-    // - If U's status is 'Stale', set V's status to 'Stale'.
-    // - If U's status is 'Unknown' or 'Latest', do not modify V's state.
-    void forward_status(GraphNode *p);
-
     // update db[files[*]].mtime and set p->status to Latest
     void set_node_status_to_latest(GraphNode *p);
 
@@ -94,8 +89,8 @@ public:
     //           otherwise for p and dfs(p)
     void set_node_status_to_unknown(GraphNode *p = nullptr);
 
-    // set dfs(p)->status to Unknown and p->status to Stale.
-    void set_node_status_to_stale(GraphNode *p);
+    // set dfs(p)->status to Stale.
+    void set_node_status_to_stale_recursively(GraphNode *p);
 
     // set p->files = in and set p and dfs(p)->status = Unknown
     void set_node_files(GraphNode *p, std::vector<std::string> in);
@@ -112,6 +107,8 @@ public:
 
     void db_load(const std::string &filename);
 
+    std::string get_memraid_flowchart();
+
     Graph(Logger *logger);
     ~Graph();
 
@@ -126,6 +123,14 @@ private:
     
     // call before each edge visited
     GraphEdgeID _iter_edge(GraphEdgeID &edge_id, bool loop_from_edge_start);
+
+    // optimization for dfs status delay forward, caller: set_node_status().
+    // Propagate the status from node U to its connected node V via edge U->V.
+    // - If U's status is 'Stale', set V's status to 'Stale'.
+    // - If U's status is 'Unknown', set V's status to 'Unknown' if V is 'Latest'.
+    // - If U's status is 'Latest', return directly.
+    void _forward_status(GraphNode *p);
+
 
     // (windows) get files mtime by folder.
     // * win_mtime_cache[folder] existed when all files in this folder cached 

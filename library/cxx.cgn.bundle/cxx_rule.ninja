@@ -5,9 +5,11 @@ rule gcc
     deps = gcc
 
 rule msvc_cl
-    command = ${cc} /nologo /showIncludes ${cflags} /c ${in} /Fo"${out}" /Fd"${pdb}"
+    command = ${cc} /nologo /showIncludes @${out}.rsp
     description = CXX ${out}
     deps = msvc
+    rspfile = ${out}.rsp
+    rspfile_content = ${cflags} /c ${in} /Fo"${out}" /Fd"${pdb}"
 
 rule msvc_ml
     command = ${cc} /nologo ${cflags} /Fo ${out} ${in}

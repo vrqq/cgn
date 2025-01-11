@@ -115,7 +115,7 @@ static std::string lower_substr(
 // @param OUT path_out: "output file relpath"
 // @return type of src: A/+/C/0 (asm, c++, c, 0:igonre)
 static char src_path_convert(
-    const std::string &file1, const cgn::CGNTargetOpt &opt,
+    std::string file1, const cgn::CGNTargetOpt &opt,
     std::string *path_in, std::string *path_out, bool dot_obj = false
 ) {
     // get extension
@@ -127,7 +127,7 @@ static char src_path_convert(
     std::string ext = lower_substr(file1, fd+1);
 
     auto gen = [&]() {
-        *path_in = cgn::Tools::locale_path(opt.src_prefix + file1);
+        *path_in = api.rebase_path(file1, ".", opt.src_prefix);
 
         // since path_in and opt.out_prefix is not in same driver in windows,
         // using rebase_path() can only get the abspath of path_in and it's 
@@ -607,10 +607,11 @@ void TargetWorker::step31_win()
         auto file_type = src_path_convert(file, *opt, &path_in, &path_out, true);
         if (file_type == 0)
             continue;
+        //field->input has been moved into cflags
         auto *field = opt->ninja->append_build();
-        field->inputs  = {cgn::NinjaFile::escape_path(path_in)};
         field->outputs = {cgn::NinjaFile::escape_path(path_out)};
-        field->implicit_inputs = opt->quickdep_ninja_full;
+        field->implicit_inputs = {cgn::NinjaFile::escape_path(path_in)};
+        field->implicit_inputs += opt->quickdep_ninja_full;
         field->order_only      = opt->quickdep_ninja_dynhdr;
         if (file_type == 'D') {
             dyn_def_file = path_in;
@@ -628,6 +629,16 @@ void TargetWorker::step31_win()
                 + list2str(carg.defines, "/D");
             field->variables["pdb"] = opt->ninja->escape_path(pdbfile);
         }
+
+        // NinjaBuild bug DirtyPatch:
+        // add ./ prefix of src filepath to avoid string starting with '@'
+        // if we add "./" in ninja input file, ninja.exe would auto remove it 
+        // when writing down to .rspfile, then it cause cl.exe parse it as
+        // another rspfile.
+        if (path_in.at(0) == '@')
+            path_in = "." + opt->path_separator + path_in;
+        field->variables["cflags"] += "/c " + two_escape(path_in);
+
         obj_out.push_back(path_out);
         obj_out_ninja_esc.push_back(field->outputs[0]);
     }
