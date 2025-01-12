@@ -194,17 +194,17 @@ void CMakeInterpreter::interpret(context_type &x)
         gen->variables["desc"] = "CMAKE_GEN " + src_dir;
 
         // target cmake build && install
-        std::string logfile = two_escape(opt->out_prefix + ".log");
+        std::string logfile_esc = two_escape(opt->out_prefix + ".log");
         auto *build = opt->ninja->append_build();
         build->rule    = "quick_run";
         build->inputs  = gen->outputs;
         build->outputs = cmake_out_njesc;
         #ifdef _WIN32
         build->variables["cmd"] = "cmd.exe /c \"ninja -C " + two_escape(build_dir)
-                                + " install\" 1> " + two_escape(logfile) + " 2>&1";
+                                + " install\" 1> " + logfile_esc + " 2>&1";
         #else
         build->variables["cmd"] = "ninja -C " + two_escape(build_dir)
-                                + " install 1> " + two_escape(logfile) + " 2>&1";
+                                + " install 1> " + logfile_esc + " 2>&1";
         #endif
         
         // build->variables["cmd"] = "cmake --build " + two_escape(build_dir)

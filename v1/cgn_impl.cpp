@@ -431,7 +431,6 @@ struct CGNTargetOptIntl : CGNTargetOpt {
     std::string current_unit_name;
 
     Configuration cfg_before_trim;
-    std::string cfg_id_before_trim;
 
     std::string out_prefix_unixsep;
 
@@ -477,7 +476,6 @@ CGNTargetOptIn *CGNTargetOpt::create_sub_target(const std::string &name, bool as
     rv.script_label = self->script_label;
     rv.script_anode = self->script_anode;
     rv.current_unit_name = name;
-    rv.cfg_id_before_trim = self->cfg_id_before_trim;
     rv.out_prefix_unixsep = self->out_prefix_unixsep;
     rv.cache_label = self->cache_label;
 
@@ -515,7 +513,6 @@ CGNTarget CGNImpl::analyse_target(
         cfg_id_in = cfg_mgr->commit(tmp);
     }
     opt.cfg_before_trim = cfg;
-    opt.cfg_id_before_trim = cfg_id_in;
     logger.println("Analyse ", label + " #" + cfg_id_in);
 
     //expand short label and generate src_prefix and out_prefix
@@ -691,7 +688,7 @@ CGNTargetOpt *CGNImpl::confirm_target_opt(CGNTargetOptIn *in)
     ConfigurationID cfg_id = cfg_mgr->commit(opt->cfg);
     logger.println("Analysing ", opt->factory_label 
                 + (opt->current_unit_name.size()? (" [" + opt->current_unit_name + "] "): "")
-                + " #" + opt->cfg_id_before_trim + " -(trim)-> #" + cfg_id);
+                + " #" + opt->cfg_before_trim.get_id() + " -(trim)-> #" + cfg_id);
 
     // convert dir_in to dir_out (add '_' suffix for each folder in path)
     // complete variable in opt when out_dir confirmed.

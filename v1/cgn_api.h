@@ -49,6 +49,8 @@ struct CGN_EXPORT Tools {
     // Retrive filename of the input
     static std::string filename_of_path(const std::string &in);
 
+    static std::string extension_of_path(const std::string &in);
+
     static std::unordered_map<std::string, std::string> read_kvfile(
         const std::string &filepath);
 
@@ -62,6 +64,7 @@ struct CGN_EXPORT Tools {
     // Checks if the given file status or path corresponds to a regular file.
     static bool is_regular_file(const std::string &path);
 
+    static std::string mangle_path(const std::string &file, const std::string &base);
     // static bool is_absolute_path(const std::string &path);
 
     // Creates a directory.
@@ -73,6 +76,7 @@ struct CGN_EXPORT Tools {
     static bool win32_long_paths_enabled();
 
     static bool is_win7_or_later();
+
 
     //@param p : label like ':lib1', "../:lib1", "//other_part", "../../pkg"
     //@param base : label based on (like "//hello/cpp1")

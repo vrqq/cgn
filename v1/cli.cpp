@@ -220,6 +220,10 @@ try{
             std::cout<<api.locale_path(args[2])<<"\n";
             return 0;
         }
+        if (args.size() > 2 && args[1] == "mangle") {
+            std::cout<<api.mangle_path(args[2], "example_of/mangle_base/")<<"\n";
+            return 0;
+        }
         if (args.size() > 2 && args[1] == "caps") {
             std::cout<<(api.is_directory_case_sensitive(args[2])?
                     "Case-Sensitive\n": "Case-Insensitive\n");
