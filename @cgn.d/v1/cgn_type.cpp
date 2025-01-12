@@ -67,11 +67,11 @@ std::string CGNTarget::to_string(char type) const
 //static variable
 std::string CGNTargetOpt::path_separator = {std::filesystem::path::preferred_separator};
 
-CGNTarget CGNTargetOptIn::quick_dep(const std::string &label, const Configuration &cfg, bool merge_infos)
+CGNTarget CGNTargetOptIn::quick_dep(const std::string &label, const Configuration &cfg1, bool merge_infos)
 {
     CGNTargetOpt *opt = dynamic_cast<CGNTargetOpt*>(this);
     CGNTarget early = api.analyse_target(
-                        api.absolute_label(label, this->factory_label), cfg);
+                        api.absolute_label(label, this->factory_label), cfg1);
     if (early.errmsg.size())
         return early;
     if (early.ninja_dep_level == CGNTarget::NINJA_LEVEL_FULL)
@@ -79,10 +79,28 @@ CGNTarget CGNTargetOptIn::quick_dep(const std::string &label, const Configuratio
     if (early.ninja_dep_level == CGNTarget::NINJA_LEVEL_DYNDEP)
         opt->quickdep_ninja_dynhdr.push_back(early.ninja_entry);
     opt->quickdep_early_anodes.push_back(early.anode);
-    opt->cfg.visit_keys(early.trimmed_cfg);
+    cfg1.visit_keys(early.trimmed_cfg);
     if (merge_infos)
         opt->result.merge_from(early);
     return early;
+}
+
+CGNTarget CGNTargetOptIn::quick_dep_namedcfg(const std::string &label, const std::string &cfgname, bool merge_cfg_visit) {
+    CGNTargetOpt *opt = dynamic_cast<CGNTargetOpt*>(this);
+    auto early_cfg = api.query_config(cfgname);
+    if (!early_cfg.second) {
+        CGNTarget rv;
+        rv.errmsg = "config '" + cfgname + "' not found";
+        return rv;
+    }
+    CGNTarget rv = quick_dep(label, early_cfg.first, false);
+    if (rv.errmsg.size())
+        return rv;
+    
+    opt->quickdep_early_anodes.push_back(early_cfg.second);
+    if (merge_cfg_visit)
+        opt->cfg.visit_keys(rv.trimmed_cfg);
+    return rv;
 }
 
 CGNTargetOpt *CGNTargetOptIn::confirm()

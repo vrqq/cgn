@@ -263,7 +263,7 @@ void TargetWorker::step1_win_msvc()
         
         "kernel32.lib", "user32.lib", "gdi32.lib", "winspool.lib", "comdlg32.lib", 
         "advapi32.lib", "shell32.lib", "ole32.lib", "oleaut32.lib", "uuid.lib", 
-        "odbc32.lib", "odbccp32.lib"
+        "odbc32.lib", "odbccp32.lib", "legacy_stdio_definitions.lib"
     };
     
     //["cpu"]
@@ -282,10 +282,22 @@ void TargetWorker::step1_win_msvc()
     if (x.cfg["msvc_runtime"] == "MDd") {
         interp_arg.defines += {"_DEBUG"};
         interp_arg.cflags  += {"/MDd"};
+        interp_arg.ldflags += {"msvcrtd.lib"};
     }
     if (x.cfg["msvc_runtime"] == "MD") {
         interp_arg.defines += {"NDEBUG"};
         interp_arg.cflags  += {"/MD"};
+        interp_arg.ldflags += {"msvcrt.lib"};
+    }
+    if (x.cfg["msvc_runtime"] == "MTd") {
+        interp_arg.defines += {"_DEBUG"};
+        interp_arg.cflags  += {"/MTd"};
+        interp_arg.ldflags += {"libcmtd.lib"};
+    }
+    if (x.cfg["msvc_runtime"] == "MT") {
+        interp_arg.defines += {"NDEBUG"};
+        interp_arg.cflags  += {"/MT"};
+        interp_arg.ldflags += {"libcmt.lib"};
     }
 
     //["optimization"]

@@ -68,9 +68,15 @@ struct CMakeContext {
     CMAKE_CGN_API CMakeContext(cgn::CGNTargetOptIn *opt);
 
     // user should read return value then fill into vars manually.
-    cgn::CGNTarget add_dep(const std::string &label) { return add_dep(label); }
+    cgn::CGNTarget add_dep(const std::string &label) { return add_dep(label, this->cfg); }
     cgn::CGNTarget add_dep(const std::string &label, const cgn::Configuration &cfg) {
         return opt->quick_dep(label, cfg);
+    }
+    cgn::CGNTarget add_dep_with_named_config(
+        const std::string &label, const std::string &cfg_name, 
+        bool merge_cfg_visit = false
+    ) {
+        return opt->quick_dep_namedcfg(label, cfg_name, merge_cfg_visit);
     }
 
     BinDevelInfo *get_bindevel(const std::string &factory_label) 

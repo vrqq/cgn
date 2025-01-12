@@ -1,0 +1,6 @@
+
+rule nasm
+    command = ${exe} -MD ${out}.d ${nasmflags} -o ${out} ${in}
+    description = NASM ${out}
+    depfile = ${out}.d
+    deps = gcc

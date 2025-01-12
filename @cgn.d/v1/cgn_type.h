@@ -182,6 +182,9 @@ struct CGNTargetOptIn
     std::vector<GraphNode*>  quickdep_early_anodes;
     CGN_EXPORT CGNTarget quick_dep(const std::string &label, const Configuration &cfg, bool merge_infos = true);
 
+    // do not merge infos
+    CGN_EXPORT CGNTarget quick_dep_namedcfg(const std::string &label, const std::string &cfgname, bool merge_cfg_visit = false);
+
     CGN_EXPORT CGNTargetOpt *confirm();
 
     CGN_EXPORT void confirm_with_error(const std::string &errmsg);

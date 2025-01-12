@@ -245,7 +245,7 @@ HostInfo Tools::get_host_info()
     return rv;
 }
 
-static std::string locale_path_impl(std::filesystem::path in) {
+static std::filesystem::path locale_path_impl(std::filesystem::path in) {
     in = in.lexically_normal().make_preferred();
     while (in.has_filename() && in.filename() == ".")
         in = in.parent_path();
@@ -257,7 +257,7 @@ std::string Tools::rebase_path(
 ) {
     std::filesystem::path in{p};
     if (base.empty())
-        return locale_path_impl(std::filesystem::absolute(in));
+        return locale_path_impl(std::filesystem::absolute(in)).string();
     std::filesystem::path on{base};
     if (in.is_absolute() || on.is_absolute()) {
         if (in.is_relative())
@@ -265,19 +265,19 @@ std::string Tools::rebase_path(
         in = std::filesystem::absolute(in);
         on = std::filesystem::absolute(on);
         // return locale_path_impl(in.lexically_proximate(base));
-        return locale_path_impl(std::filesystem::proximate(in, on));
+        return locale_path_impl(std::filesystem::proximate(in, on)).string();
     }
 
     in = std::filesystem::path{"."} / current_base / in;
     on = std::filesystem::path{"."} / on;
     // return std::filesystem::proximate(p, base).string();
-    return locale_path_impl(std::filesystem::relative(in, on));
+    return locale_path_impl(std::filesystem::relative(in, on)).string();
     // return locale_path_impl(std::filesystem::path(in).lexically_proximate(base));
 }
 
 std::string Tools::locale_path(const std::string &in)
 {
-    return locale_path_impl(in);
+    return locale_path_impl(in).string();
 }
 
 std::string Tools::parent_path(const std::string &in)
@@ -290,6 +290,15 @@ std::string Tools::filename_of_path(const std::string &in)
 {
     auto p = std::filesystem::path{in};
     return p.filename().string();
+}
+
+
+std::string Tools::extension_of_path(const std::string &in)
+{
+    auto p = std::filesystem::path{in};
+    if (!p.has_extension())
+        return "";
+    return p.extension().string();
 }
 
 bool Tools::win32_long_paths_enabled() 
@@ -428,6 +437,49 @@ bool Tools::is_regular_file(const std::string &path)
     return std::filesystem::is_regular_file(path);
 }
 
+static std::string _mangle_path_str_impl(const std::string &in) {
+    constexpr static std::array<bool, 256> chk = [](){
+        std::array<bool, 256> rv{};
+        for (bool &bv : rv) bv=1;
+        rv['`'] = rv['<'] = rv['>'] = rv[':'] = rv['"']
+            = rv['/'] = rv['\\'] = rv['?'] = rv['*'] = 0;
+        return rv;
+    }();
+
+    constexpr static std::array<std::array<char, 3>, 256> rep = [](){
+        std::array<char, 16> hex{
+            '0', '1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+        std::array<std::array<char, 3>, 256> rv{std::array<char, 3>{0}};
+        for (std::size_t i=0; i<256; i++)
+            rv[i] = {'_', hex[i/16], hex[i%16]};
+        return rv;
+    }();
+
+    std::string out;
+    for (auto ch : in) {
+        if (chk[ch])
+            out.push_back(ch);
+        else
+            out.append(rep[ch].data(), 3);
+    }
+    return out;
+}
+
+std::string Tools::mangle_path(const std::string &file, const std::string &base)
+{
+    std::filesystem::path fp = locale_path_impl(file);
+    if (fp.is_relative()) {
+        if (*fp.begin() == "..")
+            return locale_path_impl(base).string() + "_" + fp.string();
+        else
+            return locale_path_impl(base).string() + fp.string();
+    }
+    else {
+        std::filesystem::path p1{"__" + _mangle_path_str_impl(fp.root_name().string())};
+        return (locale_path_impl(base) / p1 / fp.relative_path()).string();
+    }
+}
+
 void Tools::mkdir(const std::string &path)
 {
     std::filesystem::create_directories(path);
@@ -435,7 +487,7 @@ void Tools::mkdir(const std::string &path)
 
 void Tools::set_permission(const std::string &file, std::string mode)
 {
-    std::filesystem::perm_options opt = std::filesystem::perm_options::replace;
+    // std::filesystem::perm_options opt = std::filesystem::perm_options::replace;
 
     int prms = 0;
     for (auto ch : mode)
