@@ -4,3 +4,10 @@ rule nasm
     description = NASM ${out}
     depfile = ${out}.d
     deps = gcc
+
+## TODO
+rule run_gccdep
+    command = ${in} ${args}
+    description = ${desc} ${out}
+    depfile = ${out}.d
+    deps = gcc
