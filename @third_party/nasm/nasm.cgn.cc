@@ -52,7 +52,13 @@ void NasmInterpreter::interpret(context_type &x)
         flags += {"-Ox"};
 
     cgn::CGNTargetOpt *opt = x.opt->confirm();
+    if (opt->cache_result_found)
+        return ;
 
+    // helper func
+    auto twoesc = [](const std::string &in){ 
+        return cgn::NinjaFile::escape_path(cgn::CGN::shell_escape(in));
+    };
 
     // # NASM does not append path separators when processing the -I flags, so
     // # -Ifoo means includes of bar look up "foobar" rather than "foo/bar".
@@ -68,7 +74,7 @@ void NasmInterpreter::interpret(context_type &x)
     //convert flags to string
     std::string njflags;
     for (auto it : flags)
-        njflags += opt->ninja->escape_path(api.shell_escape(it)) + " ";
+        njflags += twoesc(it) + " ";
     opt->ninja->append_variable("nasmflags", njflags);
 
     std::vector<std::string> njtargets, objrv;
@@ -85,12 +91,12 @@ void NasmInterpreter::interpret(context_type &x)
             dst = "." + opt->path_separator + dst;
 
         auto *field = opt->ninja->append_build();
-        field->rule = "nasm";
+        field->rule = "run_gccdep";
+        field->inputs = {opt->ninja->escape_path(nasm.outputs[0])};
         field->implicit_inputs = {opt->ninja->escape_path(src)};
         field->outputs = {opt->ninja->escape_path(dst)};
-        field->variables["exe"] = opt->ninja->escape_path(api.shell_escape(nasm.outputs[0]));
-        field->variables["nasmflags"] = 
-            "${nasmflags} " + opt->ninja->escape_path(api.shell_escape(src));
+        field->variables["args"] = 
+            "-MD " + twoesc(dst + ".d") + " ${nasmflags} -o " + twoesc(dst) + " " + twoesc(src);
         field->implicit_inputs += opt->quickdep_ninja_full;
         field->order_only      += opt->quickdep_ninja_dynhdr;
         njtargets.push_back(field->outputs[0]);

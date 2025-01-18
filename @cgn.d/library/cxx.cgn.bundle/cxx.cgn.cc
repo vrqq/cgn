@@ -437,8 +437,10 @@ void TargetWorker::step1_linux_gcc()
     append_sanitizer((x.cfg["cxx_tsan"] != ""), "thread");
     append_sanitizer((x.cfg["cxx_msan"] != ""), "memory");
     append_sanitizer((x.cfg["cxx_lsan"] != ""), "leak");
-    interp_arg.cflags  += {"--fsanitize=" + sanitizer};
-    interp_arg.ldflags += {"--fsanitize=" + sanitizer};
+    if (sanitizer.size()) {
+        interp_arg.cflags  += {"-fsanitize=" + sanitizer};
+        interp_arg.ldflags += {"-fsanitize=" + sanitizer};
+    }
 } //TargetWorker::step1_linux_gcc()
 
 
