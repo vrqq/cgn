@@ -22,7 +22,8 @@ static std::string copy_to_dir(
     const std::string &src_base, 
     const std::string &dst_dir,
     const std::string depfile,
-    const std::string stampfile
+    const std::string stampfile,
+    bool print_log = false
 );
 
 
@@ -31,7 +32,7 @@ static std::string flatcopy_to_dir(
     const std::string &dst_dir,
     const std::string depfile,
     const std::string stampfile,
-    bool cout_log = false
+    bool print_log = false
 );
 
 
