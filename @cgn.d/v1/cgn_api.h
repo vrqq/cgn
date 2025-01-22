@@ -125,7 +125,7 @@ public:
     );
 
     // Build specific target
-    void build(const std::string &label, const Configuration &cfg, bool run_target = false);
+    std::string build(const std::string &label, const Configuration &cfg);
 
     // ConfigurationID commit_config(const Configuration &plat_cfg);
 

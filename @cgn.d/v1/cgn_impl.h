@@ -50,8 +50,9 @@ public:
         std::function<void(CGNTargetOptIn*)> loader
     );
 
-    void build_target(
-        const std::string &label, const Configuration &cfg, bool need_run);
+    // @return target.outputs[0] and ninjabuild exitcode
+    std::pair<std::string, int> build_target(
+        const std::string &label, const Configuration &cfg);
 
     CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs);
 
