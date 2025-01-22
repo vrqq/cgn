@@ -126,13 +126,13 @@ int main(int argc, char **argv)
         return show_helper(argv[0]);
     
     // API init function
-    auto init0 = [&]() {
+    auto init0 = [&](std::string cfgname="DEFAULT") {
         api.init(args_kv);
-        auto [cfg, adep] = api.query_config("DEFAULT");
+        auto [cfg, adep] = api.query_config(cfgname);
         if (adep)
             return cfg;
         else {
-            std::cerr<<"'DEFAULT' config not found."<<std::endl;
+            std::cerr<<"'" + cfgname + "' config not found."<<std::endl;
             exit(2);
         }
     };
@@ -148,21 +148,31 @@ try{
         api.release();
     }
     if (args[0] == "build") {
-        if (args.size() != 2)
+        if (args.size() < 2)
             return show_helper(argv[0]);
-        api.build(args[1], init0());
+        std::string cfgname = "DEFAULT";
+        if (args.size() == 3)
+            cfgname = args[2];
+        api.build(args[1], init0(cfgname));
         api.release();
     }
     if (args[0] == "run") {
-        if (args.size() != 2)
+        if (args.size() < 2)
             return show_helper(argv[0]);
-        auto rv = api.analyse_target(args[1], init0());
-        if (rv.errmsg.size())
-            api.logger->paragraph(rv.errmsg);
-        else if (rv.outputs.size()) {
-            system(rv.outputs[0].c_str());
+        std::string cmd;
+        { //TODO: some variable is asan-failed without this scope (after api.release())
+            auto exe = api.build(args[1], init0());
+            if (exe.size()) {
+                cmd = api.shell_escape(exe);
+                for (std::size_t i=2; i<args.size(); i++)
+                    cmd += " " + api.shell_escape(args[i]);
+            }
         }
         api.release();
+        if (cmd.size())
+            system(cmd.c_str());
+        else
+            api.logger->paragraph("No executable found.");
     }
     if (args[0] == "query") {
         {

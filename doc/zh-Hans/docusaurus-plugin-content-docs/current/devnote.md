@@ -286,6 +286,9 @@ prerequisite: 在BUILD.cgn.cc中, 我们无法提前得知输出到cgn-out下哪
 * 和 git, url_download 这些面临同样问题, 在不同的host_os上 有不同的copy.exe, 可BUILD.ninja要监测输出的target变化来决定是否运行copy.
 * BUILD.ninja中, 同一个文件 只能对应一个target的output, 同一个文件可以当作很多input 但他必须存在 或 是某个target的output.
 
+**文件夹的mtime**
+该文件夹下新增、删除了文件/文件夹, 会使当前文件夹的mtime改变. 该文件夹下的文件改变, 不会使当前文件夹的mtime变化. 该文件夹的子文件夹下新增了文件, 也不会使该文件夹mtime变化.
+
 **考虑一种备选方案**, 以copy举例, copy的输出 在 build.ninja 的target里写为输入, 输出stamp文件(输出无意义), ninja文档如下.
 > phony can also be used to create dummy targets for files which may not exist at build time. If a phony build statement is written without any dependencies, the target will be considered out of date if it does not exist. Without a phony build statement, Ninja will report an error if the file does not exist and is required by the build.
 
@@ -315,9 +318,52 @@ default out/obj/hostlinux_tgtmips/myproto.o
 ```
 以上方案相当于两套不同平台的target都把 src/pbout/myproto.pb.cc 当作输出
 
-
 **第二种备选方案是**, 每次调用cgn时写config.ninja 内置诸多用于redirection的变量
 
 **下一种备选方案是**, 通过dyndep重定向到 当前cfg_id目录下的 真实target
 
-**TODO**
+**第一种方案的改良 高级copy**
+
+@cgn.d/utility/advcopy -MD cpresult.d flat_copy argfile.txt
+
+```ninja
+rule advcopy
+    cmd = advcopy -MF ${out}.d -stamp ${out} ${args} ${in}
+    depfile = ${out}.d
+    deps = gcc
+
+build cgn-out/.stamp : advcopy argfile.txt
+    args = flat_copy
+```
+
+file '.stamp.d'
+```makefile
+.stamp.d : all_files_in_dstdir, all_files_in_srcdir
+```
+若原地址中含有‘*’, 例如 `a/*/b/c/**.h`, 则将 选中的文件在src中的位置 和 文件夹a 和 文件夹c 以及 文件夹c下所有含有.h的子文件夹(递归), 全部列入依赖.  
+stamp文件无意义, 因为ninja会自动删除depfile 所以不能用.d当stamp文件
+
+**对advcopy的source pattern match的设计**
+由于深层文件的mtime更改 无法影响上层文件夹, 故当需要复制某个文件夹时, 一定需要将该文件夹及其子文件夹全部加入watch.depfile, 因此, 当最后一个section为‘*’时, 等同于‘**’.
+
+支持的规则: 每个section仅能最多有一个‘*’, 只有最后一个section支持含有‘**’表示匹配子文件夹.
+例如我们设计了如下文件列表 (@cgn.d/advcopy/testcase)
+```txt
+>> aa
+   |>> bb
+       |-- fileUV.in
+       |-- fileX.txt
+       |-- fileX.txt.2.0 (to fileX.txt)
+       |-- fileY.txt
+   |>> cc
+   |-- parent_link (to ..)
+   |-- file_in_aa.txt
+   |-- fileZ.in
+   |-- invalid_link (to invalid_link)
+```
+
+**symlink处理**
+首先symlink不能跳过, 也要复制. 而且symlink并不能视为普通文件.  
+我们的`file_match`只返回 regular_file, dictionary, symlink三种, 其余类型忽略.(例如pipe unix_socket dev等)  
+前两种检查mtime, 而对于symlink, `read_symlink()`检查其“内容”(指向) 是否变化 以决定是否重建, 若不检查直接重建symlink 可能会使得symlink本身的mtime改变, 不确定ninja是否会检查它.  
+symlink会出现在`file_need_copy`及`node_need_watch`中, 我们期望ninja可以检查好 `symlink本身` 的变化.

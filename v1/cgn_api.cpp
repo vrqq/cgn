@@ -37,9 +37,12 @@ CGNTarget CGN::analyse_target(
 }
 
 // Build specific target
-void CGN::build(const std::string &label, const Configuration &cfg, bool run_target)
+std::string CGN::build(const std::string &label, const Configuration &cfg)
 {
-    return pimpl->build_target(label, cfg, run_target);
+    auto [exe, code] = pimpl->build_target(label, cfg);
+    if (exe.size() && code == 0)
+        return exe;
+    return "";
 }
 
 // ConfigurationID commit_config(const Configuration &plat_cfg);

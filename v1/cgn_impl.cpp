@@ -807,8 +807,8 @@ std::shared_ptr<void> CGNImpl::bind_target_builder(
     );
 }
 
-void CGNImpl::build_target(
-    const std::string &label, const Configuration &cfg, bool need_run
+std::pair<std::string, int> CGNImpl::build_target(
+    const std::string &label, const Configuration &cfg
 ) {
     // current_analysis_level = 'b';
     auto rv = analyse_target(label, cfg);
@@ -830,9 +830,12 @@ void CGNImpl::build_target(
     if (logger.is_verbose())
         cmd += " --verbose";
     logger.paragraph(cmd + "\n");
+    
     int exitcode = system(cmd.c_str());
-    if (exitcode == 0 && need_run && rv.outputs.size())
-        system(rv.outputs[0].c_str());
+    
+    if (exitcode == 0 && rv.outputs.size())
+        logger.println("Build success: ", rv.outputs[0]);
+    return {(rv.outputs.size()?rv.outputs[0]:""), exitcode};
 }
 
 std::pair<std::string, std::string> CGNImpl::_expand_cell(const std::string &ss) const
@@ -972,9 +975,10 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     //CGN cell init
     // scan folder starting with '@' at working-root
     for (auto it : std::filesystem::directory_iterator(".")) {
+        std::error_code ec;
         // name: string like "@base"
         std::string name = it.path().filename().string();
-        if (it.is_directory() && name[0] == '@') {
+        if (it.is_directory(ec) && name[0] == '@' && !ec) {
             cells.insert(name);
             logger.verbose_paragraph("Cell " + name + " detected.");
         }
