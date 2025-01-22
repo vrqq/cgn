@@ -1,3 +1,4 @@
 @cgn.d/advcopy/testcase/aa/*.txt
+@cgn.d/advcopy/testcase/aa/bb
 @cgn.d/advcopy/testcase/**.in
 /tmp/advcopy_flat/

@@ -1,0 +1,5 @@
+aa/*.txt
+aa/bb
+**.in
+@cgn.d/advcopy/testcase
+/tmp/advcopy_flat/

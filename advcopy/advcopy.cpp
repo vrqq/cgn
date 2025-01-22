@@ -217,6 +217,50 @@ std::string makefile_escape(const std::string &in)
     return rv;
 }
 
+// @return errmsg, is_updated
+std::pair<std::string, bool> copy_impl(const fs::path &src, const fs::path &dst)
+{
+    bool updated = false;
+    try{
+        if (!fs::is_symlink(dst) && fs::exists(dst) && !fs::is_regular_file(dst) && !fs::is_directory(dst))
+            return {dst.string() + " unsupported type.", false};
+
+        if (fs::is_symlink(src)) {
+            if (!fs::is_symlink(dst) && fs::is_directory(dst))
+                return {src.string() + " is symlink, but " + dst.string() + " is directory.", false};
+            if (!fs::is_symlink(dst) || fs::read_symlink(src) != fs::read_symlink(dst)) {
+                fs::remove(dst);
+                fs::create_symlink(fs::read_symlink(src), dst);
+                updated = true;
+            }
+        }
+        else if (fs::is_regular_file(src)) {
+            if (fs::is_symlink(dst))
+                fs::remove(dst);
+            else if (fs::is_directory(dst))
+                return {src.string() + " is regular file, but " + dst.string() + " is directory.", false};
+            if (!fs::exists(dst) || fs::last_write_time(src) != fs::last_write_time(dst)) {
+                fs::create_directories(dst.parent_path());
+                fs::copy_file(src, dst, fs::copy_options::overwrite_existing), updated = true;
+            }
+        }
+        else if (fs::is_directory(src)) {
+            if (fs::is_symlink(dst) || fs::is_regular_file(dst))
+                fs::remove(dst);
+            if (!fs::exists(dst) || fs::last_write_time(src) != fs::last_write_time(dst))
+                fs::copy(src, dst, fs::copy_options::recursive), updated = true;
+        }
+
+        // set mtime after copy
+        if (!fs::is_symlink(src))
+            fs::last_write_time(dst, fs::last_write_time(src));
+    }catch(std::filesystem::filesystem_error &e) {
+        return {src.string() + " --> " + dst.string() + " : " + e.what(), false};
+    }
+
+    return {"", updated};
+}
+
 } //namespace<>
 
 
@@ -269,8 +313,10 @@ std::string AdvanceCopy::flatcopy_to_dir(
     const std::string &dst_dir,
     const std::string depfile,
     const std::string stampfile,
-    bool cout_log
+    bool print_log
 ) {
+    if (print_log)
+        std::cout<<"--- Flat Copy ---\n";
     std::ofstream fdep(depfile);
     fdep<<makefile_escape(stampfile)<<" : ";
 
@@ -279,49 +325,17 @@ std::string AdvanceCopy::flatcopy_to_dir(
         if (rec.errmsg.size())
             return pattern + " : " + rec.errmsg;
         
-        if (cout_log)
+        if (print_log)
             std::cout<<pattern<<"\n";
         for (auto [_src1, _src2] : rec.file_need_copy) {
-            fs::path src = _src1 / _src2;
-            fs::path dst = fs::path{dst_dir} / _src2;
-
-            bool updated = false;
-            try{
-                if (!fs::is_symlink(dst) && fs::exists(dst) && !fs::is_regular_file(dst) && !fs::is_directory(dst))
-                    return pattern + " : " + dst.string() + " unsupported type.";
-
-                if (fs::is_symlink(src)) {
-                    if (!fs::is_symlink(dst) && fs::is_directory(dst))
-                        return pattern + " : " + src.string() + " is symlink, but " + dst.string() + " is directory.";
-                    if (!fs::is_symlink(dst) || fs::read_symlink(src) != fs::read_symlink(dst)) {
-                        fs::remove(dst);
-                        fs::create_symlink(fs::read_symlink(src), dst);
-                        updated = true;
-                    }
-                }
-                else if (fs::is_regular_file(src)) {
-                    if (fs::is_symlink(dst))
-                        fs::remove(dst);
-                    else if (fs::is_directory(dst))
-                        return pattern + " : " + src.string() + " is regular file, but " + dst.string() + " is directory.";
-                    if (!fs::exists(dst) || fs::last_write_time(src) != fs::last_write_time(dst))
-                        fs::copy_file(src, dst, fs::copy_options::overwrite_existing), updated = true;
-                }
-                else if (fs::is_directory(src)) {
-                    if (fs::is_symlink(dst) || fs::is_regular_file(dst))
-                        fs::remove(dst);
-                    if (!fs::exists(dst) || fs::last_write_time(src) != fs::last_write_time(dst))
-                        fs::copy(src, dst, fs::copy_options::recursive), updated = true;
-                }
-
-                // set mtime after copy
-                if (!fs::is_symlink(src))
-                    fs::last_write_time(dst, fs::last_write_time(src));
-            }catch(std::filesystem::filesystem_error &e) {
-                return pattern + " --> " + dst.string() + " : " + e.what();
-            }
-
-            if (cout_log)
+            fs::path src = _src2.empty()? _src1 : (_src1 / _src2);
+            fs::path dst = fs::path{dst_dir} / _src1.filename();
+            if (!_src2.empty())
+                dst /= _src2;
+            auto [errmsg, updated] = copy_impl(src, dst);
+            if (errmsg.size())
+                return errmsg;
+            if (print_log)
                 std::cout<<"  "<<src.string()<<"\n  └--> "<<(updated?dst.string():"skipped")<<"\n";
         } //end_for(path_search().file_need_copy)
 
@@ -334,13 +348,44 @@ std::string AdvanceCopy::flatcopy_to_dir(
 }
 
 std::string AdvanceCopy::copy_to_dir(
-    const std::vector<std::string> &src, 
+    const std::vector<std::string> &srcs_part2, 
     const std::string &src_base, 
     const std::string &dst_dir,
     const std::string depfile,
-    const std::string stampfile
+    const std::string stampfile,
+    bool print_log
 ) {
-    return "UNDER_CONSTRUCTION";
+    if (print_log)
+        std::cout<<"--- Copy ---\n";
+    std::ofstream fdep(depfile);
+    fdep<<makefile_escape(stampfile)<<" : ";
+
+    for (auto pattern : srcs_part2) {
+        fs::path src_pattern = fs::path{src_base} / pattern;
+        auto rec = path_search(src_pattern, true);
+        if (rec.errmsg.size())
+            return pattern + " : " + rec.errmsg;
+        
+        if (print_log)
+            std::cout<<src_pattern<<"\n";
+        for (auto [_src1, _src2] : rec.file_need_copy) {
+            fs::path src = _src2.empty()? _src1 : (_src1 / _src2);
+            src = fs::proximate(src, "./");
+            fs::path dst = fs::path{dst_dir} / src.lexically_proximate(src_base);
+            auto [errmsg, updated] = copy_impl(src, dst);
+            if (errmsg.size())
+                return errmsg;
+            if (print_log)
+                std::cout<<"  "<<src.string()<<"\n"
+                         <<"  └--> "<<(updated?dst.string():"skipped")<<"\n";
+        } //end_for(path_search().file_need_copy)
+
+        for (auto it : rec.node_need_watch)
+            fdep<<makefile_escape(it)<<" ";
+    } //end_for(pattern : arg[src_list])
+
+    std::ofstream fstamp(stampfile);
+    return "";
 }
 
 } //namespace

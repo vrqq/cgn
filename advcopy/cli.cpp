@@ -84,7 +84,7 @@ int main(int argc, char **argv)
             filelist.pop_back();
 
             if (auto emsg = cgnv1::AdvanceCopy::copy_to_dir(
-                filelist, src_base, dst_dir, depfile, stampfile
+                filelist, src_base, dst_dir, depfile, stampfile, true
             ); emsg.size()) {
                 std::cerr<<emsg<<std::endl;
                 return 1;
