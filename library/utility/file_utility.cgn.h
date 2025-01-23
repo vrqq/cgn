@@ -73,6 +73,7 @@ struct FileUtility
         const cgn::CGNPath &dst_dir
     );
 
+    using DevelOpt = BinDevelOpt;
     cgn::CGNTarget collect_devel_on_build(
         const std::string &label, 
         BinDevelOpt opt
@@ -117,8 +118,9 @@ struct FileUtilityInterpreter
 {
     using context_type = FileUtility;
 
-    constexpr static cgn::ConstLabelGroup<1> preload_labels() {
-        return {"@cgn.d//library/utility/file_utility.cgn.cc"};
+    constexpr static cgn::ConstLabelGroup<2> preload_labels() {
+        return {"@cgn.d//library/general.cgn.bundle",
+                "@cgn.d//library/utility/file_utility.cgn.cc"};
     }
     CGN_UTILITY_API static void interpret(context_type &x);
 };

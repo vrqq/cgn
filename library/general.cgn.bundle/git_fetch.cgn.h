@@ -19,6 +19,8 @@ struct GitContext
     std::string repo;
     std::string commit_id;
 
+    bool fetch_submodule = false;
+
     struct {
         std::vector<std::string> command;
         std::string cwd = ".";
