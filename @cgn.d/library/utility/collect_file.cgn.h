@@ -11,6 +11,9 @@
 #endif
 
 #include <cgn>
+
+// @deprecated: using file_utility instead
+//              see also : @cgn.d/library/utility/file_utility.cgn.h
 struct CopyInterpreter
 {
     struct CopyResult
