@@ -37,7 +37,7 @@ void apply_build_setting(cxx::CxxContext &x, bool for_test = false) {
     x.include_dirs     += src_prefix({"include"});
     if (!for_test)
         x.defines += {"BORINGSSL_IMPLEMENTATION"};
-    x.defines += {"OPENSSL_SMALL"};
+    // x.defines += {"OPENSSL_SMALL"};
     if (x.cfg["cxx_toolchain"] == "msvc") {
         x.cflags += {
             "/wd4100", 
@@ -114,8 +114,9 @@ cxx_sources("_test_support", x) {
     x.srcs = src_prefix(test_support_sources);
     if (x.cfg["cxx_toolchain"] != "msvc")
         x.srcs += src_prefix(test_support_sources_asm);
+    else
+        x.add_dep(":_test_support_msvc", cxx::inherit);
     apply_build_setting(x);
-    // x.add_dep(":_test_support_asm", cxx::inherit);
     x.add_dep("@third_party//googletest", cxx::inherit);
 }
 cxx_executable("ssl_test", x) {
@@ -123,6 +124,30 @@ cxx_executable("ssl_test", x) {
     x.add_dep(":ssl", cxx::private_dep);
     x.add_dep(":crypto", cxx::private_dep);
     x.add_dep(":_test_support", cxx::private_dep);
+}
+
+cxx_executable("crypto_test", x) {
+    x.srcs = src_prefix(crypto_test_sources);
+    x.add_dep(":crypto", cxx::private_dep);
+    x.add_dep(":_test_support", cxx::private_dep);
+}
+
+// lib collection
+// copy("lib_collection", x) {
+//     cgn::CGNTarget ssl    = api.analyse_target("@third_party//boringssl:ssl", x.cfg);
+//     cgn::CGNTarget crypto = api.analyse_target("@third_party//boringssl:crypto", x.cfg);
+//     cgn::CGNTarget pki    = api.analyse_target("@third_party//boringssl:pki", x.cfg);
+
+//     x.target_results = {
+//         x.copy_wrbase_to_output(ssl.outputs + crypto.outputs + pki.outputs, "")
+//     };
+// }
+file_utility("devel", x) {
+    FileUtility::DevelOpt collect_op;
+    collect_op.allow_linknrun = true;
+    x.collect_devel_on_build(":ssl", collect_op);
+    x.collect_devel_on_build(":crypto", collect_op);
+    x.collect_devel_on_build(":pki", collect_op);
 }
 
 // -- The second form: libboringssl.a

@@ -43,6 +43,8 @@ void FileUtility::copy_on_build(
     const cgn::CGNPath &src_base, 
     const cgn::CGNPath &dst_dir
 ) {
+    if (src.empty())
+        return ;
     constexpr static char CMD_COPY[] = "copy_to_dir";
 
     auto gen = [=](cgn::CGNTargetOpt *opt) {
@@ -61,6 +63,8 @@ void FileUtility::flat_copy_on_build(
     const std::vector<cgn::CGNPath> &src_list, 
     const cgn::CGNPath &dst_dir
 ) {
+    if (src_list.empty())
+        return ;
     constexpr static char CMD_FLAT_COPY[] = "flat_copy_to_dir";
     auto gen = [=](cgn::CGNTargetOpt *opt) {
         std::vector<std::string> rv;
@@ -173,7 +177,7 @@ void FileUtilityInterpreter::interpret(context_type &x)
 
     // Bindevel postprocess
     if (x.result_have_bin_devel) {
-        auto *info = opt->result.get<BinDevelInfo>();
+        auto *info = opt->result.get<BinDevelInfo>(true);
         info->base = opt->out_prefix;
         info->bin_dir = info->base + "bin";
         info->lib_dir = info->lib_dir + "lib";

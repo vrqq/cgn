@@ -46,9 +46,9 @@ cxx_executable("zlib_test_minigzip", x) {
 //                         (x.cfg["cpu"]=="x86_64"?"lib64":"lib"));
 // }
 
-bin_devel("devel", x) {
-    x.include = {
-        {"repo", {"*.h"}}
-    };
-    x.add_from_target(":zlib", x.allow_linknrun);
-}
+// bin_devel("devel", x) {
+//     x.include = {
+//         {"repo", {"*.h"}}
+//     };
+//     x.add_from_target(":zlib", x.allow_linknrun);
+// }

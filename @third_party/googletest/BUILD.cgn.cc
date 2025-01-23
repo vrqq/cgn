@@ -43,18 +43,22 @@ alias("googletest", x) {
     x.actual_label = ":gmock";
 }
 
-// filegroup("devel", x) {
-//     x.add("src/googlemock/include/gmock", {"*.h"}, "include/gmock");
-//     x.add("src/googletest/include/gtest", {"*.h"}, "include/gtest");
+file_utility("devel", x) {
+    FileUtility::DevelOpt opt;
+    opt.allow_linknrun = true;
+    x.collect_devel_on_build(":gtest", opt);
+    x.collect_devel_on_build(":gmock", opt);
 
-//     auto info = x.add_target_dep(":googletest", x.cfg);
-//     x.flat_add_rootbase(info.get<cgn::LinkAndRunInfo>(false)->shared_files, 
-//                         (x.cfg["cpu"]=="x86_64"?"lib64":"lib"));
-// }
-bin_devel("devel", x) {
-    x.include = {
-        {gmock + "/include", {"gmock/*.h"}},
-        {gtest + "/include", {"gtest/*.h"}}
-    };
-    x.add_from_target(":googletest", x.allow_linknrun);
+    x.flat_copy_on_build({
+        cgn::make_path_base_script("repo/googletest/include/gtest"),
+        cgn::make_path_base_script("repo/googlemock/include/gmock")
+    },cgn::make_path_base_out("include"));
 }
+
+// bin_devel("devel", x) {
+//     x.include = {
+//         {gmock + "/include", {"gmock/*.h"}},
+//         {gtest + "/include", {"gtest/*.h"}}
+//     };
+//     x.add_from_target(":googletest", x.allow_linknrun);
+// }

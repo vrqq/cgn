@@ -24,42 +24,27 @@ cmake("build_cmake", x) {
     }
 }
 
-// Seems depecrated
-nmake("build_win_nmake", x) {
-    x.makefile = "Makefile.msvc";
-    x.cwd = "repo";
-    x.install_prefix_varname = "INSTALL_DIR";
+// Depecrated
+// nmake("build_win_nmake", x) {
+//     x.makefile = "Makefile.msvc";
+//     x.cwd = "repo";
+//     x.install_prefix_varname = "INSTALL_DIR";
 
-    if (x.cfg["optimization"] == "debug") {
-        x.override_vars["CFG"] = "dll-debug";
-        x.outputs = {"lib/caresd.dll", "lib/caresd.lib", 
-                     "lib/caresd.exp", "lib/caresd.pdb"};
-    }
-    else {
-        x.override_vars["CFG"] = "dll-release";
-        x.outputs = {"lib/caresd.dll", "lib/caresd.lib", "lib/caresd.exp"};
-    }
+//     if (x.cfg["optimization"] == "debug") {
+//         x.override_vars["CFG"] = "dll-debug";
+//         x.outputs = {"lib/caresd.dll", "lib/caresd.lib", 
+//                      "lib/caresd.exp", "lib/caresd.pdb"};
+//     }
+//     else {
+//         x.override_vars["CFG"] = "dll-release";
+//         x.outputs = {"lib/caresd.dll", "lib/caresd.lib", "lib/caresd.exp"};
+//     }
 
-    if (x.cfg["msvc_runtime"] == "MT" || x.cfg["msvc_runtime"] == "MTd")
-        x.override_vars["RTLIBCFG"] = "static";
-
-    if (x.cfg["cpu"] == "x86")
-        x.override_vars["MACHINE"] = "x86";
-    if (x.cfg["cpu"] == "x86_64")
-        x.override_vars["MACHINE"] = "x64";
-    
-}
-
-// sh_binary("build_win", x) {
-//     x.cmd_build = {"cd", "repo/winbuild", "&&",
-//         "nmake", "/f", "Makefile.vc", "mode=dll"};
-    
-//     x.cmd_build += {x.cfg["optimization"] == "debug"?"DEBUG=yes":"DEBUG=no"};
 //     if (x.cfg["msvc_runtime"] == "MT" || x.cfg["msvc_runtime"] == "MTd")
-//         x.cmd_build += {"RTLIBCFG=static"};
+//         x.override_vars["RTLIBCFG"] = "static";
 
 //     if (x.cfg["cpu"] == "x86")
-//         x.cmd_build += {"MACHINE=x86"};
+//         x.override_vars["MACHINE"] = "x86";
 //     if (x.cfg["cpu"] == "x86_64")
-//         x.cmd_build += {"MACHINE=x64"};
+//         x.override_vars["MACHINE"] = "x64";
 // }
