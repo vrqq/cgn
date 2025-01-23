@@ -2,6 +2,7 @@
 
 static std::string ZSTD_ROOT = "repo";
 
+// Zstandard v1.5.6 - Chrome Edition
 git("zstd.git", x) {
     x.repo = "https://github.com/facebook/zstd.git";
     x.dest_dir = ZSTD_ROOT;
