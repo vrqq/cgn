@@ -1,0 +1,6 @@
+
+rule advcopy
+    command = ${exe} -MF ${out}.d -stamp ${out} ${subcmd} ${in}
+    description = ${desc}
+    deps = gcc
+    depfile = ${out}.d
