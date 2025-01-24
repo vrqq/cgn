@@ -175,6 +175,9 @@ void FileUtilityInterpreter::interpret(context_type &x)
     if (opt->cache_result_found)
         return ;
 
+    // result require ninja_order_only_dep
+    opt->result.ninja_dep_level = opt->result.NINJA_LEVEL_DYNDEP;
+
     // Bindevel postprocess
     if (x.result_have_bin_devel) {
         auto *info = opt->result.get<BinDevelInfo>(true);

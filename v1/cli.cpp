@@ -146,6 +146,7 @@ try{
         if (rv.errmsg.size())
             api.logger->paragraph(rv.errmsg);
         api.release();
+        return 0;
     }
     if (args[0] == "build") {
         if (args.size() < 2)
@@ -155,6 +156,7 @@ try{
             cfgname = args[2];
         api.build(args[1], init0(cfgname));
         api.release();
+        return 0;
     }
     if (args[0] == "run") {
         if (args.size() < 2)
@@ -173,6 +175,7 @@ try{
             system(cmd.c_str());
         else
             api.logger->paragraph("No executable found.");
+        return 0;
     }
     if (args[0] == "query") {
         {
@@ -270,5 +273,5 @@ try{
     return 1;
 }
 
-    return 0;
+    return show_helper(argv[0]);
 } //int main()

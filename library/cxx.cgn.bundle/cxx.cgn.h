@@ -225,7 +225,8 @@ using CxxExecutableInterpreter = cxx::CxxInterpreterIF<cxx::CxxExecutableContext
 // -----------------------------
 
 struct PrebuiltContext {
-    const std::string name;
+    const std::string &name;
+    const cgn::Configuration &cfg;
 
     CxxInfo pub;
 
@@ -237,10 +238,17 @@ struct PrebuiltContext {
     //linux shared/static lib: .so / .a / .o
     std::vector<std::string> files;
 
-    PrebuiltContext(cgn::CGNTargetOptIn *opt) : opt(opt) {}
+    PrebuiltContext(cgn::CGNTargetOptIn *opt) : opt(opt), name(opt->factory_name), cfg(opt->cfg) {}
+
+    cgn::CGNTarget add_dep(const std::string &label) {
+        auto rv = opt->quick_dep(label, cfg);
+        _max_pub_ninja_level = std::max(_max_pub_ninja_level, rv.ninja_dep_level);
+        return rv;
+    }
 
 private: friend class CxxPrebuiltInterpreter;
     cgn::CGNTargetOptIn *opt;
+    char _max_pub_ninja_level = cgn::CGNTarget::NINJA_LEVEL_NONEED;
 };
 
 struct CxxPrebuiltInterpreter {
