@@ -1,0 +1,14 @@
+#pragma once
+
+//Include cgn API
+#include "@cgn.d/cgn.h"
+
+//Include rules
+#include "@cgn.d/library/general.cgn.bundle/general.cgn.h"
+#include "@cgn.d/library/cxx.cgn.bundle/cxx.cgn.h"
+#include "@cgn.d/library/utility/collect_file.cgn.h"
+#include "@cgn.d/library/utility/file_utility.cgn.h"
+// #include "@cgn.d/library/xcode.cgn.bundle/xcode.cgn.h"
+#include "@cgn.d/library/cmake.cgn.h"
+#include "@cgn.d/library/nmake.cgn.h"
+#include "@third_party/protobuf/proto.cgn.h"

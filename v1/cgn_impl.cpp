@@ -834,7 +834,7 @@ std::pair<std::string, int> CGNImpl::build_target(
     int exitcode = system(cmd.c_str());
     
     if (exitcode == 0 && rv.outputs.size())
-        logger.println("Build success: ", rv.outputs[0]);
+        logger.println("Build success: ", rv.outputs[0] + "\n");
     return {(rv.outputs.size()?rv.outputs[0]:""), exitcode};
 }
 
@@ -1023,7 +1023,7 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
         fn_setup(x);
     #endif
     if (x.log_message.size())
-        logger.paragraph(x.log_message);
+        logger.verbose_paragraph(x.log_message);
     for (auto &[name, cfg] : x.configs) {
         cfg.visit_all_keys();
         cfg.trim_lock();

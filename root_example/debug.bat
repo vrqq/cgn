@@ -1,0 +1,1 @@
+"@cgn.d\build_win\cgn.exe" --halt_on_error --target msvc,debug build %1 %2 %3 %4
