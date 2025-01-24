@@ -1,0 +1,3 @@
+[submodule "ninjabuild"]
+	path = ninjabuild
+	url = https://github.com/ninja-build/ninja.git

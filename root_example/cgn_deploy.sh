@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DEV_DEPLOY=False
+MONOREPO_DEPLOY="false"
 
 ## 0. OS_DETECT
 OS_TYPE=$(uname)
@@ -15,12 +15,12 @@ else
 fi
 
 ## 1. Add @cgn.d @third_party as submodule or subtree
-if [DEV_DEPLOY]; then
+if [[$MONOREPO_DEPLOY == "true"]]; then
     git subtree add --prefix=@cgn.d https://github.com/vrqq/cgn-cgn.d.git main
     git subtree add --prefix=@third_party https://github.com/vrqq/cgn-third_party.git main
 else
-    git submodule add --depth 1 https://github.com/vrqq/cgn-cgn.d.git @cgn.d
-    git submodule add --depth 1 https://github.com/vrqq/cgn-third_party.git @third_party
+    git submodule add -b cell/cgn.d git@github.com:vrqq/cgn.git @cgn.d
+    git submodule add -b cell/third_party git@github.com:vrqq/cgn.git @third_party
 fi
 
 ## 2. build cgn
