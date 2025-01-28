@@ -13,71 +13,54 @@
 #include <string>
 #include <unordered_map>
 #include <cgn>
-
-namespace cgnv1 {
-
-struct CGNPath {
-
-    constexpr static char BASE_ON_OUTPUT      = 0;
-    constexpr static char BASE_ON_SCRIPT_SRC  = 1;
-    constexpr static char BASE_ON_WORKINGROOT = 2;
-    char type = 2;
-
-    std::string rpath;
-
-    CGNPath(char t, const std::string &rel) : type(t), rpath(rel) {}
-};
-
-inline CGNPath make_path_base_out(const std::string rel="")  { 
-    return CGNPath{CGNPath::BASE_ON_OUTPUT, rel};
-}
-inline CGNPath make_path_base_script(const std::string rel="")  { 
-    return CGNPath{CGNPath::BASE_ON_SCRIPT_SRC, rel};
-}
-inline CGNPath make_path_base_working(const std::string rel="")  { 
-    return CGNPath{CGNPath::BASE_ON_WORKINGROOT, rel};
-}
-
-} //namespace
-
-struct BinDevelOpt
-{
-    // const static int allow_bindevel    =     0b1;
-    // const static int allow_cxxinclude  =    0b10;
-    // const static int allow_linknrun    =  0b1100;
-    // const static int allow_output      = 0b10000;
-    
-    bool allow_bindevel    = false;
-    bool allow_cxxinclude  = false;
-    bool allow_linknrun    = false;
-    bool allow_output      = false;
-    
-    cgn::CGNPath target_dir = cgn::make_path_base_out();
-
-    std::string perferred_libdir;
-};
+#include "cgn_path.h"
 
 struct FileUtility
 {
     const std::string &name;
-    cgn::Configuration &cfg;
+    const cgn::Configuration &cfg;
 
-    void copy_on_build(
+    CGN_UTILITY_API void copy_on_build(
         const std::vector<std::string> &src, 
         const cgn::CGNPath &src_base, 
         const cgn::CGNPath &dst_dir
     );
 
-    void flat_copy_on_build(
+    CGN_UTILITY_API void flat_copy_on_build(
         const std::vector<cgn::CGNPath> &src_list, 
         const cgn::CGNPath &dst_dir
     );
 
-    using DevelOpt = BinDevelOpt;
-    cgn::CGNTarget collect_devel_on_build(
+    // constexpr static int devel_from_bindevel    =     0b1;
+    // constexpr static int devel_from_cxxinclude  =    0b10;
+    // constexpr static int devel_from_linknrun    =  0b1100;
+    // constexpr static int devel_from_output      = 0b10000;
+    // cgn::CGNTarget collect_devel_on_build(
+    //     const std::string &label, 
+    //     int collect_flag,
+    //     cgn::CGNPath perferred_basedir = cgn::make_path_base_out(),
+    //     std::string perferred_lib_dirname = ""
+    // );
+
+    struct DevelOpt
+    {
+        bool allow_bindevel    = false;
+        bool allow_cxxinclude  = false;
+        bool allow_linknrun    = false;
+        bool allow_output      = false;
+
+        //TODO
+        // std::string pkgconfig_template;
+        bool as_return_value = true;
+        cgn::CGNPath target_dir = cgn::make_path_base_out();
+        std::string perferred_libdir;
+    };
+    static DevelOpt new_devel_opt() { return DevelOpt{}; }
+    CGN_UTILITY_API cgn::CGNTarget collect_devel_on_build(
         const std::string &label, 
-        BinDevelOpt opt
+        DevelOpt opt
     );
+
 
     // --TODO--
     // cgn::CGNPath copy_rename_on_build(
@@ -110,16 +93,33 @@ private: friend class FileUtilityInterpreter;
     std::vector<CopyRecord> copy_records;
 
     // CGNTarget.infos<BinDevelInfo>
-    bool result_have_bin_devel = false;
+    bool         have_devel = false;
+    cgn::CGNPath devel_basedir;
+    std::string  devel_lib_dirname;
 
+    // TBD: not required
+    // CGNTarget.infos<CxxInfo>
+    //      .include_dir = {devel_basedir / "include"};
+    //      .ldflags, .cflags, ... = inherit from early target
+    bool have_cxxinfo = false;
+    cxx::CxxInfo devel_cxxinfo;
+    
+    // TBD: not required
+    // CGNTarget.infos<LinkAndRunInfo>
+    //      .shared_files = devel_shared[]
+    //      .static_files = devel_static[]
+    //      .runtime_files = devel_runtime[]
+    // bool have_linknrun = false;
+    // std::vector<cgn::CGNPath> devel_shared, devel_static, devel_runtime;
 }; // struct FileUtility
 
 struct FileUtilityInterpreter
 {
     using context_type = FileUtility;
 
-    constexpr static cgn::ConstLabelGroup<2> preload_labels() {
+    constexpr static cgn::ConstLabelGroup<3> preload_labels() {
         return {"@cgn.d//library/general.cgn.bundle",
+                "@cgn.d//library/cxx.cgn.bundle",
                 "@cgn.d//library/utility/file_utility.cgn.cc"};
     }
     CGN_UTILITY_API static void interpret(context_type &x);

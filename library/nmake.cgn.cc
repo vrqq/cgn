@@ -12,7 +12,7 @@ static std::vector<std::string> rebase_and_njesc(
 ) {
     std::vector<std::string> rv;
     for (auto &it : ls)
-        rv.push_back(cgn::NinjaFile::escape_path( api.locale_path(base + it) ));
+        rv.push_back(cgn::NinjaFile::escape_path( api.locale_path(base + "/" + it) ));
     return rv;
 }
 
@@ -29,6 +29,8 @@ void NMakeInterpreter::interpret(context_type &x)
     
     cxx::CxxToolchainInfo cxx = cxx::CxxInterpreter::test_param(x.cfg);
     cgn::CGNTargetOpt *opt = x.opt->confirm();
+    if (opt->cache_result_found)
+        return ;
 
     std::string wr_cwd    = api.locale_path(api.rebase_path(x.cwd, ".", opt->src_prefix));
     std::string wr_mkfile = api.locale_path(api.rebase_path(x.cwd, ".", opt->src_prefix) + "/" + x.makefile);
@@ -36,6 +38,9 @@ void NMakeInterpreter::interpret(context_type &x)
     std::string cwd_build  = api.rebase_path(opt->out_prefix + "build", wr_cwd);
     std::string cwd_instl  = api.rebase_path(opt->out_prefix + "install", wr_cwd);
     std::string cwd_mkfile = api.locale_path(x.makefile);
+
+    api.mkdir(opt->out_prefix + "install");
+    api.mkdir(opt->out_prefix + "build");
 
     x.override_vars["CC"]  = cxx.c_exe;
     x.override_vars["CPP"] = cxx.cxx_exe;
@@ -68,6 +73,12 @@ void NMakeInterpreter::interpret(context_type &x)
         fout.close();
     }
     
+    // generate 'phony <Makefile>' for case if source code is copied
+    // by file_utility() and no ninja.output assigned.
+    auto *mkfile_phony = opt->ninja->append_build();
+    mkfile_phony->rule = "phony";
+    mkfile_phony->outputs = {opt->ninja->escape_path(wr_mkfile)};
+
     // generate build.ninja
     //  var["exe"] ${in} var["args"]
     auto *build = opt->ninja->append_build();
@@ -91,5 +102,5 @@ void NMakeInterpreter::interpret(context_type &x)
 
     // rebase output files
     for (auto &it : x.outputs)
-        opt->result.outputs += {api.locale_path(wr_instl + it)};
+        opt->result.outputs += {api.locale_path(wr_instl + "/" + it)};
 }

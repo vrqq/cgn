@@ -37,6 +37,8 @@ build $builddir/msvc_symbol_host.o: cc pe_loader/msvc_symbol_host.cpp
 ## =========
 build $builddir/cli.o : cc v1/cli.cpp
 
+build $builddir/win_exception.o : cc v1/win_exception.cpp
+
 ## Ninja Build sources
 ## ===================
 ninjaout = ${builddir}/ninjabuild
@@ -61,7 +63,7 @@ build $builddir/cgn_v1.a : ar $
     $builddir/msvc_symbol_host.o
 
 ## Linux/Unix target
-build $builddir/cgn : link $builddir/cli.o $builddir/cgn_v1.a ${ninjaout}/ninja_port_unix.a
+build $builddir/cgn : link $builddir/cli.o $builddir/win_exception.o $builddir/cgn_v1.a ${ninjaout}/ninja_port_unix.a
 
 ## Windows target
-build $builddir/cgn.exe : link $builddir/cli.o $builddir/cgn_v1.a ${ninjaout}/ninja_port_win.lib
+build $builddir/cgn.exe : link $builddir/cli.o $builddir/win_exception.o $builddir/cgn_v1.a ${ninjaout}/ninja_port_win.lib

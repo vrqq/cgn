@@ -268,10 +268,14 @@ std::string Tools::rebase_path(
         return locale_path_impl(std::filesystem::proximate(in, on)).string();
     }
 
-    in = std::filesystem::path{"."} / current_base / in;
+    std::filesystem::path current{current_base};
+    if (current.is_absolute())
+        in = current_base / in;
+    else
+        in = std::filesystem::path{"."} / current_base / in;
     on = std::filesystem::path{"."} / on;
     // return std::filesystem::proximate(p, base).string();
-    return locale_path_impl(std::filesystem::relative(in, on)).string();
+    return locale_path_impl(std::filesystem::proximate(in, on)).string();
     // return locale_path_impl(std::filesystem::path(in).lexically_proximate(base));
 }
 

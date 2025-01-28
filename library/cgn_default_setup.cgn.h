@@ -129,8 +129,9 @@ inline cgn::Configuration config_guessor_notest(
     return config_guessor(argls);
 }
 
-inline cgn::Configuration generate_host_release()
-{
+inline cgn::Configuration generate_host_release(
+    std::unordered_set<std::string> argcmd={}
+) {
     cgn::HostInfo hinfo = cgn::Tools::get_host_info();
     std::unordered_set<std::string> args{"release", hinfo.cpu, hinfo.os};
     if (hinfo.os == "win")
@@ -141,5 +142,10 @@ inline cgn::Configuration generate_host_release()
         args.insert({"xcode", "zsh"});
     else
         args.insert({"llvm", "bash"});
+    
+    // a special argument only sensed from command line input
+    if (argcmd.count("src_no_caps"))
+        args.insert("src_no_caps");
+    
     return config_guessor(args);
 }
