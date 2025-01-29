@@ -35,17 +35,17 @@ void NMakeInterpreter::interpret(context_type &x)
     std::string wr_cwd    = api.locale_path(api.rebase_path(x.cwd, ".", opt->src_prefix));
     std::string wr_mkfile = api.locale_path(api.rebase_path(x.cwd, ".", opt->src_prefix) + "/" + x.makefile);
     std::string wr_instl  = opt->out_prefix + "install";
-    std::string cwd_build  = api.rebase_path(opt->out_prefix + "build", wr_cwd);
+    // std::string cwd_build  = api.rebase_path(opt->out_prefix + "build", wr_cwd);
     std::string cwd_instl  = api.rebase_path(opt->out_prefix + "install", wr_cwd);
     std::string cwd_mkfile = api.locale_path(x.makefile);
 
     api.mkdir(opt->out_prefix + "install");
-    api.mkdir(opt->out_prefix + "build");
+    // api.mkdir(opt->out_prefix + "build");
 
     x.override_vars["CC"]  = cxx.c_exe;
     x.override_vars["CPP"] = cxx.cxx_exe;
     x.override_vars["CXX"] = cxx.cxx_exe;
-    x.override_vars["MAKEDIR"] = cwd_build;
+    // x.override_vars["MAKEDIR"] = wr_cwd;
     x.override_vars[x.install_prefix_varname] = cwd_instl;
 
     // import general rule.
@@ -64,21 +64,27 @@ void NMakeInterpreter::interpret(context_type &x)
         if (!fout)
         throw std::runtime_error{"nmake_interpret : cannot create " 
                                 + opt->out_prefix + "nmake_build.bat"};
-        fout<<"@pushd " + wr_cwd + "\n"
-            <<"nmake.exe /NOLOGO /f " + api.shell_escape(cwd_mkfile) + " " 
-            + argstr_shesc + api.shell_escape(x.install_target_name) + "\n"
-            <<"@set ret_value=%ERRORLEVEL%\n"
-            <<"@popd\n"
-            <<"exit %ret_value%";
+        
+        std::string nmake_install_cmd = 
+            "nmake.exe /NOLOGO /f " + api.shell_escape(cwd_mkfile) + " " 
+            + argstr_shesc + api.shell_escape(x.install_target_name) + "\n";
+        std::string nmake_clear_cmd =
+            "nmake.exe /NOLOGO /f " + api.shell_escape(cwd_mkfile) + " " 
+            + argstr_shesc + api.shell_escape(x.clean_target_name) + "\n";
+
+        fout<<"@echo off\n"
+            <<"pushd " + wr_cwd + "\n"
+            <<nmake_install_cmd
+            <<"if %ERRORLEVEL% == 0 ( popd & exit /B 0 )\n\n"
+            <<"echo Build Failed, try to clear and rebuild. >&2\n"
+            <<nmake_clear_cmd
+            <<"if %ERRORLEVEL% NEQ 0 ( popd & exit /B %ERRORLEVEL% )\n\n"
+            <<nmake_install_cmd
+            <<"popd\n"
+            <<"exit /B %ERRORLEVEL%\n\n";
         fout.close();
     }
     
-    // generate 'phony <Makefile>' for case if source code is copied
-    // by file_utility() and no ninja.output assigned.
-    auto *mkfile_phony = opt->ninja->append_build();
-    mkfile_phony->rule = "phony";
-    mkfile_phony->outputs = {opt->ninja->escape_path(wr_mkfile)};
-
     // generate build.ninja
     //  var["exe"] ${in} var["args"]
     auto *build = opt->ninja->append_build();

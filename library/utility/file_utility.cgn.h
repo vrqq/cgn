@@ -76,7 +76,13 @@ struct FileUtility
     // std::vector<cgn::CGNPath> analysis_gen_cmakeconfig();
     // --END TODO--
 
-    std::vector<cgn::CGNPath> perferred_outputs;
+    // If path inside cgn-out/target_out, add to output of .phony target.
+    // Otherwise call API.add_placeholder_file() and set CGNTarget.ninja_dep_level = ORDER_ONLY.
+    // If all paths are inside cgn-out/target_out, CGNTarget.ninja_dep_level would set to NONE.
+    std::vector<cgn::CGNPath> ninja_outputs;
+
+    // CGNTarget.result.outputs[]
+    std::vector<cgn::CGNPath> analysis_outputs;
 
     FileUtility(cgn::CGNTargetOptIn *opt) 
     : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}

@@ -51,6 +51,9 @@ struct CGN_EXPORT Tools {
 
     static std::string extension_of_path(const std::string &in);
 
+    // checking 'p' is inside 'dir' or not
+    static bool is_file_inside(const std::string &p, const std::string &dir);
+
     static std::unordered_map<std::string, std::string> read_kvfile(
         const std::string &filepath);
 
@@ -126,6 +129,8 @@ public:
 
     // Build specific target
     std::string build(const std::string &label, const Configuration &cfg);
+
+    void add_placeholder_file(const std::string &path);
 
     // ConfigurationID commit_config(const Configuration &plat_cfg);
 

@@ -168,6 +168,7 @@ cgn::CGNTarget FileUtility::collect_devel_on_build(
 void FileUtilityInterpreter::interpret(context_type &x)
 {
     // copy rule configuration
+    // advcopy.exe varies by host_os and host_cpu.
     cgn::CGNTarget advcopy = x.opt->quick_dep_namedcfg("@cgn.d//advcopy", "host_release", false);
     x.cfg.visit_keys({"host_os", "host_cpu"});
     if (advcopy.errmsg.size()) {
@@ -181,9 +182,23 @@ void FileUtilityInterpreter::interpret(context_type &x)
         return ;
 
     // result require ninja_order_only_dep
-    opt->result.ninja_dep_level = opt->result.NINJA_LEVEL_DYNDEP;
+    bool need_dyndep = false;
+    std::vector<std::string> phone_out_njesc 
+        = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
+    for (auto it : x.ninja_outputs) {
+        std::string it_path = to_working_root(opt, it);
+        if (it.type == it.BASE_ON_OUTPUT && api.is_file_inside(it_path, opt->out_prefix))
+            phone_out_njesc += {opt->ninja->escape_path(it_path)};
+        else {
+            need_dyndep = true;
+            if (!opt->file_unchanged)
+                api.add_placeholder_file(it_path);
+        }
+    }
+    if (need_dyndep)
+        opt->result.ninja_dep_level = opt->result.NINJA_LEVEL_DYNDEP;
 
-    for (auto it : x.perferred_outputs)
+    for (auto it : x.analysis_outputs)
         opt->result.outputs += {to_working_root(opt, it)};
 
     // Bindevel postprocess
@@ -236,5 +251,5 @@ void FileUtilityInterpreter::interpret(context_type &x)
     auto *phony = opt->ninja->append_build();
     phony->rule = "phony";
     phony->inputs = cpstamps_njesc;
-    phony->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};    
+    phony->outputs = phone_out_njesc;
 }

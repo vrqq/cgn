@@ -305,6 +305,23 @@ std::string Tools::extension_of_path(const std::string &in)
     return p.extension().string();
 }
 
+// p is REL, dir is ABS : abs(p), fs::relative()
+// p is ABS, dir is ABS : fs::relative()
+// p is REL, dir is REL : fs::relative()
+// p is ABS, dir is REL : abs(dir), fs::relative()
+bool Tools::is_file_inside(const std::string &_p, const std::string &_dir)
+{
+    std::filesystem::path p = locale_path_impl(_p), dir = locale_path_impl(_dir);
+    if (p.is_relative() != dir.is_relative()) {
+        if (p.is_relative())
+            p = std::filesystem::absolute(p);
+        if (dir.is_relative())
+            dir = std::filesystem::absolute(dir);
+    }
+    std::filesystem::path rel = std::filesystem::relative(p, dir);
+    return !rel.empty() && rel.begin()->string() != "..";
+}
+
 bool Tools::win32_long_paths_enabled() 
 {
 #ifdef _WIN32

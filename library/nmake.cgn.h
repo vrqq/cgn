@@ -51,6 +51,8 @@ struct NMakeContext
     // the nmake target which to clear build
     std::string clean_target_name   = "clean";
 
+    std::vector<std::string> nmake_targets;
+
     cgn::CGNTarget add_dep(const std::string &label, const cgn::Configuration &cfg, bool keep_order = true) {
         auto rv = opt->quick_dep(label, cfg);
         if (keep_order)
