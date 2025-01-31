@@ -61,12 +61,15 @@ ConfigurationManager::ConfigurationManager(
             //Note: calling cfg[key]=xxx would clear cfg.hashid and calc .hash_hlp
             //      so set name later.
             cfg._data->hashid = name;
-            auto &ref = cfg_hashs[name] = cfg;
-            cfg_indexs[CDataRef{&ref}] = name;
+            auto &ref = cfg_by_id[name] = cfg;
+            if (cfg_by_cont.count(CDataRef{&ref}) != 0)
+                throw std::runtime_error{"duplicate content for " 
+                    + name + " and " + cfg_by_cont[CDataRef{&ref}]};
+            cfg_by_cont[CDataRef{&ref}] = name;
         }
 
-    assert(cfg_hashs.size() == cfg_indexs.size());
-    // if (cfg_hashs.size() != cfg_indexs.size())
+    assert(cfg_by_id.size() == cfg_by_cont.size());
+    // if (cfg_by_id.size() != cfg_by_cont.size())
     //     throw std::runtime_error{"CfgMgr: init failed, duplicate configs in cache."};
 } //ConfigurationManager()
 
@@ -79,8 +82,8 @@ get_node_name(const std::string &name, const Configuration &cfg)
 void ConfigurationManager::set_name(
     const std::string &name, const ConfigurationID &hash
 ) {
-    // update named_cfg[name] point to cfg_hashs[hash]
-    if (auto fdnow = cfg_hashs.find(hash); fdnow != cfg_hashs.end()) {
+    // update named_cfg[name] point to cfg_by_id[hash]
+    if (auto fdnow = cfg_by_id.find(hash); fdnow != cfg_by_id.end()) {
         auto &last_cfg = named_cfgs[name];
 
         // if the previous "name->hash" existed and not same as
@@ -118,14 +121,14 @@ ConfigurationID ConfigurationManager::commit(Configuration &cfg)
 
     //[entry]: find by content
     CDataRef lastref{&cfg};
-    if (auto fd = cfg_indexs.find(lastref); fd != cfg_indexs.end())
+    if (auto fd = cfg_by_cont.find(lastref); fd != cfg_by_cont.end())
         return cfg._data->hashid = fd->second;
 
     //[entry]: create new
     std::string new_id = get_hash(CHasher()(lastref));
     cfg._data->hashid = new_id;
-    auto [iter, nx] = cfg_hashs.emplace(new_id, cfg);
-    cfg_indexs[CDataRef{&iter->second}] = new_id;
+    auto [iter, nx] = cfg_by_id.emplace(new_id, cfg); assert(nx);
+    cfg_by_cont[lastref] = new_id;
 
     //[.cfg file]: create new
     std::ofstream fout(std::filesystem::path{storage_dir} / (new_id+".cfg"));
@@ -142,7 +145,7 @@ std::string ConfigurationManager::get_hash(size_t want) {
     for (size_t i=0; i<20; i++) {
         size_t j = (i + want)%0xFFffFFfful;
         UlongToHexString(j, rv.data(), false);
-        if (cfg_hashs.count(rv.c_str()) == 0)
+        if (cfg_by_id.count(rv.c_str()) == 0)
             return rv.c_str();
     }
     throw std::runtime_error{"Too Many conflictions, please update the hash algorithm."};

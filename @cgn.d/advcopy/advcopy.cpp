@@ -57,7 +57,7 @@ static void case_2stars(
         if (!iter.is_symlink() && !iter.is_regular_file())
             continue;
         
-        std::string filename = iter.path().filename();
+        std::string filename = iter.path().filename().string();
         if (filename.size() < before_2star.size() + after_2star.size())
             continue;
         bool matched = (before_2star == filename.substr(0, before_2star.size()))
@@ -340,7 +340,7 @@ std::string AdvanceCopy::flatcopy_to_dir(
         } //end_for(path_search().file_need_copy)
 
         for (auto it : rec.node_need_watch)
-            fdep<<makefile_escape(it)<<" ";
+            fdep<<makefile_escape(it.string())<<" ";
     } //end_for(pattern : arg[src_list])
 
     std::ofstream fstamp(stampfile);
@@ -362,7 +362,7 @@ std::string AdvanceCopy::copy_to_dir(
 
     for (auto pattern : srcs_part2) {
         fs::path src_pattern = fs::path{src_base} / pattern;
-        auto rec = path_search(src_pattern, true);
+        auto rec = path_search(src_pattern.string(), true);
         if (rec.errmsg.size())
             return pattern + " : " + rec.errmsg;
         
@@ -381,7 +381,7 @@ std::string AdvanceCopy::copy_to_dir(
         } //end_for(path_search().file_need_copy)
 
         for (auto it : rec.node_need_watch)
-            fdep<<makefile_escape(it)<<" ";
+            fdep<<makefile_escape(it.string())<<" ";
     } //end_for(pattern : arg[src_list])
 
     std::ofstream fstamp(stampfile);

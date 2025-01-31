@@ -41,6 +41,7 @@ std::string CGNTarget::to_string(char type) const
         if (this->errmsg.size())
             rv += "error: " + this->errmsg;
         else {
+            rv += "trimmed_cfg:\n    " + Logger::fmt_list(trimmed_cfg, "    ", 999) + "\n";
             rv += "ninja_target_entry: " + this->ninja_entry + "\n";
             rv += "ninja_depend_level: ";
             if (this->ninja_dep_level == NINJA_LEVEL_FULL)

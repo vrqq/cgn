@@ -45,6 +45,11 @@ std::string CGN::build(const std::string &label, const Configuration &cfg)
     return "";
 }
 
+void CGN::add_placeholder_file(const std::string &path)
+{
+    pimpl->add_obj_file_placeholder(path);
+}
+
 // ConfigurationID commit_config(const Configuration &plat_cfg);
 
 // Query named configuration assigned in cgn_setup.cgn.cc

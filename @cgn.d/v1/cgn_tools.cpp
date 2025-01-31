@@ -268,10 +268,14 @@ std::string Tools::rebase_path(
         return locale_path_impl(std::filesystem::proximate(in, on)).string();
     }
 
-    in = std::filesystem::path{"."} / current_base / in;
+    std::filesystem::path current{current_base};
+    if (current.is_absolute())
+        in = current_base / in;
+    else
+        in = std::filesystem::path{"."} / current_base / in;
     on = std::filesystem::path{"."} / on;
     // return std::filesystem::proximate(p, base).string();
-    return locale_path_impl(std::filesystem::relative(in, on)).string();
+    return locale_path_impl(std::filesystem::proximate(in, on)).string();
     // return locale_path_impl(std::filesystem::path(in).lexically_proximate(base));
 }
 
@@ -299,6 +303,23 @@ std::string Tools::extension_of_path(const std::string &in)
     if (!p.has_extension())
         return "";
     return p.extension().string();
+}
+
+// p is REL, dir is ABS : abs(p), fs::relative()
+// p is ABS, dir is ABS : fs::relative()
+// p is REL, dir is REL : fs::relative()
+// p is ABS, dir is REL : abs(dir), fs::relative()
+bool Tools::is_file_inside(const std::string &_p, const std::string &_dir)
+{
+    std::filesystem::path p = locale_path_impl(_p), dir = locale_path_impl(_dir);
+    if (p.is_relative() != dir.is_relative()) {
+        if (p.is_relative())
+            p = std::filesystem::absolute(p);
+        if (dir.is_relative())
+            dir = std::filesystem::absolute(dir);
+    }
+    std::filesystem::path rel = std::filesystem::relative(p, dir);
+    return !rel.empty() && rel.begin()->string() != "..";
 }
 
 bool Tools::win32_long_paths_enabled() 

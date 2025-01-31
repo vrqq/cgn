@@ -1105,10 +1105,13 @@ void CxxPrebuiltInterpreter::interpret(context_type &x)
     if (opt->cache_result_found)
         return ;
 
+    // ninja_dep_level
+    opt->result.ninja_dep_level = x._max_pub_ninja_level;
+
     // TargetInfos[CxxInfo]
     for (auto &it : x.pub.include_dirs)
         it = api.locale_path(opt->src_prefix + it);
-    opt->result.set(x.pub);
+    opt->result.merge_entry(x.pub.name(), &(x.pub));
 
     // TargetInfos[LinkAndRunInfo]
     auto *lrinfo = opt->result.get<cgn::LinkAndRunInfo>(true);

@@ -1,0 +1,7 @@
+rule run_bat_bash
+    command = bash ${in}
+    description = BUILD_SCRIPT ${factory_name}
+
+rule run_bat_cmd
+    command = cmd.exe /c ${in}
+    description = BUILD_SCRIPT ${factory_name}

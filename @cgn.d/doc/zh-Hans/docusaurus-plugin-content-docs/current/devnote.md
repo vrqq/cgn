@@ -265,12 +265,40 @@ ProtobufInterpreter("myproto", x) {
 ## 目前尚未解决的语义问题 `cfg[“host_os”]`
 以`url_download()`为例, 当我们 同一个workingRoot目录 被不同host (windows、linux等) 以共享文件夹挂载时, 我们希望git() 下载的第三方源码 直接下载到 workingRoot里面, 而不是 cgn-out里面.  
 同一个输出文件夹 `xxx\repo` 只能对应一个build.ninja下的taget, 可linux(curl)和windows(certutil)的下载命令不同.  
-可能的解决方案: 对于不同host_os生成不同的build.ninja, 在执行命令时检测sha1.  
+可能的解决方案: 对于不同host_os生成不同的build.ninja, 在执行命令时检测sha1, 使用下文`copy()`提案.  
 
 对于git() 也可考虑使用其他的depot工具例如libgit2.  
 
 类似的问题 对于c++ with clang compiler, host_os不同 其参数格式也不同, 故尔也不应该是同一个 build.ninja. 不过这个可以通过`cfg["host_os"]`解决而不增加资源浪费.
 
+**NinjaBuild的思考**
+以上只解决了一小部分, ninja build 到底代表了什么?
+```ninja
+rule
+    depfile = target.d
+build output: rule input
+build dummyfile : phony
+```
+在这个例子中
+* `output`代表全局的 当前target的调用点, 可以让其他target加为引用使其build.
+* `input` + `output` + `target.d` 代表当前target关心mtime的文件列表.
+* `dummyfile` 代表在ninja分析期间尚不存在的文件 可能有其他target生成
+
+**CGN的问题**
+在上述ninja例子中, 同一个`dummyfile`可能由多个 BUILD.cgn.cc 生成, 一旦生成便写入了全局的 main.ninja  
+再以后, 若 BUILD.cgn.cc 迁移, 并不会导致之前生成的 build.ninja 被移除, 这可能存在潜在的冲突.  
+若文件在cgn-out下, 因目录有自己的mangle系统, 可解决此问题. 但若输出文件直接在源码目录中, 则该问题存在.
+例如:
+1. p1/common/BUILD.cgn.cc 生成了某个protobuf 中间文件 : p1/common/quick_comm.pb.cc
+2. 将 p1/common/BUILD.cgn.cc 并入 p1/BUILD.cgn.cc, 生成同样的 p1/common/quick_comm.pb.cc
+3. 此时在 cgn-out中, 有两个target 输出相同的 p1/common/quick_comm.pb.cc 冲突. 而且 quick_comm.pb.cc 需要生成 quic_comm.pb.o 故他一定位于output.
+
+一个暂行解决方案:   
+若某个interpreter有不在cgn-out/target_out下的输出, 使用dummyfile, 而不是 target output 表示, 同时在CGN中该target return要求上层使用者ORDER_ONLY_DEP之.  
+
+尚未确定: 以何种方式 记录 dummyfile 来自于哪个 build.ninja / BUILD.cgn.cc 可以实时检查上述问题?  
+
+TODO: protobuf() 以及 git() 需要更新
 
 ## copy() 提案
 prerequisite: 在BUILD.cgn.cc中, 我们无法提前得知输出到cgn-out下哪个文件夹.

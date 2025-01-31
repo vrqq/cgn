@@ -668,6 +668,19 @@ CGNTarget CGNImpl::analyse_target(
         }
 } //CGNImpl::analyse()
 
+void CGNImpl::add_obj_file_placeholder(std::string file_path)
+{
+    #ifdef _WIN32
+        for (auto &ch : file_path)
+            if (ch == '\\')
+                ch = '/';
+    #endif
+    if (placeholder_ninja.insert(file_path).second) {
+        std::ofstream fout(obj_placeholder_ninja);
+        fout<<"build " + NinjaFile::escape_path(file_path) + " : phony\n";
+    }
+} //CGNImpl::add_obj_file_placeholder()
+
 // case1: target_cache[] existed, graph(target) Latest
 //        return cache
 // case2: target_cache[] existed, graph(target) Stale
@@ -883,6 +896,7 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     #endif
     analysis_path = cgn_out / ("analysis_" + Tools::get_host_info().os + dsuffix);
     obj_main_ninja = cgn_out / "obj" / "main.ninja";
+    obj_placeholder_ninja = cgn_out / "obj" / "placeholder.ninja";
 
 
     // replace path\to\cgn.exe => path\to\cgn.lib (win only)
@@ -941,11 +955,11 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
                 (cgn_out / "configurations").string(), &graph);
 
     //prepare obj-main-ninja (entry of all targets)
-    constexpr std::string_view SUBNINJA{"subninja "};
     std::ifstream fin(obj_main_ninja, std::ios::in);
     if (!fin) //create if not existed
         std::ofstream{obj_main_ninja};
     else {
+        constexpr std::string_view SUBNINJA{"subninja "};
         bool need_rebuild = false;
         for (std::string ln; !fin.eof() && std::getline(fin, ln);)
             if (ln.size() > SUBNINJA.size()) {
@@ -960,6 +974,34 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
             std::ofstream fout{obj_main_ninja};
             for (auto ln : main_subninja)
                 fout<<"subninja " + NinjaFile::escape_path(ln) + "\n";
+            fout.close();
+        }
+    }
+
+    //prepare file-placeholder (file which may not exist at building)
+    std::ifstream fdummy(obj_placeholder_ninja, std::ios::in);
+    if (!fdummy)
+        std::ofstream{obj_placeholder_ninja};
+    else {
+        bool need_rebuild = false;
+        constexpr std::string_view BUILDstr{"build "};
+        constexpr std::string_view PHONYstr{" : phony"};
+
+        for (std::string ln; !fdummy.eof() && std::getline(fdummy, ln);)
+            if (ln.size() > BUILDstr.size()) {
+                
+                auto subfile = NinjaFile::parse_ninja_str(ln.substr(
+                    BUILDstr.size(), ln.size() - BUILDstr.size() - PHONYstr.size()
+                ));
+                if (std::filesystem::is_regular_file(subfile))
+                    placeholder_ninja.insert(subfile);
+                else //some files missing
+                    need_rebuild = true;
+            }
+        if (fdummy.close(); need_rebuild) {
+            std::ofstream fout{obj_placeholder_ninja};
+            for (auto ln : placeholder_ninja)
+                fout << BUILDstr << NinjaFile::escape_path(ln) << PHONYstr << "\n";
             fout.close();
         }
     }

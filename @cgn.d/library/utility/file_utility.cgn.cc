@@ -55,7 +55,7 @@ void FileUtility::copy_on_build(
         rv.push_back(to_working_root(opt, dst_dir));
         return rv;
     };
-    copy_records.push_back(CopyRecord{CMD_COPY, src_base.rpath + "=>" + dst_dir.rpath, gen});
+    copy_records.push_back(CopyRecord{CMD_COPY, src_base.to_string() + "=>" + dst_dir.to_string(), gen});
 }
 
 
@@ -73,7 +73,7 @@ void FileUtility::flat_copy_on_build(
         rv.push_back(to_working_root(opt, dst_dir));
         return rv;
     };
-    copy_records.push_back(CopyRecord{CMD_FLAT_COPY, dst_dir.rpath, gen});
+    copy_records.push_back(CopyRecord{CMD_FLAT_COPY, dst_dir.to_string(), gen});
 }
 
 // TargetDir
@@ -82,18 +82,18 @@ void FileUtility::flat_copy_on_build(
 //   lib64: tgt_linux.so  tgt_win.lib
 cgn::CGNTarget FileUtility::collect_devel_on_build(
     const std::string &label, 
-    BinDevelOpt devel_setting
+    DevelOpt devel_setting
 ) {
-    auto early = opt->quick_dep(label, cfg, true);
-    if (early.errmsg.size())
-        return early;
-
     if (devel_setting.perferred_libdir.empty()) {
-        if (early.trimmed_cfg["cpu"] == "x86_64")
+        if (cfg["cpu"] == "x86_64")
             devel_setting.perferred_libdir = "lib64";
         else
             devel_setting.perferred_libdir = "lib";
     }
+
+    auto early = opt->quick_dep(label, cfg, true);
+    if (early.errmsg.size())
+        return early;
 
     if (devel_setting.allow_bindevel){
         BinDevelInfo *info = early.get<BinDevelInfo>(false);
@@ -104,14 +104,16 @@ cgn::CGNTarget FileUtility::collect_devel_on_build(
         }
     }
 
-    if (devel_setting.allow_cxxinclude){
+    // CxxInfo::include_dirs => include
+    {
         cxx::CxxInfo *info = early.get<cxx::CxxInfo>(false);
-        if (info) {
+        if (devel_setting.allow_cxxinclude && info){
             for (auto incdir : info->include_dirs)
                 copy_on_build(
                     {"*"}, cgn::make_path_base_working(incdir), 
                     cgn::make_path_base_out("include"));
         }
+        devel_cxxinfo.merge_entry(info);
     }
 
     // LinkAndRunInfo::shared_files => lib64
@@ -147,7 +149,9 @@ cgn::CGNTarget FileUtility::collect_devel_on_build(
         flat_copy_on_build(exes, cgn::make_path_base_out(devel_setting.perferred_libdir));
     }
 
-    result_have_bin_devel = true;
+    have_devel = true;
+    devel_basedir = devel_setting.target_dir;
+    devel_lib_dirname = devel_setting.perferred_libdir;
 
     return early;
 } //FileUtility::collect_devel_on_build()
@@ -164,7 +168,9 @@ cgn::CGNTarget FileUtility::collect_devel_on_build(
 void FileUtilityInterpreter::interpret(context_type &x)
 {
     // copy rule configuration
-    cgn::CGNTarget advcopy = x.opt->quick_dep_namedcfg("@cgn.d//advcopy", "host_release", true);
+    // advcopy.exe varies by host_os and host_cpu.
+    cgn::CGNTarget advcopy = x.opt->quick_dep_namedcfg("@cgn.d//advcopy", "host_release", false);
+    x.cfg.visit_keys({"host_os", "host_cpu"});
     if (advcopy.errmsg.size()) {
         x.opt->confirm_with_error("Cannot load advcopy: " + advcopy.errmsg);
         return ;
@@ -175,12 +181,36 @@ void FileUtilityInterpreter::interpret(context_type &x)
     if (opt->cache_result_found)
         return ;
 
+    // result require ninja_order_only_dep
+    bool need_dyndep = false;
+    std::vector<std::string> phone_out_njesc 
+        = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
+    for (auto it : x.ninja_outputs) {
+        std::string it_path = to_working_root(opt, it);
+        if (it.type == it.BASE_ON_OUTPUT && api.is_file_inside(it_path, opt->out_prefix))
+            phone_out_njesc += {opt->ninja->escape_path(it_path)};
+        else {
+            need_dyndep = true;
+            if (!opt->file_unchanged)
+                api.add_placeholder_file(it_path);
+        }
+    }
+    if (need_dyndep)
+        opt->result.ninja_dep_level = opt->result.NINJA_LEVEL_DYNDEP;
+
+    for (auto it : x.analysis_outputs)
+        opt->result.outputs += {to_working_root(opt, it)};
+
     // Bindevel postprocess
-    if (x.result_have_bin_devel) {
+    if (x.have_devel) {
         auto *info = opt->result.get<BinDevelInfo>(true);
-        info->base = opt->out_prefix;
+        info->base = to_working_root(opt, x.devel_basedir);
         info->bin_dir = info->base + "bin";
-        info->lib_dir = info->lib_dir + "lib";
+        info->lib_dir = info->base + x.devel_lib_dirname;
+        info->include_dir = info->base + "include";
+
+        x.devel_cxxinfo.include_dirs = {info->base + "include"};
+        opt->result.merge_entry(x.devel_cxxinfo.name(), &(x.devel_cxxinfo));
     }
 
     // return if no file need update
@@ -221,5 +251,5 @@ void FileUtilityInterpreter::interpret(context_type &x)
     auto *phony = opt->ninja->append_build();
     phony->rule = "phony";
     phony->inputs = cpstamps_njesc;
-    phony->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};    
+    phony->outputs = phone_out_njesc;
 }

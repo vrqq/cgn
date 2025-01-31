@@ -9,6 +9,8 @@
 
 #include "cgn_api.h"
 
+void init_win_exception_handler();
+
 int show_helper(const char *arg0) {
     std::cerr<<arg0<<"\n"
              <<"     analyse <target_label>\n"
@@ -125,6 +127,9 @@ int main(int argc, char **argv)
     if (args.empty())
         return show_helper(argv[0]);
     
+    // register windows SEH handler
+    init_win_exception_handler();
+
     // API init function
     auto init0 = [&](std::string cfgname="DEFAULT") {
         api.init(args_kv);
@@ -146,6 +151,7 @@ try{
         if (rv.errmsg.size())
             api.logger->paragraph(rv.errmsg);
         api.release();
+        return 0;
     }
     if (args[0] == "build") {
         if (args.size() < 2)
@@ -155,6 +161,7 @@ try{
             cfgname = args[2];
         api.build(args[1], init0(cfgname));
         api.release();
+        return 0;
     }
     if (args[0] == "run") {
         if (args.size() < 2)
@@ -173,6 +180,7 @@ try{
             system(cmd.c_str());
         else
             api.logger->paragraph("No executable found.");
+        return 0;
     }
     if (args[0] == "query") {
         {
@@ -198,7 +206,7 @@ try{
         char type = api.get_kvargs().count("verbose")?'H':'h';
         std::cout<<"\n--- Target ---\n"
                  <<args[1]<<" #"<<cfg.get_id()<<std::endl;
-        std::cout<<"\n--- Configuration ---\n"
+        std::cout<<"\n--- Input Configuration ---\n"
                  <<cgnv1::Logger::fmt_list(cfg, "", 999) <<std::endl;
 
         std::cout<<"\n--- Analyse Result ---\n"<<rv.to_string(type)<<std::endl;
@@ -270,5 +278,5 @@ try{
     return 1;
 }
 
-    return 0;
+    return show_helper(argv[0]);
 } //int main()

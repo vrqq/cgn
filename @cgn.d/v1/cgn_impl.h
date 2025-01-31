@@ -28,6 +28,14 @@ public:
         const Configuration &cfg
     );
 
+    // add file to obj_placeholder_ninja[]
+    // In the inputs of a Ninja target, some files may not exist at build phase, 
+    // and these files may be shared by multiple Ninja targets. Therefore, they 
+    // are placed in a separate global Ninja file.
+    // Reference:
+    //   https://ninja-build.org/manual.html#_the_literal_phony_literal_rule
+    void add_obj_file_placeholder(std::string str);
+
     // re-assign this flag for each 'round' calling.
     // 0 normal mode
     // 'b' the build_check mode: in confirm_target_opt(), if cache_result
@@ -77,9 +85,19 @@ private:
     // std::unordered_map<std::string, std::string> cells;
     std::unordered_set<std::string> cells;
 
+    // analysis_path : cgn_out/analysis_<os><cpu><dbg/rel>
+    // obj_main_ninja : the ninja build entry
+    // obj_placeholder_ninja : the file generating in build phase.
+    // cgn_out : args from --cgn-out
+    // cgn_out_unixsep : cgn_out with '/' unix-path-separator
+    // cgnapi_winimp : (windows-only) input argument for @cgn.d/pe_loader
+    // script_cc : args from --scriptcc
+    // scriptcc_debug_mode : args from --scriptcc_debug
+    // halt_on_error : args from --halt_on_error
     std::filesystem::path cgn_out;
     std::filesystem::path analysis_path;
     std::filesystem::path obj_main_ninja;
+    std::filesystem::path obj_placeholder_ninja;
     std::string cgn_out_unixsep;
     std::string script_cc;
     std::string cgnapi_winimp;
@@ -111,8 +129,11 @@ private:
     //  targets["//hello:world#FFFE1234"]
     std::unordered_map<std::string, CGNTarget> targets;
     
-    // targets entry
+    // targets entry (obj_main_ninja)
     std::unordered_set<std::string> main_subninja;
+
+    // ninja phony target of file ('/' unix-path-separator) (obj_placeholder_ninja)
+    std::unordered_set<std::string> placeholder_ninja;
 };
 
 

@@ -57,8 +57,8 @@ public:
                 if (!active_map)  // if not exist before
                     return val;
                 
-                active_map->erase(iter);
                 _data->hash_hlp -= hash_one(iter->second);
+                active_map->erase(iter);
                 _data->hashid.clear();
             }
             else { //case: assign value
@@ -168,6 +168,10 @@ public:
     void visit_keys(const Configuration &rhs) const {
         for (auto iter = rhs.begin(); iter != rhs.end(); iter++)
             (std::string)this->get(iter->first);
+    }
+    void visit_keys(const std::vector<std::string> &keys) const {
+        for (auto iter = keys.begin(); iter != keys.end(); iter++)
+            (std::string)this->get(*iter);
     }
     
     void visit_all_keys() const {
