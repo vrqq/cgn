@@ -6,8 +6,12 @@ git("uWebSockets.git", x) {
     x.dest_dir = "repo";
 }
 
+file_utility("copy_include", x) {
+    x.copy_on_build({"*"}, cgn::make_path_base_script("repo/src"), cgn::make_path_base_script("repo_include/uWebSockets"));
+}
+
 cxx_prebuilt("uWebSockets", x) {
-    x.pub.include_dirs = {"repo/src"};
+    x.pub.include_dirs = {"repo_include"};
     x.pub.defines = {
         "WITH_LIBUV=1",
         "WITH_OPENSSL=1",
@@ -22,4 +26,6 @@ cxx_prebuilt("uWebSockets", x) {
     x.add_dep("@third_party//uSockets");
     x.add_dep("@third_party//openssl");
     x.add_dep("@third_party//zlib");
-} //cxx_static("uWebSockets")
+    x.add_dep(":copy_include");
+} //cxx_prebuilt("uWebSockets")
+
