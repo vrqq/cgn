@@ -1,9 +1,10 @@
 #include <cgn>
 
+// 11.1.3
 git("fmt.git", x) {
     x.repo = "https://github.com/fmtlib/fmt.git";
     x.dest_dir = "repo";
-    x.commit_id = "e69e5f977d458f2650bb346dadf2ad30c5320281";
+    x.commit_id = "9cf9f38eded63e5e0fb95cd536ba51be601d7fa2";
 }
 
 cxx_static("fmt", x) {

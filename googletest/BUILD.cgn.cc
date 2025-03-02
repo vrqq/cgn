@@ -44,7 +44,7 @@ alias("googletest", x) {
 }
 
 file_utility("devel", x) {
-    FileUtility::DevelOpt opt;
+    auto opt = x.new_devel_opt();
     opt.allow_linknrun = true;
     x.collect_devel_on_build(":gtest", opt);
     x.collect_devel_on_build(":gmock", opt);

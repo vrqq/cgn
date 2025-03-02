@@ -1,9 +1,10 @@
 #include <cgn>
 
+// master branch on Nov 6, 2024
 git("asio.git", x) {
     x.dest_dir = "repo";
     x.repo = "https://github.com/chriskohlhoff/asio.git";
-    x.commit_id = "12e0ce9e0500bf0f247dbd1ae894272656456079";
+    x.commit_id = "62481a25be6cf78cbe714419a4462fd89bd84ab9";
 }
 
 cxx_static("without_ssl", x) {

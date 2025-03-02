@@ -7,5 +7,5 @@ git("cnl.git", x) {
 }
 
 cxx_prebuilt("cnl", x) {
-    x.pub.include_dirs = {"src/include"};
+    x.pub.include_dirs = {"repo/include"};
 }

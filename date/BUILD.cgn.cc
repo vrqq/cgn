@@ -1,8 +1,9 @@
 #include <cgn>
 
+// master Commits on Jan 14, 2025
 git("date.git", x) {
     x.repo = "https://github.com/HowardHinnant/date.git";
-    x.commit_id = "8f8336f42be73f4eefb042c3807a5b4399422fed";
+    x.commit_id = "ca5727855bd1bae12b2c6ca36cd88649d43ec862";
     x.dest_dir = "repo";
 }
 

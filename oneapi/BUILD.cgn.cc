@@ -1,18 +1,19 @@
 #include "cgn"
 
+// oneTBB 2022.0.0 (Nov 1, 2024)
 git("tbb.git", x) {
-    x.repo = "https://github.com/oneapi-src/oneTBB.git";
-    x.commit_id = "9afd759b72c0c233cd5ea3c3c06b0894c9da9c54";
+    x.repo = "https://github.com/uxlfoundation/oneTBB.git";
+    x.commit_id = "0c0ff192a2304e114bc9e6557582dfba101360ff";
     x.dest_dir = "repo";
 }
 
 static std::string _os_str(const cgn::Configuration cfg) {
     // repo/cmake/compiler/Clang.cmake
     // script for for llvm linker (lld) is not same as GNU ld
-    if (cfg["toolchain"] == "llvm" && cfg["os"] == "mac")
+    if (cfg["cxx_toolchain"] == "llvm" && cfg["os"] == "mac")
         return "mac64"; 
 
-    if (cfg["toolchain"] == "msvc") {
+    if (cfg["cxx_toolchain"] == "msvc") {
         if (cfg["os"] == "win" && cfg["cpu"] == "x86")
             return "win32";
         if (cfg["os"] == "win" && cfg["cpu"] == "x86_64")
@@ -33,16 +34,16 @@ cxx_shared("tbb", x) {
             //  "repo/src/tbb/def/" + _os_str(x.cfg) + "-tbb.def"
             };
 
-    if (x.cfg["toolchain"] == "gcc" || x.cfg["toolchain"] == "llvm") {
+    if (x.cfg["cxx_toolchain"] == "gcc" || x.cfg["cxx_toolchain"] == "llvm") {
         if (x.cfg["cpu"] == "x86" || x.cfg["cpu"] == "x86_64")
-            x.cflags += {"-mrtm", "-mwaitpkg"};
-        if (x.cfg["optimization"] == "release")
-            x.defines += {"_FORTIFY_SOURCE=2"};
+            x.cflags += {"-w", "-mwaitpkg"};
+        // if (x.cfg["optimization"] == "release")
+        //     x.defines += {"_FORTIFY_SOURCE=2"};
     }
 
-    if (x.cfg["toolchain"] == "gcc")
+    if (x.cfg["cxx_toolchain"] == "gcc")
         x.cflags += {"-flifetime-dse", "-fstack-clash-protection"};
-    if (x.cfg["toolchain"] == "llvm")
+    if (x.cfg["cxx_toolchain"] == "llvm")
         x.cflags += {"-fexceptions"};
 
     if (x.cfg["os"] != "win")

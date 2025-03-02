@@ -1,8 +1,9 @@
 #include <cgn>
 
+// Commits on Jan 31, 2025
 git("leveldb.git", x) {
     x.repo = "https://github.com/google/leveldb.git";
-    x.commit_id = "068d5ee1a3ac40dabd00d211d5013af44be55bea";
+    x.commit_id = "ac691084fdc5546421a55b25e7653d450e5a25fb";
     x.dest_dir = "repo";
 }
 

@@ -1,9 +1,10 @@
 #include <cgn>
 
+// Version 1.15.1
 git("spdlog.git", x) {
     x.repo = "https://github.com/gabime/spdlog.git";
     x.dest_dir = "repo";
-    x.commit_id = "27cb4c76708608465c413f6d0e6b8d99a4d84302";
+    x.commit_id = "f355b3d58f7067eee1706ff3c801c2361011f3d5";
 }
 
 cxx_static("spdlog", x) {
