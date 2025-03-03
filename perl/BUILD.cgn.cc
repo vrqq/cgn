@@ -45,13 +45,10 @@ nmake("perl_win", x) {
 // for windows os: using ":perl_win"
 // otherwise: using os internal "perl"
 custom_command("perl_host_exe", x) {
-    std::string perl_exe = "perl";
+    cgn::CGNPath perl_exe = cgn::make_path_base_working("perl");
     if (x.cfg["os"] == "win") {
         cgn::CGNTarget perlwin = x.add_dep(":perl_win", "host_release");
-        x.opt->quickdep_ninja_full = {perlwin.ninja_entry};
-        perl_exe = perlwin.outputs[0];
+        x.watch_inputs = {perl_exe = cgn::make_path_base_working(perlwin.outputs[0])};
     }
-    x.phase2_fn = [perl_exe](CustomCommand &x, cgn::CGNTargetOpt *opt) {
-        opt->result.outputs = {perl_exe};
-    };
+    x.analysis_outputs = {perl_exe};
 }
