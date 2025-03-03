@@ -11,7 +11,7 @@ void CustomCommand::append_setenv(const std::unordered_map<std::string, std::str
 {
     std::string line;
     for (auto &it : data) {
-        line += (cfg["os"] == "win"? "SET ": "export")
+        line += (cfg["os"] == "win"? "SET ": "export ")
              + api.shell_escape(it.first) + "=" + it.second + "\n";
     }
     script_content.push_back({line, {}});

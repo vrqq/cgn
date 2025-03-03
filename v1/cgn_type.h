@@ -46,6 +46,7 @@ struct CGNPath
 
     std::string rpath;
 
+    CGNPath(const char *rel) : rpath(rel) {}
     CGNPath(const std::string &rel = "") : rpath(rel) {}
     CGNPath(RelType t, const std::string &rel) : type(t), rpath(rel) {}
 

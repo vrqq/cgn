@@ -77,12 +77,47 @@ operator&(DepType a, DepType b) { return ((char)a & (char)b); }
 inline constexpr DepType 
 operator|(DepType a, DepType b) { return DepType((char)a | (char)b); }
 
+class CGNPathArray : public std::vector<cgn::CGNPath>
+{
+public:
+    CGNPathArray &operator=(const std::vector<std::string> &rhs) {
+        this->clear();
+        for (auto p1 : rhs)
+            this->push_back(cgn::make_path_base_script(p1));
+        return *this;
+    }
+    CGNPathArray &operator=(std::vector<std::string> &&rhs) {
+        this->clear();
+        for (auto p1 : rhs)
+            this->push_back(cgn::make_path_base_script(std::move(p1)));
+        return *this;
+    }
+    CGNPathArray operator+(const std::vector<std::string> &rhs) {
+        CGNPathArray lhs = *this;
+        for (auto &p1 : rhs)
+            lhs.push_back(cgn::make_path_base_script(p1));
+        return lhs;
+    }
+    CGNPathArray operator+(std::vector<std::string> &&rhs) {
+        CGNPathArray lhs = *this;
+        for (auto &p1 : rhs)
+            lhs.push_back(cgn::make_path_base_script(std::move(p1)));
+        return lhs;
+    }
+    CGNPathArray operator+(const CGNPathArray &rhs) {
+        CGNPathArray lhs = *this;
+        lhs.insert(lhs.end(), rhs.begin(), rhs.end());
+        return lhs;
+    }
+};
+
 struct CxxInfo : cgn::BaseInfo
 {
     std::unordered_set<std::string>
         defines;       // c++ define (no escape)
 
-    std::vector<cgn::CGNPath> 
+    // std::vector<cgn::CGNPath>
+    CGNPathArray 
         include_dirs;  // dirs (no escape, '/' separate)
                        // as TargetInfos: relavent to working-root
 

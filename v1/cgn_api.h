@@ -31,7 +31,9 @@ struct CGN_EXPORT Tools {
     //   As a special case, if new_base is the empty string (the default), all
     //   paths will be converted to system-absolute native style paths with system
     //   path separators. This is useful for invoking external programs.
-    // static std::string rebase_path(const std::string &p, const std::string &new_base);    
+    // @param current_base: 
+    //   The current location of path `p`.
+    //   If `p` is an absolute path, `current_base` is ignored.
     static std::string rebase_path(
         const std::string &p, 
         const std::string &new_base, 

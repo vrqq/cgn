@@ -36,6 +36,10 @@ struct CustomCommand
         return api.rebase_path(p, new_base, opt);
     }
 
+    void opt_confirm_error(const std::string &errmsg) {
+        return opt->confirm_with_error(errmsg);
+    }
+
     bool opt_confirm_cached() {
         cfg.visit_keys({"host_os"});
         return opt->confirm()->cache_result_found;

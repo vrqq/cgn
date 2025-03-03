@@ -93,7 +93,6 @@ GENERAL_CGN_BUNDLE_API void AliasInterpreter::interpret(context_type &x)
     if (opt->cache_result_found)
         return ;
     opt->result.ninja_dep_level = early.ninja_dep_level;
-    opt->result.merge_from(early);
     opt->result.outputs = early.outputs;
     
     auto *field = opt->ninja->append_build();

@@ -256,6 +256,7 @@ std::string Tools::rebase_path(
     const std::string &p, const std::string &base, 
     const std::string &current_base
 ) {
+    // if 'in' is absolute path, 'current_base / in' will got 'in'.
     std::filesystem::path in{p};
     if (base.empty())
         return locale_path_impl(std::filesystem::absolute(current_base / in)).string();
