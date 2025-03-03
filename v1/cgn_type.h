@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <array>
 #include <functional>
 #include "api_export.h"
 #include "ninja_file.h"
@@ -34,6 +35,38 @@ struct GraphNode;
 // FileLayout[rel_path_of_output_dir] = path_to_origin_file_or_folder,
 // the value accept both the relavent path of working root and absolute path.
 using FileLayout = std::map<std::string, std::string>;
+
+struct CGNPath
+{
+    enum RelType: char {
+        BASE_ON_OUTPUT = 0,
+        BASE_ON_SCRIPT = 1,
+        BASE_ON_WORKINGROOT = 2,
+    }type = BASE_ON_SCRIPT;
+
+    std::string rpath;
+
+    CGNPath(const std::string &rel = "") : rpath(rel) {}
+    CGNPath(RelType t, const std::string &rel) : type(t), rpath(rel) {}
+
+    std::string to_string() const {
+        if (type == BASE_ON_OUTPUT)
+            return "$(OUT_PREFIX)" + rpath;
+        if (type == BASE_ON_SCRIPT)
+            return "$(SCRIPT_DIR)" + rpath;
+        return rpath.size()?rpath:".";
+    }
+};
+
+inline CGNPath make_path_base_out(const std::string rel="")  { 
+    return CGNPath{CGNPath::BASE_ON_OUTPUT, rel};
+}
+inline CGNPath make_path_base_script(const std::string rel="")  { 
+    return CGNPath{CGNPath::BASE_ON_SCRIPT, rel};
+}
+inline CGNPath make_path_base_working(const std::string rel="")  { 
+    return CGNPath{CGNPath::BASE_ON_WORKINGROOT, rel};
+}
 
 struct HostInfo {
     //os : win, linux, mac
@@ -244,13 +277,17 @@ private: //function inaccessable in CGNTargetOptIn
     void confirm_with_error(const std::string &errmsg);
 }; //struct CGNTargetOpt
 
-// C++ 11 do not support std::array .
-template<size_t N> struct ConstLabelGroup {
-    using data_type = const char*;
-    data_type data[N];
-    constexpr static size_t size() { return N; }
-    const data_type *begin() const { return data; }
-    const data_type *end() const { return data + N; }
-};
+template<size_t N>
+using ConstLabelGroup = std::array<const char*, N>;
+
+template<size_t NLeft, size_t NRight> ConstLabelGroup<NLeft + NRight> 
+operator+(ConstLabelGroup<NLeft> lhs, ConstLabelGroup<NRight> rhs) {
+    ConstLabelGroup<NLeft + NRight> rv;
+    for (size_t i=0; i<NLeft; i++)
+        rv[i] = lhs[i];
+    for (size_t i=0; i<NRight; i++)
+        rv[i + NLeft] = rhs[i];
+    return rv;
+}
 
 } //namespace

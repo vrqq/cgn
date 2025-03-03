@@ -31,10 +31,10 @@
 #define CGN_RULE_TITLE(x, y, z) CGN_RULE_TITLE1(x, y, z)
 
 // standard target factory with interpeter class
-#define CGN_RULE_DEFINE(InterpreterD, NameD, CtxD) \
+#define CGN_RULE_DEFINE(InterpreterD, NameD, CtxD, ...) \
 void CGN_RULE_TITLE(_tf, CGN_VAR_PREFIX, __LINE__)(InterpreterD::context_type& CtxD); \
 std::shared_ptr<void> CGN_RULE_TITLE(_tfreg, CGN_VAR_PREFIX, __LINE__) \
-    = api.bind_target_factory<InterpreterD>(CGN_ULABEL_PREFIX NameD, &CGN_RULE_TITLE(_tf, CGN_VAR_PREFIX, __LINE__)); \
+    = api.bind_target_factory<InterpreterD>(CGN_ULABEL_PREFIX NameD, &CGN_RULE_TITLE(_tf, CGN_VAR_PREFIX, __LINE__), ## __VA_ARGS__); \
 void CGN_RULE_TITLE(_tf, CGN_VAR_PREFIX, __LINE__)(InterpreterD::context_type& CtxD)
 
 // custom target factory with custom processor

@@ -2,15 +2,6 @@
 #include <fstream>
 #include "custom_command.cgn.h"
 
-static std::string expand_cgnpath(const cgn::CGNPath &it, cgn::CGNTargetOpt *opt)
-{
-    if (it.type == it.BASE_ON_OUTPUT)
-        return api.rebase_path(it.rpath, ".", opt->out_prefix);
-    else if (it.type == it.BASE_ON_SCRIPT_SRC)
-        return api.rebase_path(it.rpath, ".", opt->src_prefix);
-    return it.rpath;
-}
-
 void CustomCommand::append_setenv(const std::string &key, const std::string &value)
 {
     return append_setenv({{key, value}});
@@ -26,12 +17,16 @@ void CustomCommand::append_setenv(const std::unordered_map<std::string, std::str
     script_content.push_back({line, {}});
 }
 
-void CustomCommand::append_pushd(cgn::CGNPath &path)
+void CustomCommand::append_pushd(const cgn::CGNPath &path)
 {
-    script_content.push_back({"", [path](cgn::CGNTargetOpt *opt){
-        std::string dir = expand_cgnpath(path, opt);
-        return "pushd " + api.rebase_path(dir, "");
+    script_content.push_back({"", [path, this](cgn::CGNTargetOpt *opt) {
+        return "pushd " + rebase_path(path, "");
     }});
+}
+
+void CustomCommand::append_popd()
+{
+    script_content.push_back({"", [](cgn::CGNTargetOpt *){ return "popd"; }});
 }
 
 void CustomCommand::append_cmd(const std::vector<std::string> &args)
@@ -39,8 +34,13 @@ void CustomCommand::append_cmd(const std::vector<std::string> &args)
     std::string line;
     for (auto it : args)
         line += api.shell_escape(it) + " ";
+    append_escaped_cmd(line);
+}
+
+void CustomCommand::append_escaped_cmd(const std::string &line)
+{
     script_content.push_back({line, {}});
-    if (cfg["os"] == "win")
+    if (cfg["host_os"] == "win")
         script_content.push_back({
             "if %ERRORLEVEL% NEQ 0 (exit /b %ERRORLEVEL%)\n"
         ,{}});
@@ -54,9 +54,13 @@ void CustomCommand::append_cmd(const std::vector<std::string> &args)
 
 void CustomInterpreter::interpret(context_type &x)
 {
+    cgn::CGNTargetOpt *opt = x.opt->confirm();
+    if (opt->cache_result_found)
+        return ;
+
     std::string stamp_cmd_prefix;
     std::string rule_name;
-    if (x.cfg["os"] == "win") {
+    if (x.cfg["host_os"] == "win") {
         stamp_cmd_prefix = "type nul > ";
         rule_name = "run_bat_cmd";
     }
@@ -64,18 +68,18 @@ void CustomInterpreter::interpret(context_type &x)
         stamp_cmd_prefix = "touch ";
         rule_name = "run_bat_bash";
     }
-    cgn::CGNTargetOpt *opt = x.opt->confirm();
-    if (opt->cache_result_found)
-        return ;
 
-    if (x.phase2_fn)
-        x.phase2_fn(x, opt);
+    opt->result.ninja_dep_level = cgn::CGNTarget::NINJA_LEVEL_DYNDEP;
+
+    for (auto p : x.analysis_outputs)
+        opt->result.outputs += {x.rebase_path(p)};
 
     if (opt->file_unchanged)
         return ;
     std::string phony_file = opt->out_prefix + opt->BUILD_ENTRY;
     if (x.script_content.size()) {
-        std::string bat_file = opt->out_prefix + ".bat";
+        std::string bat_file = opt->out_prefix 
+                             + (x.cfg["host_os"] == "win"? ".bat": ".sh");
 
         std::ofstream fbat(bat_file);
         if (x.cfg["os"] == "win")
@@ -97,13 +101,13 @@ void CustomInterpreter::interpret(context_type &x)
         field->outputs = {opt->ninja->escape_path(phony_file)};
         field->implicit_inputs = opt->ninja->escape_path(opt->quickdep_ninja_full);
         field->order_only      = opt->ninja->escape_path(opt->quickdep_ninja_dynhdr);
-        for (auto it : x.cmd_inputs)
+        for (auto it : x.watch_inputs)
             field->implicit_inputs += {
-                opt->ninja->escape_path(expand_cgnpath(it, opt))
+                opt->ninja->escape_path(x.rebase_path(it))
             };
-        for (auto it : x.cmd_outputs)
+        for (auto it : x.watch_outputs)
             field->outputs += {
-                opt->ninja->escape_path(expand_cgnpath(it, opt))
+                opt->ninja->escape_path(x.rebase_path(it))
             };
     }
     else {

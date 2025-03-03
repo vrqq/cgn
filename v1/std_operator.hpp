@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <unordered_set>
+#include <initializer_list>
 using StrList = std::vector<std::string>;
 using StrSet  = std::unordered_set<std::string>;
 
@@ -19,6 +20,12 @@ inline StrList operator+(const StrList &lhs, StrList &&rhs) {
     rhs.clear();
     return rv;
 }
+
+// inline StrList operator+(const StrList &lhs, std::initializer_list<std::string> rhs) {
+//     StrList rv{lhs};
+//     rv.insert(rv.end(), rhs.begin(), rhs.end());
+//     return rv;
+// }
 
 inline StrList &operator+=(StrList &lhs, const StrList &rhs) {
     lhs.insert(lhs.end(), rhs.begin(), rhs.end());

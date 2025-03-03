@@ -24,6 +24,7 @@
     #include <sys/utsname.h>
 #endif
 
+#include "configuration.h"
 #include "cgn_api.h"
 
 namespace cgnv1 {
@@ -257,7 +258,7 @@ std::string Tools::rebase_path(
 ) {
     std::filesystem::path in{p};
     if (base.empty())
-        return locale_path_impl(std::filesystem::absolute(in)).string();
+        return locale_path_impl(std::filesystem::absolute(current_base / in)).string();
     std::filesystem::path on{base};
     if (in.is_absolute() || on.is_absolute()) {
         if (in.is_relative())
@@ -277,6 +278,21 @@ std::string Tools::rebase_path(
     // return std::filesystem::proximate(p, base).string();
     return locale_path_impl(std::filesystem::proximate(in, on)).string();
     // return locale_path_impl(std::filesystem::path(in).lexically_proximate(base));
+}
+
+std::string Tools::rebase_path(
+    const CGNPath &p,
+    const std::string &new_base,
+    CGNTargetOptIn *opt
+) {
+    if (p.type == CGNPath::BASE_ON_OUTPUT) {
+        if (!opt->cfg.is_locked())
+            throw std::runtime_error{"config not locked, cannot determinate output path."};
+        return rebase_path(p.rpath, new_base, ((CGNTargetOpt*)opt)->out_prefix);
+    }
+    else if (p.type == CGNPath::BASE_ON_SCRIPT)
+        return rebase_path(p.rpath, new_base, opt->src_prefix);
+    return rebase_path(p.rpath, new_base);
 }
 
 std::string Tools::locale_path(const std::string &in)

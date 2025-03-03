@@ -509,8 +509,7 @@ void TargetWorker::step1_linuxllvm_and_xcode()
             "--sysroot=" + two_escape(x.cfg["cxx_sysroot"])};
 
     //llvm cross compile argument
-    auto host = api.get_host_info();
-    if (x.cfg["os"] != host.os || x.cfg["cpu"] != host.cpu) {
+    if (x.cfg["os"] != x.cfg["host_os"] || x.cfg["cpu"] != x.cfg["host_cpu"]) {
         std::string cpu = x.cfg["cpu"];
         if (cpu == "x86_64")
             cpu = "amd64";
@@ -964,14 +963,14 @@ void CxxInterpreter::interpret(context_type &x)
     // start interpret
     TargetWorker w(x);
     if (x.cfg["cxx_toolchain"] == "msvc") {
-        assert(api.get_host_info().os == "win");
+        assert(x.cfg["os"] == "win");
         w.step1_win_msvc();
         w.step2_merge_selfarg();
         if (w.step30_prepare_opt())
             return ;
         w.step31_win();
     }
-    else if (x.cfg["cxx_toolchain"] == "gcc" && api.get_host_info().os == "linux") {
+    else if (x.cfg["cxx_toolchain"] == "gcc" && x.cfg["os"] == "linux") {
         w.step1_linux_gcc();
         w.step2_merge_selfarg();
         if (w.step30_prepare_opt())
@@ -979,8 +978,8 @@ void CxxInterpreter::interpret(context_type &x)
         w.step31_unix();
     }
     else if (
-        (x.cfg["cxx_toolchain"] == "xcode" && api.get_host_info().os == "mac") ||
-        (x.cfg["cxx_toolchain"] == "llvm"  && api.get_host_info().os == "linux")
+        (x.cfg["cxx_toolchain"] == "xcode" && x.cfg["os"] == "mac") ||
+        (x.cfg["cxx_toolchain"] == "llvm"  && x.cfg["os"] == "linux")
     ) {
         w.step1_linuxllvm_and_xcode();
         w.step2_merge_selfarg();

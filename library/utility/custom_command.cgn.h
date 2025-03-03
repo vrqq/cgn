@@ -10,33 +10,55 @@
 #endif
 
 #include <cgn>
-#include "cgn_path.h"
 
 struct CustomCommand
 {
     const std::string &name;
     cgn::Configuration &cfg;
-    cgn::CGNTargetOptIn *opt;
 
-    std::vector<cgn::CGNPath> cmd_inputs, cmd_outputs;
-    std::function<void(CustomCommand &x, cgn::CGNTargetOpt *opt)> phase2_fn;
+    std::vector<cgn::CGNPath> watch_inputs, watch_outputs;
 
-    cgn::CGNTarget add_dep(const std::string &label, const cgn::Configuration &cfg) {
+    // CGNTarget.result.outputs[]
+    std::vector<cgn::CGNPath> analysis_outputs;
+
+    // add_dep() usually called before opt_confirm()
+    cgn::CGNTarget 
+    add_dep(const std::string &label, const cgn::Configuration &cfg) {
         return opt->quick_dep(label, cfg);
     }
-    cgn::CGNTarget add_dep(const std::string &label, const std::string &cfg_name) {
+    cgn::CGNTarget 
+    add_dep(const std::string &label, const std::string &cfg_name) {
         return opt->quick_dep_namedcfg(label, cfg_name, true);
     }
+    
+    std::string 
+    rebase_path(const cgn::CGNPath &p, const std::string &new_base = ".") {
+        return api.rebase_path(p, new_base, opt);
+    }
 
+    bool opt_confirm_cached() {
+        cfg.visit_keys({"host_os"});
+        return opt->confirm()->cache_result_found;
+    }
+    
     CGN_UTILITY_API void append_setenv(const std::string &key, const std::string &value);
     CGN_UTILITY_API void append_setenv(const std::unordered_map<std::string, std::string> &data);
-    CGN_UTILITY_API void append_pushd(cgn::CGNPath &path);
+    CGN_UTILITY_API void append_pushd(const cgn::CGNPath &path);
+    CGN_UTILITY_API void append_popd();
     CGN_UTILITY_API void append_cmd(const std::vector<std::string> &args);
+    CGN_UTILITY_API void append_escaped_cmd(const std::string &line);
+
+    // TBD:
+    //   helper function like auto-devel-info-generator
+    //                        auto-cxxinfo-generator
+    //                        pkgconfig-generator
+    // CGN_UTILITY_API void set_analysis_result();
 
     CustomCommand(cgn::CGNTargetOptIn *opt)
     : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
 
 private: friend struct CustomInterpreter;
+    cgn::CGNTargetOptIn *opt;
     std::vector<std::pair<
         std::string, std::function<std::string(cgn::CGNTargetOpt *)>
     >> script_content;

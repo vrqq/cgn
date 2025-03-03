@@ -13,7 +13,6 @@
 #include <string>
 #include <unordered_map>
 #include <cgn>
-#include "cgn_path.h"
 
 struct FileUtility
 {

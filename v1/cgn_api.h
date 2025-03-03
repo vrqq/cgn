@@ -38,6 +38,21 @@ struct CGN_EXPORT Tools {
         const std::string &current_base = "."
     );
 
+
+    // expand CGNPath to relative path of working-root or absolute path
+    // * if p.rpath is absoulte path, return directly.
+    // * If p.type == BASE_ON_OUTPUT and opt.cfg not locked : throw runtime error.
+    // * If p.type == BASE_ON_WORKINGROOT : the param 'opt' is ignored.
+    // @param p : path in
+    // @param opt : current environment
+    // @param new_base : The directory to convert the paths to be relative to. 
+    //          if new_base is the empty string, absolute path returned.
+    static std::string rebase_path(
+        const CGNPath &p,
+        const std::string &new_base,
+        CGNTargetOptIn *opt
+    );
+
     // convert path 'in' to OS-dependent separator style, even if the path does 
     // not exist.
     static std::string locale_path(const std::string &in);
@@ -140,13 +155,15 @@ public:
     
     void add_adep_edge(GraphNode *early, GraphNode *late);
 
-    template<typename Interpreter> std::shared_ptr<void> bind_target_factory(
+    template<typename Interpreter, size_t N2 = 0> std::shared_ptr<void> 
+    bind_target_factory(
         const std::string &factory_label,
-        std::function<void(typename Interpreter::context_type&)> factory
+        std::function<void(typename Interpreter::context_type&)> factory,
+        ConstLabelGroup<N2> preload_scripts = {}
     ) {
-        auto loader = [this, factory](CGNTargetOptIn *opt) {
+        auto loader = [this, factory, preload_scripts](CGNTargetOptIn *opt) {
             // load prerequisite
-            for (const char *label : Interpreter::preload_labels()) {
+            for (const char *label : Interpreter::preload_labels() + preload_scripts) {
                 std::pair<cgnv1::GraphNode *, std::string> dll = active_script(label);
                 if (dll.second.size()) {
                     ((CGNTargetOpt*)opt)->result.errmsg = dll.second;

@@ -29,11 +29,7 @@ namespace {
     }; //struct BinDevelWorker
 
     std::string to_working_root(cgn::CGNTargetOpt *opt, const cgn::CGNPath &it) {
-        if (it.type == it.BASE_ON_OUTPUT)
-            return api.rebase_path(it.rpath, ".", opt->out_prefix);
-        else if (it.type == it.BASE_ON_SCRIPT_SRC)
-            return api.rebase_path(it.rpath, ".", opt->src_prefix);
-        return it.rpath;
+        return api.rebase_path(it, ".", opt);
     }
 
 } //namespace
