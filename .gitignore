@@ -4,4 +4,5 @@
 */deploy
 */*.stamp
 
+.DS_Store
 ## Private repos below
