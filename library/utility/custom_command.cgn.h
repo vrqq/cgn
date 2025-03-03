@@ -74,4 +74,4 @@ struct CustomInterpreter
     CGN_UTILITY_API static void interpret(context_type &x);
 };
 
-#define custom_command(name, x) CGN_RULE_DEFINE(::CustomInterpreter, name, x)
+#define custom_command(name, x, ...) CGN_RULE_DEFINE(::CustomInterpreter, name, x, ## __VA_ARGS__)

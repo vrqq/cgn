@@ -77,13 +77,16 @@ operator&(DepType a, DepType b) { return ((char)a & (char)b); }
 inline constexpr DepType 
 operator|(DepType a, DepType b) { return DepType((char)a | (char)b); }
 
-struct CxxInfo : cgn::BaseInfo {
-    std::unordered_set<std::string>  //(PENDING: unordered_set also accepted)
+struct CxxInfo : cgn::BaseInfo
+{
+    std::unordered_set<std::string>
         defines;       // c++ define (no escape)
-    std::vector<std::string>
-        include_dirs,  // dirs (no escape, '/' separate)
+
+    std::vector<cgn::CGNPath> 
+        include_dirs;  // dirs (no escape, '/' separate)
                        // as TargetInfos: relavent to working-root
-                       // as UserTargetFactory define: relavent to current BUILD.cgn.cc 
+
+    std::vector<std::string>
         cflags,        // compiler specific cflags, shell-escaped required
                        // e.g.: "-Idir\\ 1"
         ldflags;       // flags when linking, shell-escaped required
@@ -178,13 +181,23 @@ using CxxExecutableContext = CxxContextType<'x'>;
 
 struct CxxToolchainInfo
 {
-    std::string c_exe, cxx_exe;
+    std::string exe_cc, exe_cxx, exe_asm, exe_solink, exe_xlink, exe_ar;
     
     // MSVC143 : Visual C++ 2022 (aka Visual C++ 14.3)
     // MSVC142 : Visual C++ 2019 (aka Visual C++ 14.2)
     // MSVC141 : Visual C++ 2017 (aka Visual C++ 14.1)
     // MSVC140 : Visual C++ 2015 (aka Visual C++ 14.0)
     std::string msvc_ver1;
+
+    //
+    // cflags_cpp, cflags_c, cflags_asm: extra flag for specific language.
+    //
+    // No str-escape for the variable below; user must escape as needed.  
+    // The first part is usually compiler options and needs no escaping  
+    // (e.g., `--sysroot=`). Only the latter part generally requires it  
+    // (e.g., `$ORIGIN` → `\$ORIGIN`).  
+    CxxInfo arg;
+    std::vector<std::string> cflags_cpp, cflags_c, cflags_asm;
 };
 
 struct CxxInterpreter
@@ -195,16 +208,18 @@ struct CxxInterpreter
         return {"@cgn.d//library/cxx.cgn.bundle"};
     }
 
+    // TBD
+    //@param type : "minimum" = "cmake", "default" = "makefile"
     LANGCXX_CGN_BUNDLE_API static CxxToolchainInfo 
-    test_param(const cgn::Configuration &cfg);
+    test_param(cgn::Configuration &cfg, const std::string &type = "minimum");
 
     // generate the mimimum cflags and ldflags for external build system like
     // pkg-config or cmake.
     // @return : CxxInfo::cflags and CxxInfo::ldflags
-    LANGCXX_CGN_BUNDLE_API static CxxInfo
-    test_minimum_flags(
-        cgn::Configuration &cfg, const CxxInfo &in,
-        const std::string &libfile = "");
+    // LANGCXX_CGN_BUNDLE_API static CxxInfo
+    // test_minimum_flags(
+    //     cgn::Configuration &cfg, const CxxInfo &in,
+    //     const std::string &libfile = "");
 
     LANGCXX_CGN_BUNDLE_API static void
     interpret(context_type &x);
@@ -236,7 +251,7 @@ struct PrebuiltContext {
     //windows shared lib: both .dll and .libs
     //windows static lib: .libs
     //linux shared/static lib: .so / .a / .o
-    std::vector<std::string> files;
+    std::vector<cgn::CGNPath> files;
 
     PrebuiltContext(cgn::CGNTargetOptIn *opt) : opt(opt), name(opt->factory_name), cfg(opt->cfg) {}
 

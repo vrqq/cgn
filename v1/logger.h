@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <type_traits>
 #include "api_export.h"
 
 namespace cgnv1 {
@@ -47,9 +48,16 @@ namespace cgnv1 {
 
     // definition
     namespace logger_detail {
+        template<typename T> typename std::enable_if<
+            std::is_same<decltype(std::declval<T>().to_string()), std::string>::value,
+        std::string>::type _elem2str(T in) {
+            return in.to_string() + ", ";
+        };
+        
         inline std::string _elem2str(const std::string &in) {
             return in + ", ";
-        };
+        }
+
         inline std::string _elem2str(const std::pair<std::string, std::string> &in) {
             return in.first + ": " + in.second + ", ";
         }

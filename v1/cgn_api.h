@@ -53,6 +53,11 @@ struct CGN_EXPORT Tools {
         CGNTargetOptIn *opt
     );
 
+    static CGNPath convert_cgnpath_to_working_root(
+        const CGNPath &p,
+        CGNTargetOptIn *opt
+    );
+
     // convert path 'in' to OS-dependent separator style, even if the path does 
     // not exist.
     static std::string locale_path(const std::string &in);
@@ -95,7 +100,6 @@ struct CGN_EXPORT Tools {
 
     static bool is_win7_or_later();
 
-
     //@param p : label like ':lib1', "../:lib1", "//other_part", "../../pkg"
     //@param base : label based on (like "//hello/cpp1")
     //@return : <base><p> (like //hello/cpp1:lib1)
@@ -114,6 +118,15 @@ struct CGN_EXPORT Tools {
 
     // remove duplicate items in list.
     static void remove_duplicate_inplace(std::vector<std::string> &data);
+
+    template<typename T, typename Handle> std::string convert_list_to_string(
+        const T &ls, Handle escaper = [](const std::string &in){ return in; }
+    ) {
+        std::string rv;
+        for (auto &it : ls)
+            rv += (rv.empty()?"":" ") + escaper(it);
+        return rv;
+    }
 
     static std::string get_lowercase_extension(const std::string &filename);
 
@@ -155,12 +168,13 @@ public:
     
     void add_adep_edge(GraphNode *early, GraphNode *late);
 
-    template<typename Interpreter, size_t N2 = 0> std::shared_ptr<void> 
+    template<typename Interpreter, typename ...Preloads> std::shared_ptr<void> 
     bind_target_factory(
         const std::string &factory_label,
         std::function<void(typename Interpreter::context_type&)> factory,
-        ConstLabelGroup<N2> preload_scripts = {}
+        Preloads ...labels
     ) {
+        std::array<const char*, sizeof...(labels)> preload_scripts{labels...};
         auto loader = [this, factory, preload_scripts](CGNTargetOptIn *opt) {
             // load prerequisite
             for (const char *label : Interpreter::preload_labels() + preload_scripts) {

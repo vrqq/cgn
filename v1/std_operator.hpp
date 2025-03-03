@@ -4,16 +4,12 @@
 #include <string>
 #include <unordered_set>
 #include <initializer_list>
-using StrList = std::vector<std::string>;
+// using StrList = std::vector<std::string>;
 using StrSet  = std::unordered_set<std::string>;
 
-inline StrList operator+(const StrList &lhs, const StrList &rhs) {
-    StrList rv{lhs};
-    rv.insert(rv.end(), rhs.begin(), rhs.end());
-    return rv;
-}
-inline StrList operator+(const StrList &lhs, StrList &&rhs) {
-    StrList rv{lhs};
+template<typename T> inline std::vector<T> 
+operator+(const std::vector<T> &lhs, std::vector<T> &&rhs) {
+    std::vector<T> rv{lhs};
     rv.insert(rv.end(), 
         std::make_move_iterator(rhs.begin()), 
         std::make_move_iterator(rhs.end()));
@@ -21,42 +17,27 @@ inline StrList operator+(const StrList &lhs, StrList &&rhs) {
     return rv;
 }
 
-// inline StrList operator+(const StrList &lhs, std::initializer_list<std::string> rhs) {
-//     StrList rv{lhs};
-//     rv.insert(rv.end(), rhs.begin(), rhs.end());
-//     return rv;
-// }
+template<typename T> inline std::vector<T> 
+operator+(const std::vector<T> &lhs, const std::vector<T> &rhs) {
+    std::vector<T> rv{lhs};
+    rv.insert(rv.end(), rhs.begin(), rhs.end());
+    return rv;
+}
 
-inline StrList &operator+=(StrList &lhs, const StrList &rhs) {
+template<typename T> inline std::vector<T> &
+operator+=(std::vector<T> &lhs, const std::vector<T> &rhs) {
     lhs.insert(lhs.end(), rhs.begin(), rhs.end());
     return lhs;
 }
-inline StrList &operator+=(StrList &lhs, StrList &&rhs) {
+
+template<typename T> inline std::vector<T> &
+operator+=(std::vector<T> &lhs, std::vector<T> &&rhs) {
     lhs.insert(lhs.end(), 
         std::make_move_iterator(rhs.begin()), 
         std::make_move_iterator(rhs.end()));
     rhs.clear();
     return lhs;
 }
-
-// TODO: dirty patch
-namespace cgnv1 { struct GraphNode; }
-inline std::vector<cgnv1::GraphNode*> &operator+=(
-    std::vector<cgnv1::GraphNode*> &lhs, const std::vector<cgnv1::GraphNode*> &rhs
-) {
-    lhs.insert(lhs.end(), rhs.begin(), rhs.end());
-    return lhs;
-}
-inline std::vector<cgnv1::GraphNode*> &operator+=(
-    std::vector<cgnv1::GraphNode*> &lhs, std::vector<cgnv1::GraphNode*> &&rhs
-) {
-    lhs.insert(lhs.end(), 
-        std::make_move_iterator(rhs.begin()), 
-        std::make_move_iterator(rhs.end()));
-    rhs.clear();
-    return lhs;
-}
-
 
 inline StrSet operator+(const StrSet &lhs, const StrSet &rhs) {
     StrSet rv{lhs};
@@ -82,13 +63,14 @@ inline StrSet &operator+=(StrSet &lhs, StrSet &&rhs) {
     return lhs;
 }
 
-template<typename T> StrList&
-operator+=(StrList &lhs, std::initializer_list<T> &&rhs) {
+template<typename T> std::vector<T>&
+operator+=(std::vector<T> &lhs, std::initializer_list<T> &&rhs) {
     lhs.insert(lhs.end(), 
         std::make_move_iterator(rhs.begin()), 
         std::make_move_iterator(rhs.end()));
     return lhs;
 }
+
 template<typename T> StrSet&
 operator+=(StrSet &lhs, std::initializer_list<T> &&rhs) {
     lhs.insert(std::make_move_iterator(rhs.begin()), 
