@@ -92,6 +92,11 @@ public:
             this->push_back(cgn::make_path_base_script(std::move(p1)));
         return *this;
     }
+    CGNPathArray &operator=(const std::initializer_list<cgn::CGNPath> &rhs) {
+        *(std::vector<cgn::CGNPath>*)this = rhs;
+        return *this;
+    }
+
     CGNPathArray operator+(const std::vector<std::string> &rhs) {
         CGNPathArray lhs = *this;
         for (auto &p1 : rhs)
@@ -217,6 +222,9 @@ using CxxExecutableContext = CxxContextType<'x'>;
 struct CxxToolchainInfo
 {
     std::string exe_cc, exe_cxx, exe_asm, exe_solink, exe_xlink, exe_ar;
+
+    // variable like: -fuse-ld=lld -fuse-ld=gold
+    std::string cflag_call_linker;
     
     // MSVC143 : Visual C++ 2022 (aka Visual C++ 14.3)
     // MSVC142 : Visual C++ 2019 (aka Visual C++ 14.2)

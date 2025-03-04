@@ -442,6 +442,7 @@ CxxToolchainInfo TargetWorker::step1_linuxllvm_and_xcode(cgn::Configuration &cfg
         interp.exe_ar     = (prefix + "llvm-ar");
         interp.exe_solink = (prefix + "clang++") + " -fuse-ld=lld -shared";
         interp.exe_xlink  = (prefix + "clang++") + " -fuse-ld=lld";
+        interp.cflag_call_linker = " -fuse-ld=lld";
     }
 
     interp.arg.cflags += {
@@ -572,6 +573,7 @@ bool TargetWorker::step2_opt_confirm(const CxxToolchainInfo &_interp)
     rvcxx->ldflags += x.pub.ldflags;
     rvcxx->defines += x.pub.defines;
     rvcxx->include_dirs = x.pub.include_dirs + rvcxx->include_dirs;
+    api.convert_cgnpath_to_working_root_inplace(rvcxx->include_dirs, x.opt);
     // cgn::Tools::remove_duplicate_inplace(rvcxx->include_dirs);
 
     rvlnr = opt->result.get<cgn::LinkAndRunInfo>(true);

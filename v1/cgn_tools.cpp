@@ -302,6 +302,13 @@ CGNPath Tools::convert_cgnpath_to_working_root(
 ) {
     return make_path_base_working(rebase_path(p, ".", opt));
 }
+void Tools::convert_cgnpath_to_working_root_inplace(
+    std::vector<CGNPath> &ls,
+    CGNTargetOptIn *opt
+) {
+    for (auto &it : ls)
+        it = convert_cgnpath_to_working_root(it, opt);
+}
 
 std::string Tools::locale_path(const std::string &in)
 {

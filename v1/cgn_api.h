@@ -59,6 +59,10 @@ struct CGN_EXPORT Tools {
         const CGNPath &p,
         CGNTargetOptIn *opt
     );
+    static void convert_cgnpath_to_working_root_inplace(
+        std::vector<CGNPath> &ls,
+        CGNTargetOptIn *opt
+    );
 
     // convert path 'in' to OS-dependent separator style, even if the path does 
     // not exist.
