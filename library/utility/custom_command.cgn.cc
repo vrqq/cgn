@@ -1,5 +1,6 @@
 #define CGN_UTILITY_IMPL
 #include <fstream>
+#include <sstream>
 #include "custom_command.cgn.h"
 
 void CustomCommand::append_setenv(const std::string &key, const std::string &value)
@@ -81,15 +82,31 @@ void CustomInterpreter::interpret(context_type &x)
         std::string bat_file = opt->out_prefix 
                              + (x.cfg["host_os"] == "win"? ".bat": ".sh");
 
-        std::ofstream fbat(bat_file);
-        if (x.cfg["os"] == "win")
-            fbat<<"@echo off\n";
+        std::string bat_content;
+        if (x.cfg["host_os"] == "win")
+            bat_content += "@echo off\n";
         for (auto ln : x.script_content)
             if (ln.first.size())
-                fbat<<ln.first<<"\n";
+                bat_content += ln.first + "\n";
             else
-                fbat<<ln.second(opt)<<"\n";
-        fbat<<stamp_cmd_prefix + phony_file + "\n";
+                bat_content += ln.second(opt) + "\n";
+        bat_content += stamp_cmd_prefix + phony_file + "\n";
+
+        // read existing bat_file, update if content modified.
+        bool batfile_need_update = true;
+        {
+            std::ifstream fin(bat_file);
+            if (fin) {
+                std::stringstream bat_last;
+                bat_last<<fin.rdbuf();
+                if (bat_last.str() == bat_content)
+                    batfile_need_update = false;
+            }
+        }
+        if (batfile_need_update) {
+            std::ofstream fbat(bat_file);
+            fbat<<bat_content;
+        }
 
         std::string rulepath = api.get_filepath("@cgn.d//library/utility/runbat.ninja");
         opt->ninja->append_include(rulepath);
