@@ -39,5 +39,6 @@ popd
 cp @cgn.d/root_example/cgn .
 cp @cgn.d/root_example/cgn_setup.cgn.cc .
 cp @cgn.d/root_example/debug.sh .
+cp @cgn.d/root_example/hostrel.sh .
 cp @cgn.d/root_example/query.sh .
 cp @cgn.d/root_example/run.sh .

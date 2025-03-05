@@ -222,9 +222,9 @@ using CxxExecutableContext = CxxContextType<'x'>;
 struct CxxToolchainInfo
 {
     std::string exe_cc, exe_cxx, exe_asm, exe_solink, exe_xlink, exe_ar;
-
-    // variable like: -fuse-ld=lld -fuse-ld=gold
-    std::string cflag_call_linker;
+    // is_compiler_controlled_link: 
+    //   true: $(exe_cc == exe_solink) -fuse-ld=lld -fuse-ld=gold
+    bool is_compiler_controlled_link;
     
     // MSVC143 : Visual C++ 2022 (aka Visual C++ 14.3)
     // MSVC142 : Visual C++ 2019 (aka Visual C++ 14.2)
@@ -233,14 +233,16 @@ struct CxxToolchainInfo
     std::string msvc_ver1;
 
     //
-    // cflags_cpp, cflags_c, cflags_asm: extra flag for specific language.
+    // extra_cflags_cpp, extra_cflags_c, extra_cflags_asm: extra flag for specific language.
     //
     // No str-escape for the variable below; user must escape as needed.  
     // The first part is usually compiler options and needs no escaping  
     // (e.g., `--sysroot=`). Only the latter part generally requires it  
     // (e.g., `$ORIGIN` → `\$ORIGIN`).  
     CxxInfo arg;
-    std::vector<std::string> cflags_cpp, cflags_c, cflags_asm;
+
+    std::vector<std::string> extra_cflags_cpp, extra_cflags_c, extra_cflags_asm;
+    std::vector<std::string> extra_ldflags_x, extra_ldflags_so;
 };
 
 struct CxxInterpreter

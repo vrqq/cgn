@@ -1,3 +1,5 @@
 build_linux
 build_win
 build_mac
+
+.DS_Store

@@ -57,10 +57,10 @@ private:
         }
     };
 
-    //cfg_by_cont[CDataRef{&cfg_by_id[NAME].data}] = NAME
+    //cfg_by_cont[CDataRef{&cfg_by_id[NAME].data}] = HashID
     std::unordered_map<std::string, Configuration*>    named_cfgs;
     std::unordered_map<ConfigurationID, Configuration> cfg_by_id;
-    std::unordered_map<CDataRef, std::string, CHasher> cfg_by_cont;
+    std::unordered_map<CDataRef, ConfigurationID, CHasher> cfg_by_cont;
     
     std::unordered_map<std::string, KVRestriction> kv_restrictions;
 

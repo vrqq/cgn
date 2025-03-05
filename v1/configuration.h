@@ -175,10 +175,11 @@ public:
     }
     
     void visit_all_keys() const {
-        this->_data->visited.insert(
-            _data->remain.begin(),
-            _data->remain.end()
-        );
+        if (_data->remain.empty())
+            return ;
+        if (_data->locked)
+            throw std::runtime_error{"Configuration locked."};
+        _data->visited.insert(_data->remain.begin(), _data->remain.end());
         _data->remain.clear();
     }
 
@@ -196,11 +197,11 @@ public:
 
     using iterator = type_data::iterator;
     using const_iterator = type_data::const_iterator;
-    const_iterator begin()  const { visit_all(); return _data->visited.cbegin(); }
-    const_iterator end()    const { visit_all(); return _data->visited.cend(); }
-    const_iterator cbegin() const { visit_all(); return _data->visited.cbegin(); }
-    const_iterator cend()   const { visit_all(); return _data->visited.cend(); }
-    const type_data &data() const { visit_all(); return _data->visited; }
+    const_iterator begin()  const { visit_all_keys(); return _data->visited.cbegin(); }
+    const_iterator end()    const { visit_all_keys(); return _data->visited.cend(); }
+    const_iterator cbegin() const { visit_all_keys(); return _data->visited.cbegin(); }
+    const_iterator cend()   const { visit_all_keys(); return _data->visited.cend(); }
+    const type_data &data() const { visit_all_keys(); return _data->visited; }
 
     ConfigurationID get_id() const { return _data->hashid; }
 
@@ -219,16 +220,7 @@ private: friend class ConfigurationManager;
     CGN_EXPORT static std::string empty_string;
 
     DataBlock *_data = nullptr;
-    // bool locked = false;
 
-    void visit_all() const {
-        if (_data->remain.empty())
-            return ;
-        if (_data->locked)
-            throw std::runtime_error{"Configuration locked."};
-        _data->visited.insert(_data->remain.begin(), _data->remain.end());
-        _data->remain.clear();
-    }
 }; //class Configuration
 
 } //namespace

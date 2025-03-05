@@ -128,7 +128,9 @@ ConfigurationID ConfigurationManager::commit(Configuration &cfg)
     std::string new_id = get_hash(CHasher()(lastref));
     cfg._data->hashid = new_id;
     auto [iter, nx] = cfg_by_id.emplace(new_id, cfg); assert(nx);
-    cfg_by_cont[lastref] = new_id;
+    iter->second.visit_all_keys();
+    CDataRef newref{&iter->second};
+    cfg_by_cont[newref] = new_id;
 
     //[.cfg file]: create new
     std::ofstream fout(std::filesystem::path{storage_dir} / (new_id+".cfg"));

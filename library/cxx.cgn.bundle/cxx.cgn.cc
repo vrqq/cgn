@@ -221,10 +221,12 @@ CxxToolchainInfo TargetWorker::step1_win_msvc(cgn::Configuration &cfg)
     interp.exe_cxx    = (exe_prefix + "cl.exe");
     interp.exe_asm    = (exe_prefix + (target_x64?"ml64.exe":"ml.exe"));
     interp.exe_ar     = (exe_prefix + "lib.exe");
-    interp.exe_solink = (exe_prefix + "link.exe") + " /DLL";
+    interp.exe_solink = (exe_prefix + "link.exe");
+    interp.extra_ldflags_so = {"/DLL"};
     interp.exe_xlink  = (exe_prefix + "link.exe");
-    interp.cflags_cpp = {"/std:c++17"};
-    interp.cflags_c   = {"/std:c17"};
+    interp.extra_cflags_cpp = {"/std:c++17"};
+    interp.extra_cflags_c   = {"/std:c17"};
+    interp.is_compiler_controlled_link = false;
 
     interp.arg.defines += {
         //"UNICODE", "_UNICODE",   // default for NO unicode WidthType (encoding UTF-8 only)
@@ -361,6 +363,7 @@ CxxToolchainInfo TargetWorker::step1_linux_gcc(cgn::Configuration &cfg)
     interp.exe_ar  = (prefix + "gcc-ar");
     interp.exe_solink = (prefix + "g++") + " -shared";
     interp.exe_xlink  = (prefix + "g++");
+    interp.is_compiler_controlled_link = true;
 
     std::vector<std::string> cflags_1st, ldflags_1st;
     interp.arg.cflags += {
@@ -396,7 +399,7 @@ CxxToolchainInfo TargetWorker::step1_linux_gcc(cgn::Configuration &cfg)
             "-Og", "-g", "-Wall", "-ggdb", "-O0",
             "-fno-eliminate-unused-debug-symbols", 
             "-fno-eliminate-unused-debug-types"};
-        interp.cflags_cpp.push_back("-ftemplate-backtrace-limit=0");
+        interp.extra_cflags_cpp.push_back("-ftemplate-backtrace-limit=0");
     }
     if (cfg["optimization"] == "release")
         interp.arg.cflags += {"-O2", "-flto", "-fwhole-program"};
@@ -436,14 +439,17 @@ CxxToolchainInfo TargetWorker::step1_linuxllvm_and_xcode(cgn::Configuration &cfg
     interp.exe_cc  = (prefix + "clang");
     interp.exe_cxx = (prefix + "clang++");
     interp.exe_ar     = (prefix + "ar");
-    interp.exe_solink = (prefix + "clang++") + " -shared";
+    interp.exe_solink = (prefix + "clang++");
+    interp.extra_ldflags_so = {"-shared"};
     interp.exe_xlink  = (prefix + "clang++");
     if (cfg["os"] == "linux") {
         interp.exe_ar     = (prefix + "llvm-ar");
-        interp.exe_solink = (prefix + "clang++") + " -fuse-ld=lld -shared";
-        interp.exe_xlink  = (prefix + "clang++") + " -fuse-ld=lld";
-        interp.cflag_call_linker = " -fuse-ld=lld";
+        interp.exe_solink = (prefix + "clang++");
+        interp.extra_ldflags_so = {"-fuse-ld=lld", "-shared"};
+        interp.exe_xlink = (prefix + "clang++");
+        interp.extra_ldflags_x = {"-fuse-ld=lld"};
     }
+    interp.is_compiler_controlled_link = true;
 
     interp.arg.cflags += {
         "-fvisibility=hidden",
@@ -460,7 +466,7 @@ CxxToolchainInfo TargetWorker::step1_linuxllvm_and_xcode(cgn::Configuration &cfg
         interp.arg.ldflags += {"-fprofile-instr-generate", "-Wl,-warn_commons"};
 
     interp.arg.defines += {"_GNU_SOURCE"};
-    interp.cflags_c = {"-std=c17"};
+    interp.extra_cflags_c = {"-std=c17"};
 
     //["optimization"]
     if (cfg["optimization"] == "debug") {
@@ -616,12 +622,12 @@ void TargetWorker::step31_win()
         }else if (file_type == 'A') {
             field->rule = "msvc_ml";
             field->variables["cc"] = interp.exe_asm;
-            field->variables["cflags"] = list2str(interp.cflags_asm);
+            field->variables["cflags"] = list2str(interp.extra_cflags_asm);
         }else {
             field->rule = "msvc_cl";
             field->variables["cc"] = interp.exe_cxx;
             field->variables["cflags"] = 
-                list2str(file_type=='+'? interp.cflags_cpp:interp.cflags_c) 
+                list2str(file_type=='+'? interp.extra_cflags_cpp:interp.extra_cflags_c) 
                 + list2str(carg.cflags)
                 + list2str(carg_include_dirs, "/I")
                 + list2str(carg.defines, "/D");
@@ -706,6 +712,7 @@ void TargetWorker::step31_win()
             field->implicit_outputs = {opt->ninja->escape_path(outfile_implib)};
         field->variables["link"] = (x.role=='s'? interp.exe_solink:interp.exe_xlink);
         field->variables["ldflags"] = list2str(carg.ldflags)
+                + list2str(x.role=='s'? interp.extra_ldflags_so : interp.extra_ldflags_x)
                 + list2str(two_escape(x._wholearchive_a), "/WHOLEARCHIVE:");
                    
         // generate entry
@@ -763,12 +770,20 @@ void TargetWorker::step31_unix()
             field->outputs = {cgn::NinjaFile::escape_path(path_out)};
             field->implicit_inputs = opt->quickdep_ninja_full;
             field->order_only      = opt->quickdep_ninja_dynhdr;
-            field->variables["cc"] = (file_type=='+'?interp.exe_cxx:interp.exe_cc);
-            field->variables["cflags"] = 
-                list2str(file_type=='+'? interp.cflags_cpp:interp.cflags_c) 
-                + list2str(carg.cflags)
-                + list2str(carg_include_dirs, "-I")
-                + list2str(carg.defines, "-D");
+            field->variables["cflags"] = list2str(carg.cflags);
+            if (file_type == '+') {
+                field->variables["cc"] = interp.exe_cxx;
+                field->variables["cflags"] += list2str(interp.extra_cflags_cpp);        
+            }else if (file_type == 'A') {
+                field->variables["cc"] = interp.exe_asm;
+                field->variables["cflags"] += list2str(interp.extra_cflags_asm);
+            }else {
+                field->variables["cc"] = interp.exe_cc;
+                field->variables["cflags"] += list2str(interp.extra_cflags_c);
+            }
+            field->variables["cflags"] += list2str(carg.cflags)
+                                        + list2str(carg_include_dirs, "-I")
+                                        + list2str(carg.defines, "-D");
             obj_out.push_back(path_out);
             obj_out_ninja_esc.push_back(field->outputs[0]);
         }
@@ -875,7 +890,8 @@ void TargetWorker::step31_unix()
             buildstr_start_group = "-Wl,--start-group";
             buildstr_end_group   = "-Wl,--end-group";
         }
-        field->variables["args"] = list2str(carg.ldflags) 
+        field->variables["args"] = list2str(carg.ldflags)
+            + list2str(x.role=='s'? interp.extra_ldflags_so : interp.extra_ldflags_x)
             + "-o " + api.shell_escape(field->outputs[0])
             + buildstr_a + " "
             + buildstr_start_group + " "
@@ -1039,20 +1055,33 @@ CxxToolchainInfo TargetWorker::step1_minimum(cgn::Configuration &cfg)
     CxxToolchainInfo rv;
     std::string prefix = cfg["cxx_prefix"];
     if (cfg["cxx_toolchain"] == "gcc") {
-        rv.exe_cc = prefix + "gcc";
+        rv.exe_cc = rv.exe_asm = rv.exe_solink = rv.exe_xlink = prefix + "gcc";
         rv.exe_cxx = prefix + "g++";
+        rv.exe_ar  = prefix + "ar";
+        rv.is_compiler_controlled_link = true;
     }
     if (cfg["cxx_toolchain"] == "llvm") {
-        rv.exe_cc = prefix + "clang";
+        rv.exe_cc = rv.exe_asm = rv.exe_solink = rv.exe_xlink = prefix + "clang";
         rv.exe_cxx = prefix + "clang++";
+        rv.exe_ar  = prefix + "ar";
+        rv.extra_ldflags_so = {"-shared"};
+        rv.is_compiler_controlled_link = true;
     }
     if (cfg["cxx_toolchain"] == "xcode") {
-        rv.exe_cc = prefix + "clang";
+        rv.exe_cc = rv.exe_asm = rv.exe_solink = rv.exe_xlink = prefix + "clang";
         rv.exe_cxx = prefix + "clang++";
+        rv.exe_ar  = prefix + "ar";
+        rv.extra_ldflags_so = {"-shared"};
+        rv.is_compiler_controlled_link = true;
     }
     if (cfg["cxx_toolchain"] == "msvc") {
         rv.exe_cc = prefix + "cl.exe";
         rv.exe_cxx = prefix + "cl.exe";
+        rv.exe_ar = prefix + "lib.exe";
+        rv.exe_solink = rv.exe_xlink = prefix + "link.exe";
+        rv.extra_ldflags_so = {"/DLL"};
+        rv.exe_asm = prefix + (cfg["host_cpu"]=="x86"? "ml.exe":"ml64.exe");
+        rv.is_compiler_controlled_link = false;
         rv.arg.defines += {
             "WINVER=" + std::string{mimimum_winver},
             "_WIN32_WINNT=" + std::string{mimimum_winver},
@@ -1061,7 +1090,9 @@ CxxToolchainInfo TargetWorker::step1_minimum(cgn::Configuration &cfg)
         rv.arg.cflags = {
             "/utf-8", "/wd4828",   // illegal character in UTF-8
             "/EHsc",               // Enables standard C++ stack unwinding
-            (cfg["msvc_runtime"] == "MDd"? "/MDd" : "/MD")
+            (cfg["msvc_runtime"] == "MDd"? "/MDd" : (
+             cfg["msvc_runtime"] == "MD"?  "/MD" : (
+             cfg["msvc_runtime"] == "MTd"? "/MT": "/MTd")))
         };
     }
 
