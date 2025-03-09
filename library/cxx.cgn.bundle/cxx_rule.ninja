@@ -37,3 +37,10 @@ rule crun_rsp
     rspfile = ${out}.rsp
     rspfile_content = ${args}
 
+## windows simple copy command
+## only for copy runtime dll to exe output dir.
+## for complex copy command, using advcopy instead
+rule win_file_copy_cppdeprule
+    command = xcopy.exe ${in} ${out} /-I /H /Y
+    description = COPY ${in} => ${OUT}
+    restat = 1

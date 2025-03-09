@@ -8,6 +8,16 @@
 #include "cgn_type.h"
 #include "logger.h"
 
+// Compiler barrier macro
+#if defined(_MSC_VER) // MSVC
+    #include <intrin.h>
+    #define COMPILER_BARRIER() _ReadWriteBarrier()
+#elif defined(__GNUC__) || defined(__clang__) // GCC, Clang
+    #define COMPILER_BARRIER() asm volatile("" ::: "memory")
+#else
+    #define COMPILER_BARRIER() // Fallback: No-op
+#endif
+
 namespace cgnv1 {
 
 
@@ -21,9 +31,26 @@ struct CGN_EXPORT Tools {
 
     static HostInfo get_host_info();
 
+    // TODO: merge advcopy to CGN
+    // struct FileMatchResult
+    // {
+    //     std::vector<std::pair<std::string, std::string>> file_matched;
+    //     std::string errmsg;
+    // };
+    // static FileMatchResult match_file(const std::string &pattern, bool skip_invalid_symlink);
+
+    // static std::system_error copy_one_file();
+
+    // static std::system_error copy_files();
+
+    // static std::system_error flat_copy_files();
+
     static std::vector<std::string> file_glob(const std::string &dir, const std::string &base = ".");
 
     // converts p to be relative to a different base directory.
+    // The path returned is converted into weakly_canonical format,
+    // i.e. 'c:\windows' to 'C:\windows'
+    //
     // @param new_base: 
     //   The directory to convert the paths to be relative to. This can be an
     //   absolute path or a relative path (which will be treated as being relative
@@ -31,6 +58,8 @@ struct CGN_EXPORT Tools {
     //   As a special case, if new_base is the empty string (the default), all
     //   paths will be converted to system-absolute native style paths with system
     //   path separators. This is useful for invoking external programs.
+    //   If both p and new_base are absolute path, it will try to generate a relative
+    //   path visited from new_base, if no relative exsit return p directly.
     // @param current_base: 
     //   The current location of path `p`.
     //   If `p` is an absolute path, `current_base` is ignored.
@@ -65,7 +94,18 @@ struct CGN_EXPORT Tools {
     );
 
     // convert path 'in' to OS-dependent separator style, even if the path does 
-    // not exist.
+    // not exist. remove section which name '.'(dot) at begin or end.
+    // The final '/' will be kept to indicate that is directory.
+    // For windows, convert "c:" to "C:" (uppercase)
+    // 
+    // Example:
+    //   "/" => "/"
+    //   "c:\win" => "C:\win"
+    //  "./file"  => "file"
+    //  "dir/"    => "dir/"
+    //  "./dir/." => "dir/"
+    //   "." or "./" => "" (unnecessary dot)
+    //
     static std::string locale_path(const std::string &in);
 
     // Retrieve the parent path of the input, accepting both absolute and 
@@ -93,6 +133,27 @@ struct CGN_EXPORT Tools {
     // Checks if the given file status or path corresponds to a regular file.
     static bool is_regular_file(const std::string &path);
 
+    // Escape char like ':', '\', '..' to make path valid for all OS
+    // @param alter_prefix: the prefix for return value, 
+    //                      if path is absolute path, this param is ignored and use 'A' instead.
+    //                      throw exception if alter_prefix == 'A'
+    // @return OS-perferred-sep relative path
+    //         for absolute path, add 'A' prefix, otherwise 's' for SCRIPTbase, 'c' for WorkingRootBase
+    // e.g. 
+    //   c:\windows => AC_3A_\windows     (host is WIN, abspath)
+    //   .\C:\win   => <prefix>C_3A_\win  (host is WIN, path on remote, relpath)
+    //   D:\efg/hij => <prefix>D_3A_5Cefg_/hij  (host is UNIX, relpath)
+    //   /dir/f2    => Adir_/f2                 (host is UNIX, abspath)
+    // for all platforms :
+    //   str1    => str1
+    //   ./name2 => name2
+    //    _/x        => __/x
+    //    ../file    => .._/file
+    //    A../file   => A.._/file
+    //    ./././a/b/c => a_/b_/c
+    static std::string mangle_path_to_relative(const std::string &cpath, const char alter_prefix = 'R');
+
+    //@depecated
     static std::string mangle_path(const std::string &file, const std::string &base);
     // static bool is_absolute_path(const std::string &path);
 
@@ -191,6 +252,9 @@ public:
                 }
                 opt->quickdep_early_anodes.push_back(dll.first);
             }
+
+            // prevent compiler reorder the functions.
+            // COMPILER_BARRIER();
 
             // prepare Interpreter::Context, call factory, then interpreter.
             typename Interpreter::context_type x{opt};

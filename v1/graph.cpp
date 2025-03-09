@@ -343,6 +343,11 @@ void Graph::db_load(const std::string &filename)
             if (pos + aligned_size > buf.size())
                 return fn_create_new("unexpected EOF, (str)blkoff=" + std::to_string(pos));
 
+            // #ifdef _MSC_VER
+            // __unaligned int64_t *mtime_ptr = (int64_t*)(buf.data() + pos + sizeof(uint32_t));
+            // #else
+            // #endif
+
             GraphString block;
             block.self_offset = pos;
             block.mem_mtime = block.db_mtime = *(int64_t*)(buf.data() + pos + sizeof(uint32_t));

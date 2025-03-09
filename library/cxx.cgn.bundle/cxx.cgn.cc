@@ -114,6 +114,7 @@ static std::string lower_substr(
 // @param OUT path_in : "input file relpath"
 // @param OUT path_out: "output file relpath"
 // @return type of src: A/+/C/0 (asm, c++, c, 0:igonre)
+// TODO : in windows, ninja have bug that cannot mkdir end with '..'
 static char src_path_convert(
     std::string file1, const cgn::CGNTargetOpt &opt,
     std::string *path_in, std::string *path_out, bool dot_obj = false
@@ -127,7 +128,10 @@ static char src_path_convert(
     std::string ext = lower_substr(file1, fd+1);
 
     auto gen = [&]() {
-        *path_in = api.rebase_path(file1, ".", opt.src_prefix);
+        // using whole name 'file1' instead of 'left' to avoid name conflict
+        // : src["a.cpp", "a.c"] => dst["a.o", "a.o"]
+        *path_in  = api.rebase_path(file1, ".", opt.src_prefix);
+        *path_out = opt.out_prefix + api.mangle_path_to_relative(file1) + (dot_obj?".obj":".o");
 
         // since path_in and opt.out_prefix is not in same driver in windows,
         // using rebase_path() can only get the abspath of path_in and it's 
@@ -600,7 +604,7 @@ bool TargetWorker::step2_opt_confirm(const CxxToolchainInfo &_interp)
 
 void TargetWorker::step31_win()
 {
-    std::string dyn_def_file;
+    // std::string dyn_def_file;
 
     // build.ninja : source file => .o
     std::string pdbfile = opt->out_prefix + "__vc.pdb";
@@ -611,15 +615,18 @@ void TargetWorker::step31_win()
         auto file_type = src_path_convert(file, *opt, &path_in, &path_out, true);
         if (file_type == 0)
             continue;
+        if (file_type == 'D') {
+            // dyn_def_file = path_in;
+            carg.ldflags += {"/DEF:" + path_in};
+            continue;
+        }
         //field->input has been moved into cflags
         auto *field = opt->ninja->append_build();
         field->outputs = {cgn::NinjaFile::escape_path(path_out)};
         field->implicit_inputs = {cgn::NinjaFile::escape_path(path_in)};
-        field->implicit_inputs += opt->quickdep_ninja_full;
-        field->order_only      = opt->quickdep_ninja_dynhdr;
-        if (file_type == 'D') {
-            dyn_def_file = path_in;
-        }else if (file_type == 'A') {
+        field->implicit_inputs += cgn::NinjaFile::escape_path(opt->quickdep_ninja_full);
+        field->order_only      = cgn::NinjaFile::escape_path(opt->quickdep_ninja_dynhdr);
+        if (file_type == 'A') {
             field->rule = "msvc_ml";
             field->variables["cc"] = interp.exe_asm;
             field->variables["cflags"] = list2str(interp.extra_cflags_asm);
@@ -681,18 +688,14 @@ void TargetWorker::step31_win()
     //   with carg.ldflags and -wholearchive:x._wholearchive_a
     //   self.so + {so from deps} => rv[LRinfo].so
     if (x.role == 's' || x.role == 'x') {
-        std::string outfile;
-        std::string outfile_implib;
-        if (x.role == 's')
-            outfile = opt->out_prefix + x.name + ".dll";
-        else
-            outfile = opt->out_prefix + x.name + ".exe";
-        outfile_implib = opt->out_prefix + x.name + ".lib";
+        std::string outfile_fname = x.name + (x.role=='s'? ".dll" :".exe");
+        std::string outfile_implib = opt->out_prefix + x.name + ".lib";
         if (x.perferred_binary_name.size()) {
-            outfile = opt->out_prefix + x.perferred_binary_name;
-            outfile_implib = opt->out_prefix + x.perferred_binary_name + ".lib";
+            outfile_fname = x.perferred_binary_name;
+            outfile_implib = opt->out_prefix + outfile_fname + ".lib";
         }
-
+        std::string outfile = opt->out_prefix + outfile_fname;
+        
         //prepare rpath argument
         //  this is seen as target ldflags, so put on the tail of cargs.ldflags
         //TODO: manifest and .runtime
@@ -721,11 +724,14 @@ void TargetWorker::step31_win()
         // copy runtime when cxx_executable()
         if (x.role == 'x')
             for (auto &one_entry : x._lnr_to_self.runtime_files) {
-                auto dst  = opt->out_prefix + one_entry.first;
-                auto &src = one_entry.second;
+                const cgn::CGNPath &dst1 = one_entry.first;
+                if (dst1.type != dst1.BASE_ON_OUTPUT)
+                    continue;
+                std::string dst = api.rebase_path(dst1, ".", opt);
+                const std::string &src = one_entry.second;
                 auto *cpfield = opt->ninja->append_build();
                 //TODO: copy runtime by custom command (like symbolic-link)
-                cpfield->rule    = "win_cp";
+                cpfield->rule    = "win_file_copy_cppdeprule";
                 cpfield->inputs  = {cgn::NinjaFile::escape_path(src)};
                 cpfield->outputs = {cgn::NinjaFile::escape_path(dst)};
                 field->order_only += cpfield->outputs;
@@ -735,6 +741,8 @@ void TargetWorker::step31_win()
         // put front
         rvlnr->shared_files = std::vector<std::string>{outfile_implib} 
                             + rvlnr->shared_files;
+        
+        rvlnr->runtime_files[cgn::make_path_base_out(outfile_fname)] = outfile;
 
         opt->result.outputs = {outfile, outfile_implib};
         opt->result.ninja_dep_level = x._max_pub_ninja_level;
@@ -848,7 +856,9 @@ void TargetWorker::step31_unix()
                     "-Wl,--enable-new-dtags", 
                     two_escape("-Wl,-rpath=$ORIGIN")
                 };
-                rvlnr->runtime_files["lib" + x.name + ".so"] = outfile;
+                rvlnr->runtime_files[
+                    cgn::make_path_base_out("lib" + x.name + ".so")
+                ] = outfile;
             }
             else {
                 carg.ldflags += {"-Wl,--enable-new-dtags"};
@@ -908,7 +918,10 @@ void TargetWorker::step31_unix()
         // copy runtime when cxx_executable()
         if (x.role == 'x')
             for (auto &one_entry : x._lnr_to_self.runtime_files) {
-                auto dst  = opt->out_prefix + one_entry.first;
+                const auto &dst1 = one_entry.first;
+                if (dst1.type != dst1.BASE_ON_OUTPUT)
+                    continue;
+                auto dst  = api.rebase_path(dst1, ".", opt);
                 auto &src = one_entry.second;
                 auto *cpfield = opt->ninja->append_build();
                 //TODO: copy runtime by custom command (like symbolic-link)
@@ -935,8 +948,8 @@ void TargetWorker::_entry_postprocess(const std::vector<std::string> &to)
     entry->rule = "phony";
     entry->inputs = to;
     entry->outputs = {escaped_ninja_entry};
-    entry->implicit_inputs = opt->quickdep_ninja_full;    //TODO: really need?
-    entry->order_only      = opt->quickdep_ninja_dynhdr;  //TODO: really need?
+    entry->implicit_inputs = cgn::NinjaFile::escape_path(opt->quickdep_ninja_full);    //TODO: really need?
+    entry->order_only      = cgn::NinjaFile::escape_path(opt->quickdep_ninja_dynhdr);  //TODO: really need?
 }
 
 void CxxInterpreter::interpret(context_type &x)
@@ -946,6 +959,8 @@ void CxxInterpreter::interpret(context_type &x)
     // using absolutely path to locate.
     // BUG HERE: file_glob(*) cannot found file newly added (in ninja cache)
     //     TODO: target with file_glob() would re-analyse each time.
+    //           so we should use external executable to generate ninja dyndep.
+    //           @cgn.d//library/advtools
     std::vector<std::string> real_srcs;
     for (auto &ss : x.srcs) {
         if (ss.find('*') == ss.npos) //if not file_glob
@@ -1165,13 +1180,13 @@ void CxxPrebuiltInterpreter::interpret(context_type &x)
         else if (ext == ".a")
             lrinfo->static_files.push_back(fullp);
         else if (ext == ".dll") {
-            lrinfo->runtime_files[stem + ".dll"] = fullp;
+            lrinfo->runtime_files[cgn::make_path_base_out(stem + ".dll")] = fullp;
             dllstem.insert(stem);
         }
         else if (ext == ".lib")
             dotlib.push_back({stem, fullp});
         else
-            lrinfo->runtime_files[stem + "." + ext] = fullp;
+            lrinfo->runtime_files[cgn::make_path_base_out(stem + "." + ext)] = fullp;
     }
     for (auto item : dotlib)
         if (dllstem.count(item.first) != 0)
@@ -1182,9 +1197,9 @@ void CxxPrebuiltInterpreter::interpret(context_type &x)
     // build.ninja
     auto *entry = opt->ninja->append_build();
     entry->rule = "phony";
-    entry->implicit_inputs = opt->quickdep_ninja_full;
-    entry->order_only      = opt->quickdep_ninja_dynhdr;
-    entry->outputs = {opt->out_prefix + opt->BUILD_ENTRY};
+    entry->implicit_inputs = opt->ninja->escape_path(opt->quickdep_ninja_full);
+    entry->order_only      = opt->ninja->escape_path(opt->quickdep_ninja_dynhdr);
+    entry->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
 }
 
 } //namespace cxx

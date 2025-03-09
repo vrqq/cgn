@@ -4,7 +4,7 @@
 OS_TYPE=$(uname)
 
 if [[ "$OS_TYPE" == "Linux" ]]; then
-    ./@cgn.d/build_linux/cgn --halt_on_error --target llvm,release build $@
+    ./@cgn.d/build_linuxd/cgn --halt_on_error --target llvm,release build $@
 elif [[ "$OS_TYPE" == "Darwin" ]]; then
     ./@cgn.d/build_mac/cgn --halt_on_error --target xcode,release build $@
 else

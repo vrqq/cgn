@@ -1,5 +1,13 @@
 # 开发笔记
 
+## 目录结构
+* build_xxx.ninja 为主编译入口 (根据不同os)
+* test 文件夹为 `@cgn.d` 自己的测试, 需要首先编译一个能用的cgn, 其需要 `@cgn.d` 以及 `@third_party`.
+* v1 是cgn源码
+* library 是内置的interpreter (参见 interpreter.md )
+* doc 是文档
+* ninjabuild 是ninja的源码, 我们只复用了其中一些小组件, 但没有完整编译它, 所以使用cgn还需要系统自带gn.
+
 ## 多线程并行问题几则
 要求线程安全毋庸置疑
 
@@ -395,3 +403,88 @@ stamp文件无意义, 因为ninja会自动删除depfile 所以不能用.d当stam
 我们的`file_match`只返回 regular_file, dictionary, symlink三种, 其余类型忽略.(例如pipe unix_socket dev等)  
 前两种检查mtime, 而对于symlink, `read_symlink()`检查其“内容”(指向) 是否变化 以决定是否重建, 若不检查直接重建symlink 可能会使得symlink本身的mtime改变, 不确定ninja是否会检查它.  
 symlink会出现在`file_need_copy`及`node_need_watch`中, 我们期望ninja可以检查好 `symlink本身` 的变化.
+
+
+## RuntimeFiles的几种实现
+现有如下几个场景
+* 文件需要在CWD下 : 有些dll带的cfg需要, 如何指定cwd位置?
+* 文件需要跟随exe
+```
+main.exe
+    |- x.dll
+    |- xcfg/1.cfg
+    |- xcfg/2.cfg
+```
+
+* windows manifest 多版本共存, v1.dll 和 v3.dll 内置manifest 查找dll重定向到文件夹
+```
+main.exe
+    |- v1.dll (embedded manifest)
+        |- v1/api1.dll
+        |- v1/openssl.dll
+    |- v3.dll (embedded manifest)
+        |- v3/api3.dll
+        |- v3/openssl.dll
+```
+
+* linux 多版本共存 normal-link模式 (dlmopen)
+```
+./main (rpath=$ORIGIN)
+    |- v1.so (rpath=$ORIGIN/v1)
+        |- v1/libapi.so
+    |- v2.so (rpath=$ORIGIN/v2)
+        |- v2/libapi.so
+```
+
+* linux 多版本共存 rename-API模式 (namespace + dlmopen)
+```
+./main (rpath=$ORIGIN)
+    |- v1.o ( namespace v1{dlmopen} )
+        |- v1/libapi.so
+    |- v2.o ( namespace v1{dlmopen} )
+        |- v2/libapi.so
+```
+
+**方案1: 由provider提供文件摆放规则, 以最后一种举例**
+"libapi.so" 只提供自己 放在第一级文件夹, "v1.o" 将libapi.so 放在v1 文件夹下, 文件夹均为相对于可执行文件exe的位置.
+* `map<CGNPath, string> runtimes; //runtimes[dst] = src`
+* `CGNPath::type == BASE_ON_OUTPUT` copy到exe所在路径
+* `CGNPath::type == BASE_ON_CWD` copy到cwd
+
+**方案1.1 copy to CWD**
+有些runtime即使是copy to cwd也需要编译后, 可能需要生成临时build.ninja, 指定依赖, 由ninja完成准备工作.
+
+目前Runtime记录在 LinkAndRunInfo中, 默认合并操作也只是合并.
+
+## `@cgn.d//library/utility/` 包含的万用接口
+* file_utility.h
+    * rule file_utility()
+        * .copy(srclist[], srcbase, dstbase)
+        * .flat_copy(srclist[], dstbase)
+        * .copy_rename(onesrc, onedst)
+    * FileUtilityWorker
+        * gen_copy()
+        * gen_flat_copy()
+        * gen_copy_rename()
+
+* shell_script.h
+    * rule shell_script()
+    * ShellScriptWorker
+
+* workflow.h
+    * WorkflowContext
+        * .add_dep() => CGNTarget 不会引入ninja_quickdep_[], 其ninja层面依赖由worker处理 (因为worker生成具体ninja里面的build section).
+    * WorkflowInterpreter
+
+* cxx.h
+    * ...
+
+
+## 文件路径的处理
+
+Windows下的root_name处理: API无论哪个函数, win下返回盘符永远大写, 即使输入是小写.
+
+**api.locale_path()**
+希望提供去除冗余的结果, 例如'./a/././b' => 'a/b'. 
+但考虑一种特殊情况: 共享文件夹下有一文件 `./c:\\windows` 若经预想的locale_path() 就变成绝对路径了, 显然不是我们想要的
+

@@ -14,6 +14,65 @@
 #include <unordered_map>
 #include <cgn>
 
+// Stateful ninjafile writer
+// Both srcbase and dst are absolute path or relative path of CWD.
+// Stamp file: <opt.outprefix> + <argfile_prefix> + <1, 2, ...> + ".stamp"
+//  Args file: <opt.outprefix> + <argfile_prefix> + <1, 2, ...> + ".rsp"
+struct CopyWorker
+{
+    CGN_UTILITY_API std::string 
+    preconfig(cgn::CGNTargetOptIn *opt, const std::string &argfile_prefix = "copy_");
+
+    // @confirmed_opt : variable by opt->confirm();
+    // @param from, to: absolute or relpath of CWD
+    // @return Ninja build section, errmsg
+    CGN_UTILITY_API cgn::NinjaFile::BuildSection*
+    postgen_copyone(
+        cgn::CGNTargetOpt *confirmed_opt,
+        const std::string &src_file, const std::string &dst_file,
+        const std::vector<std::string> &njtargets_orderdep = {}
+    );
+
+    // @confirmed_opt : variable by opt->confirm();
+    // @param src_patterns: the source pattern
+    // @param dst_dir : the destion directory
+    // @return Ninja build section, errmsg
+    CGN_UTILITY_API cgn::NinjaFile::BuildSection*
+    postgen_flat_copy(
+        cgn::CGNTargetOpt *confirmed_opt,
+        const std::vector<std::string> &src_patterns, const std::string &dst_dir,
+        const std::vector<std::string> &njtargets_orderdep = {}        
+    );
+
+    // @confirmed_opt : variable by opt->confirm();
+    // @param src_patterns: the source pattern
+    // @param dst_dir : the destion directory
+    // @return Ninja build section, errmsg
+    CGN_UTILITY_API cgn::NinjaFile::BuildSection*
+    postgen_copy(
+        cgn::CGNTargetOpt *confirmed_opt, 
+        const std::vector<std::string> src_rel_patterns, 
+        const std::string &src_base,
+        const std::string &dst_dir,
+        const std::vector<std::string> &njtargets_orderdep = {}
+    );
+
+    std::vector<std::string> postgen_get_ninja_entry();
+
+private:
+    std::string argfile_prefix;
+    std::string advcopy_exe;
+    size_t target_n = 0;
+
+    cgn::NinjaFile::BuildSection* mkninja(
+        cgn::CGNTargetOpt *opt, const std::string &command,
+        const std::vector<std::string> &arg_content,
+        const std::vector<std::string> &njtargets_orderdep
+    );
+};
+
+//TODO: we will replace this rule to 'copy()' and 'bin_collect()' in future
+//      and use xxWorker in workflow for complex target.
 struct FileUtility
 {
     const std::string &name;
@@ -28,6 +87,11 @@ struct FileUtility
     CGN_UTILITY_API void flat_copy_on_build(
         const std::vector<cgn::CGNPath> &src_list, 
         const cgn::CGNPath &dst_dir
+    );
+
+    CGN_UTILITY_API void copy_rename_on_build(
+        const cgn::CGNPath &src_file,
+        const cgn::CGNPath &dst_file
     );
 
     // constexpr static int devel_from_bindevel    =     0b1;
@@ -62,10 +126,7 @@ struct FileUtility
 
 
     // --TODO--
-    // cgn::CGNPath copy_rename_on_build(
-    //     const cgn::CGNPath &src_file,
-    //     const cgn::CGNPath &dst_file
-    // );
+    
     // cgn::CGNPath analysis_regex_file(
     //     const cgn::CGNPath &template_file,
     //     std::unordered_map<std::string, std::string> vars,
@@ -90,12 +151,8 @@ private: friend class FileUtilityInterpreter;
     cgn::CGNTargetOptIn *opt;
 
     // copy_xxx()
-    struct CopyRecord {
-        const char *command;
-        std::string desc;
-        std::function<std::vector<std::string>(cgn::CGNTargetOpt *opt)> arg_gen;
-    };
-    std::vector<CopyRecord> copy_records;
+    using FnCopyWork = std::function<std::string(cgn::CGNTargetOpt *opt, CopyWorker *w)>;
+    std::vector<FnCopyWork> copy_records;
 
     // CGNTarget.infos<BinDevelInfo>
     bool         have_devel = false;
@@ -118,6 +175,7 @@ private: friend class FileUtilityInterpreter;
     // std::vector<cgn::CGNPath> devel_shared, devel_static, devel_runtime;
 }; // struct FileUtility
 
+
 struct FileUtilityInterpreter
 {
     using context_type = FileUtility;
@@ -128,6 +186,7 @@ struct FileUtilityInterpreter
                 "@cgn.d//library/utility/file_utility.cgn.cc"};
     }
     CGN_UTILITY_API static void interpret(context_type &x);
+
 };
 
 #define file_utility(name, x) CGN_RULE_DEFINE(::FileUtilityInterpreter, name, x)

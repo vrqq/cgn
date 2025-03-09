@@ -25,16 +25,16 @@ std::string NinjaFile::BuildSection::to_string() {
             rv += it + " ";
     }
 
-    rv += ": " + rule + " ";
+    rv += ": " + rule;
     for (auto &it: inputs)
-        rv += it + " ";
+        rv += " " + it;
     if (implicit_inputs.size()) {
-        rv += "|";
+        rv += " |";
         for (auto &it: implicit_inputs)
             rv += " " + it;
     }
     if (order_only.size()) {
-        rv += "||";
+        rv += " ||";
         for (auto &it: order_only)
             rv += " " + it;
     }
@@ -59,8 +59,8 @@ std::string NinjaFile::CommentSection::to_string() {
         rv += "# " + line;
         line.clear();
     };
-    for (int i=0, j=0; i < comment.size(); i = ++j) {
-        while(!escape(comment[j]) && j<comment[j])
+    for (size_t i=0, j=0; i < comment.size(); i = ++j) {
+        while(!escape(comment[j]) && j<comment.size())
             j++;
         if (line.size() && line.size() + j-i > word_warp)
             commit();

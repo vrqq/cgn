@@ -156,7 +156,8 @@ struct CxxContext : CxxInfo
     std::string perferred_binary_name;
 
     // only c, cpp source file included, no header required.
-    std::vector<std::string> srcs; 
+    // CGNPathArray srcs;
+    std::vector<std::string> srcs;
 
     // the cxx build argument apply on target who depended on current one,
     // but not apply on current target.

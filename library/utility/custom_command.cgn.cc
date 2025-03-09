@@ -55,6 +55,7 @@ void CustomCommand::append_escaped_cmd(const std::string &line)
 
 void CustomInterpreter::interpret(context_type &x)
 {
+    x.cfg.visit_keys({"host_os"});
     cgn::CGNTargetOpt *opt = x.opt->confirm();
     if (opt->cache_result_found)
         return ;
@@ -77,12 +78,13 @@ void CustomInterpreter::interpret(context_type &x)
 
     if (opt->file_unchanged)
         return ;
-    std::string phony_file = opt->out_prefix + opt->BUILD_ENTRY;
-    if (x.script_content.size()) {
-        std::string bat_file = opt->out_prefix 
-                             + (x.cfg["host_os"] == "win"? ".bat": ".sh");
 
-        std::string bat_content;
+    // Ninja target entry
+    std::string phony_file = opt->out_prefix + opt->BUILD_ENTRY;
+    
+    //update bat file
+    std::string bat_content;
+    if (x.script_content.size()) {
         if (x.cfg["host_os"] == "win")
             bat_content += "@echo off\n";
         for (auto ln : x.script_content)
@@ -91,47 +93,49 @@ void CustomInterpreter::interpret(context_type &x)
             else
                 bat_content += ln.second(opt) + "\n";
         bat_content += stamp_cmd_prefix + phony_file + "\n";
+    }
 
-        // read existing bat_file, update if content modified.
-        bool batfile_need_update = true;
-        {
-            std::ifstream fin(bat_file);
-            if (fin) {
-                std::stringstream bat_last;
-                bat_last<<fin.rdbuf();
-                if (bat_last.str() == bat_content)
-                    batfile_need_update = false;
-            }
+    bool batfile_need_update = true;
+    std::string bat_file = opt->out_prefix 
+                            + (x.cfg["host_os"] == "win"? ".bat": ".sh");
+    {
+        std::ifstream fin(bat_file);
+        if (fin) {
+            std::stringstream last_content_ss;
+            last_content_ss<<fin.rdbuf();
+            if (last_content_ss.str() == bat_content)
+                batfile_need_update = false;
         }
-        if (batfile_need_update) {
-            std::ofstream fbat(bat_file);
-            fbat<<bat_content;
-        }
+        else
+            batfile_need_update = !bat_content.empty();
+    }
 
-        std::string rulepath = api.get_filepath("@cgn.d//library/utility/runbat.ninja");
-        opt->ninja->append_include(rulepath);
+    if (batfile_need_update) {
+        std::ofstream fbat(bat_file);
+        fbat<<bat_content;
+    }
 
-        auto *field = opt->ninja->append_build();
+    // write build.ninja
+    std::string rulepath = api.get_filepath("@cgn.d//library/utility/runbat.ninja");
+    opt->ninja->append_include(rulepath);
+    cgn::NinjaFile::BuildSection *field = opt->ninja->append_build();
+    if (x.script_content.size()) {
         field->rule = rule_name;
         field->variables["factory_name"] = opt->factory_label;
         field->inputs  = {opt->ninja->escape_path(bat_file)};
-        field->outputs = {opt->ninja->escape_path(phony_file)};
-        field->implicit_inputs = opt->ninja->escape_path(opt->quickdep_ninja_full);
-        field->order_only      = opt->ninja->escape_path(opt->quickdep_ninja_dynhdr);
-        for (auto it : x.watch_inputs)
-            field->implicit_inputs += {
-                opt->ninja->escape_path(x.rebase_path(it))
-            };
-        for (auto it : x.watch_outputs)
-            field->outputs += {
-                opt->ninja->escape_path(x.rebase_path(it))
-            };
     }
-    else {
-        auto *phony = opt->ninja->append_build();
-        phony->rule = "phony";
-        phony->implicit_inputs = opt->ninja->escape_path(opt->quickdep_ninja_full);
-        phony->order_only      = opt->ninja->escape_path(opt->quickdep_ninja_dynhdr);
-        phony->outputs = {opt->ninja->escape_path(phony_file)};
-    }
+    else
+        field->rule = "phony";
+
+    field->outputs = {opt->ninja->escape_path(phony_file)};
+    field->implicit_inputs = opt->ninja->escape_path(opt->quickdep_ninja_full);
+    field->order_only      = opt->ninja->escape_path(opt->quickdep_ninja_dynhdr);
+    for (auto it : x.watch_inputs)
+        field->implicit_inputs += {
+            opt->ninja->escape_path(x.rebase_path(it))
+        };
+    for (auto it : x.watch_outputs)
+        field->outputs += {
+            opt->ninja->escape_path(x.rebase_path(it))
+        };
 }

@@ -34,10 +34,16 @@ struct GraphNode;
 
 // FileLayout[rel_path_of_output_dir] = path_to_origin_file_or_folder,
 // the value accept both the relavent path of working root and absolute path.
-using FileLayout = std::map<std::string, std::string>;
+// using FileLayout = std::map<std::string, std::string>;
 
 struct CGNPath
 {
+    struct Hasher {
+        std::size_t operator()(const CGNPath &p) const {
+            return std::hash<std::string>()(p.rpath);
+        }
+    };
+
     enum RelType: char {
         BASE_ON_OUTPUT = 0,
         BASE_ON_SCRIPT = 1,
@@ -57,6 +63,9 @@ struct CGNPath
             return "$(SCRIPT_DIR)" + rpath;
         return rpath.size()?rpath:".";
     }
+
+    bool operator==(const CGNPath &rhs) const { return rpath == rhs.rpath && type == rhs.type;}
+    bool operator!=(const CGNPath &rhs) const { return !(*this == rhs);}
 };
 
 inline CGNPath make_path_base_out(const std::string rel="")  { 
@@ -116,7 +125,8 @@ struct LinkAndRunInfo : BaseInfo {
     
     // The files which not link directly but required when running.
     // It may the indirect dependency, and folder path also accepted.
-    FileLayout runtime_files;
+    std::unordered_map<CGNPath, std::string, CGNPath::Hasher> runtime_files;
+    // FileLayout runtime_files;
 
     LinkAndRunInfo() : BaseInfo{&v} {}
     

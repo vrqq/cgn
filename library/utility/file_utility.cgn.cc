@@ -4,35 +4,128 @@
 #include "file_utility.cgn.h"
 
 namespace {
-    struct IWorker {
-        virtual void config(FileUtility &x) = 0;
-        virtual void gen(FileUtility &x, cgn::CGNTargetOpt *opt) = 0;
-    };
+    // struct IWorker {
+    //     virtual void config(FileUtility &x) = 0;
+    //     virtual void gen(FileUtility &x, cgn::CGNTargetOpt *opt) = 0;
+    // };
 
-    struct CopyWorker : IWorker
-    {
-        std::string cprule;
-        virtual void config(FileUtility &x) {
+    // struct CopyWorker : IWorker
+    // {
+    //     std::string cprule;
+    //     virtual void config(FileUtility &x) {
             
-            cprule = (x.cfg["host_os"] == "win"? "win_cp_to_dir" : "unix_cp_to_dir");
-        }
-        virtual void gen(FileUtility &x, cgn::CGNTargetOpt *opt) {
-        }
-    }; //struct CopyWorker
+    //         cprule = (x.cfg["host_os"] == "win"? "win_cp_to_dir" : "unix_cp_to_dir");
+    //     }
+    //     virtual void gen(FileUtility &x, cgn::CGNTargetOpt *opt) {
+    //     }
+    // }; //struct CopyWorker
 
-    struct BinDevelWorker : IWorker
-    {
-        virtual void config(FileUtility &x) {
-        }
-        virtual void gen(FileUtility &x, cgn::CGNTargetOpt *opt) {
-        }
-    }; //struct BinDevelWorker
+    // struct BinDevelWorker : IWorker
+    // {
+    //     virtual void config(FileUtility &x) {
+    //     }
+    //     virtual void gen(FileUtility &x, cgn::CGNTargetOpt *opt) {
+    //     }
+    // }; //struct BinDevelWorker
 
     std::string to_working_root(cgn::CGNTargetOpt *opt, const cgn::CGNPath &it) {
         return api.rebase_path(it, ".", opt);
     }
 
+    std::string two_escape(const std::string &in) {
+        return cgn::NinjaFile::escape_path(api.shell_escape(in));
+    }
+
 } //namespace
+
+// Class CopyWorker
+// ================
+
+std::string CopyWorker::preconfig(cgn::CGNTargetOptIn *opt, const std::string &argfile_prefix)
+{
+    this->argfile_prefix = argfile_prefix;
+    
+    // copy rule configuration
+    // advcopy.exe varies by host_os and host_cpu.
+    cgn::CGNTarget advcopy = opt->quick_dep_namedcfg("@cgn.d//advcopy", "host_release", false);
+    opt->cfg.visit_keys({"host_os", "host_cpu"});
+    if (advcopy.errmsg.size() || advcopy.outputs.empty());
+        return "Cannot load advcopy: " + advcopy.errmsg;
+    advcopy_exe = two_escape(advcopy.outputs[0]);
+    return "";
+}
+
+cgn::NinjaFile::BuildSection* CopyWorker::mkninja(
+    cgn::CGNTargetOpt *opt, const std::string &command,
+    const std::vector<std::string> &arg_content,
+    const std::vector<std::string> &njtargets_orderdep
+) {
+    if (opt->file_unchanged)
+        return target_n++, nullptr;
+    
+    if (target_n == 0) {
+        std::string rulepath = api.get_filepath("@cgn.d//library/utility/advcp.ninja");
+        opt->ninja->append_include(rulepath);
+    }
+    
+    // generate copy_<i>.rsp
+    std::string path_stub = opt->out_prefix + this->argfile_prefix 
+                             + std::to_string(target_n++);
+    std::ofstream argout(path_stub + ".rsp");
+    for (const auto &arg : arg_content)
+        argout << arg << "\n";
+    argout.close();
+
+    auto *field = opt->ninja->append_build();
+    field->rule = "advcopy";
+    field->variables["subcmd"] = command;
+    field->variables["desc"] = command + " " + *(++arg_content.rbegin()) 
+                             + " -> " + arg_content.back();
+    field->variables["exe"] = two_escape(advcopy_exe);
+    field->implicit_inputs  = {cgn::NinjaFile::escape_path(advcopy_exe)};
+    field->order_only       = cgn::NinjaFile::escape_path(njtargets_orderdep);
+    field->inputs  = {opt->ninja->escape_path(path_stub + ".rsp")};
+    field->outputs = {opt->ninja->escape_path(path_stub + ".stamp")};
+    return field;
+}
+
+cgn::NinjaFile::BuildSection* CopyWorker::postgen_copyone(
+    cgn::CGNTargetOpt *confirmed_opt,
+    const std::string &src_file, const std::string &dst_file,
+    const std::vector<std::string> &njtargets_orderdep
+) {
+    return this->mkninja(
+        confirmed_opt, "copyone", {src_file, dst_file}, njtargets_orderdep
+    );
+}
+
+cgn::NinjaFile::BuildSection* CopyWorker::postgen_flat_copy(
+    cgn::CGNTargetOpt *confirmed_opt,
+    const std::vector<std::string> &src_patterns, const std::string &dst_dir,
+    const std::vector<std::string> &njtargets_orderdep
+) {
+    return this->mkninja(
+        confirmed_opt, "flat_copy_to_dir", 
+        src_patterns + std::vector<std::string>{dst_dir}, 
+        njtargets_orderdep
+    );
+}
+cgn::NinjaFile::BuildSection* CopyWorker::postgen_copy(
+    cgn::CGNTargetOpt *confirmed_opt, 
+    const std::vector<std::string> src_rel_patterns, 
+    const std::string &src_base,
+    const std::string &dst_dir,
+    const std::vector<std::string> &njtargets_orderdep
+) {
+    return this->mkninja(
+        confirmed_opt, "copy_to_dir", 
+        src_rel_patterns + std::vector<std::string>{src_base, dst_dir},
+        njtargets_orderdep
+    );
+}
+
+// class FileUtility and Interpreter
+// =================================
 
 void FileUtility::copy_on_build(
     const std::vector<std::string> &src, 
@@ -41,19 +134,13 @@ void FileUtility::copy_on_build(
 ) {
     if (src.empty())
         return ;
-    constexpr static char CMD_COPY[] = "copy_to_dir";
-
-    auto gen = [=](cgn::CGNTargetOpt *opt) {
-        std::vector<std::string> rv;
-        for (auto it : src)
-            rv.push_back(it);
-        rv.push_back(to_working_root(opt, src_base));
-        rv.push_back(to_working_root(opt, dst_dir));
-        return rv;
-    };
-    copy_records.push_back(CopyRecord{CMD_COPY, src_base.to_string() + "=>" + dst_dir.to_string(), gen});
+    copy_records.push_back([=](cgn::CGNTargetOpt *opt, CopyWorker *w) {
+        return w->postgen_copy(opt, src, 
+            api.rebase_path(src_base, ".", opt), api.rebase_path(dst_dir, ".", opt),
+            opt->quickdep_ninja_dynhdr
+        )->outputs[0];
+    });
 }
-
 
 void FileUtility::flat_copy_on_build(
     const std::vector<cgn::CGNPath> &src_list, 
@@ -61,15 +148,24 @@ void FileUtility::flat_copy_on_build(
 ) {
     if (src_list.empty())
         return ;
-    constexpr static char CMD_FLAT_COPY[] = "flat_copy_to_dir";
-    auto gen = [=](cgn::CGNTargetOpt *opt) {
-        std::vector<std::string> rv;
+    copy_records.push_back([=](cgn::CGNTargetOpt *opt, CopyWorker *w) {
+        std::vector<std::string> srcls;
         for (auto it : src_list)
-            rv.push_back(to_working_root(opt, it));
-        rv.push_back(to_working_root(opt, dst_dir));
-        return rv;
-    };
-    copy_records.push_back(CopyRecord{CMD_FLAT_COPY, dst_dir.to_string(), gen});
+            srcls.push_back(api.rebase_path(it, ".", opt));
+        return w->postgen_flat_copy(
+            opt, srcls, api.rebase_path(dst_dir, ".", opt))->outputs[0];
+    });
+}
+
+void FileUtility::copy_rename_on_build(
+    const cgn::CGNPath &src_file,
+    const cgn::CGNPath &dst_file
+) {
+    copy_records.push_back([=](cgn::CGNTargetOpt *opt, CopyWorker *w) {
+        return w->postgen_copyone(opt, api.rebase_path(src_file, ".", opt),
+            api.rebase_path(dst_file, ".", opt), opt->quickdep_ninja_dynhdr
+        )->outputs[0];
+    });
 }
 
 // TargetDir
@@ -106,7 +202,7 @@ cgn::CGNTarget FileUtility::collect_devel_on_build(
         if (devel_setting.allow_cxxinclude && info){
             for (auto incdir : info->include_dirs)
                 copy_on_build(
-                    {"*"}, cgn::make_path_base_working(incdir), 
+                    {"*"}, cgn::make_path_base_working(incdir.rpath), 
                     cgn::make_path_base_out("include"));
         }
         devel_cxxinfo.merge_entry(info);
@@ -152,7 +248,6 @@ cgn::CGNTarget FileUtility::collect_devel_on_build(
     return early;
 } //FileUtility::collect_devel_on_build()
 
-
 // Using c++17 compiled copy helper
 //  rule advcopy
 //    command = ${exe} -MD ${out}.d --stamp ${out} ${argfile}
@@ -165,10 +260,10 @@ void FileUtilityInterpreter::interpret(context_type &x)
 {
     // copy rule configuration
     // advcopy.exe varies by host_os and host_cpu.
-    cgn::CGNTarget advcopy = x.opt->quick_dep_namedcfg("@cgn.d//advcopy", "host_release", false);
-    x.cfg.visit_keys({"host_os", "host_cpu"});
-    if (advcopy.errmsg.size()) {
-        x.opt->confirm_with_error("Cannot load advcopy: " + advcopy.errmsg);
+    CopyWorker cpw;
+    std::string errmsg1 = cpw.preconfig(x.opt);
+    if (errmsg1.size()) {
+        x.opt->confirm_with_error(errmsg1);
         return ;
     }
 
@@ -213,35 +308,10 @@ void FileUtilityInterpreter::interpret(context_type &x)
     if (opt->file_unchanged)
         return ;
 
-    // include advcp.ninja
-    std::string rulepath = api.get_filepath("@cgn.d//library/utility/advcp.ninja");
-    opt->ninja->append_include(rulepath);
-
     // generate ninja file
     std::vector<std::string> cpstamps_njesc;
-    for (std::size_t i=0; i<x.copy_records.size(); i++) {
-        auto &rec = x.copy_records[i];
-
-        // generate copy_<i>.rsp
-        std::string argfile_path = opt->out_prefix + "copy_" + std::to_string(i) + ".rsp";
-        std::ofstream argfile(argfile_path);
-        for (const auto &arg : rec.arg_gen(opt))
-            argfile << arg << "\n";
-        argfile.close();
-
-        // generate ninja target copy_<i>.stamp
-        auto *field = opt->ninja->append_build();
-        field->rule = "advcopy";
-        field->variables["subcmd"] = rec.command;
-        field->variables["desc"] = std::string{rec.command} + " " + rec.desc;
-        field->variables["exe"]  = opt->ninja->escape_path(advcopy.outputs[0]);
-        field->implicit_inputs   = opt->quickdep_ninja_full;
-        field->implicit_inputs  += {field->variables["exe"]};
-        field->order_only        = opt->quickdep_ninja_dynhdr;
-        field->inputs  = {opt->ninja->escape_path(argfile_path)};
-        field->outputs = {opt->ninja->escape_path(opt->out_prefix + "copy_" + std::to_string(i) + ".stamp")};
-        cpstamps_njesc.push_back(field->outputs[0]);
-    }
+    for (auto fn : x.copy_records)
+        cpstamps_njesc.push_back( fn(opt, &cpw) );
 
     // phony
     auto *phony = opt->ninja->append_build();

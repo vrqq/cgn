@@ -8,7 +8,8 @@
 
 namespace cgnv1 {
 
-static std::string strhex(char in) {
+// function to print debug message
+[[maybe_unused]] static std::string strhex(char in) {
     constexpr char tbl[16] = {'0', '1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
     uint8_t* ptr = (uint8_t*)&in;
     std::string rv = {"0x.."};

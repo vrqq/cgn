@@ -53,7 +53,7 @@ public:
 
     struct CommentSection final : Section {
         std::string comment;
-        int word_warp = 80;
+        std::size_t word_warp = 80;
         virtual std::string to_string();
         virtual ~CommentSection() {}
     };

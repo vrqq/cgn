@@ -1,5 +1,9 @@
 build_linux
 build_win
 build_mac
+build_linuxd
+build_wind
+
+proof
 
 .DS_Store

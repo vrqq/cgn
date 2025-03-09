@@ -31,7 +31,7 @@ ConfigurationManager::ConfigurationManager(
     //string strip function
     auto strip = [](const std::string &ss) -> std::string {
         int i=0, j=ss.size()-1;
-        while(ss[i] == ' ' && i<ss.size()) i++;
+        while(ss[i] == ' ' && i<(int)ss.size()) i++;
         while(ss[j] == ' ' && j>=i) j--;
         if (i <= j)
             return ss.substr(i, j-i+1);

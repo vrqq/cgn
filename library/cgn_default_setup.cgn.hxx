@@ -6,8 +6,9 @@
 void CGN_SETUP_IF cgn_setup(cgn::CGNInitSetup &x) {
     // api.get_kvargs() return arguments from command line, for example
     // api.get_kvargs()["target"]=="xxyy" from "./cgn --target xxyy"
-    auto fdarg = api.get_kvargs().find("target");
-    if (fdarg != api.get_kvargs().end()){
+    auto tmp = api.get_kvargs();
+    auto fdarg = tmp.find("target");
+    if (fdarg != tmp.end()){
         x.log_message = "Target: " + fdarg->second;
         auto ls = str_to_set(fdarg->second);
         if (ls.erase("host_tools_keep_same_config") == 1)

@@ -246,39 +246,51 @@ HostInfo Tools::get_host_info()
     return rv;
 }
 
+// devnote
+//  "z:\\"  weak_canonial="\\\\rhedt\\project"  absolute="z:\\"
 static std::filesystem::path locale_path_impl(std::filesystem::path in) {
     in = in.lexically_normal().make_preferred();
     while (in.has_filename() && in.filename() == ".")
         in = in.parent_path();
-    return in.string();
+    
+    // special case for windows, c: => C:
+    if (in.has_root_path()) {
+        std::string tmp = in.root_path().string();
+        for (auto &ch: tmp)
+            if ('a'<=ch && ch<='z')
+                ch = ch-'a'+'A';
+        in = std::filesystem::path{tmp} / in.relative_path();
+    }
+    return in;
 }
 std::string Tools::rebase_path(
     const std::string &p, const std::string &base, 
     const std::string &current_base
 ) {
-    // if 'in' is absolute path, 'current_base / in' will got 'in'.
-    std::filesystem::path in{p};
+    using path = std::filesystem::path; 
+
+    // `prev` is : `./xxx/yyy` or `/xxx/yyy`, it must not `xxx/yyy`
+    auto prev = path{"."} / path{current_base} / path{p};
+
+    // if 'p' is absolute path, 'current_base / p' will got 'p'.
     if (base.empty())
-        return locale_path_impl(std::filesystem::absolute(current_base / in)).string();
-    std::filesystem::path on{base};
-    if (in.is_absolute() || on.is_absolute()) {
-        if (in.is_relative())
-            in = std::filesystem::path{current_base} / in;
-        in = std::filesystem::absolute(in);
-        on = std::filesystem::absolute(on);
-        // return locale_path_impl(in.lexically_proximate(base));
-        return locale_path_impl(std::filesystem::proximate(in, on)).string();
+        return locale_path_impl(std::filesystem::absolute(prev)).string();
+
+    // base is not empty below
+    // canonical in windows would rename c:\windows to C:\Windows, and it cause 
+    // misunderstand about input argument, for example a folder exist but will 
+    // remove later.
+    auto newbase = path{"."} / path{base};
+    if (prev.is_absolute() || newbase.is_absolute()) {
+        prev    = locale_path_impl(std::filesystem::absolute(prev));
+        newbase = locale_path_impl(std::filesystem::absolute(newbase));
+    }
+    else { //both are relative path below
+        prev    = locale_path_impl(prev);
+        newbase = locale_path_impl(newbase);
     }
 
-    std::filesystem::path current{current_base};
-    if (current.is_absolute())
-        in = current_base / in;
-    else
-        in = std::filesystem::path{"."} / current_base / in;
-    on = std::filesystem::path{"."} / on;
-    // return std::filesystem::proximate(p, base).string();
-    return locale_path_impl(std::filesystem::proximate(in, on)).string();
-    // return locale_path_impl(std::filesystem::path(in).lexically_proximate(base));
+    return prev.lexically_proximate(newbase).string();
 }
 
 std::string Tools::rebase_path(
@@ -532,9 +544,69 @@ std::string Tools::mangle_path(const std::string &file, const std::string &base)
     }
 }
 
+std::string Tools::mangle_path_to_relative(
+    const std::string &in, const char alter_prefix
+) {
+    // fix table
+    constexpr static std::array<bool, 256> need_escape = [](){
+        std::array<bool, 256> rv{};
+        for (bool &bv : rv) bv=0;
+        rv['`'] = rv['<'] = rv['>'] = rv[':'] = rv['"']
+            = rv['/'] = rv['\\'] = rv['?'] = rv['*'] = rv['~'] = 1;
+        return rv;
+    }();
+    constexpr static std::array<std::array<char, 3>, 256> rep = [](){
+        std::array<char, 16> hex{
+            '0', '1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+        std::array<std::array<char, 3>, 256> rv{std::array<char, 3>{0}};
+        for (std::size_t i=0; i<256; i++)
+            rv[i] = {'_', hex[i/16], hex[i%16]};
+        return rv;
+    }();
+
+    // arg check
+    if (alter_prefix == 'A')
+        throw std::runtime_error{"param alter_prefix cannot be 'A'"};
+
+    // iterator all section in path, and convert it.
+    // root name -> root directory -> and the subsequent file name elements 
+    // C:           \                 dir1 file1 ...
+    // <empty>      /                 dir1 file1 ...
+    // <empty>      <empty>           ...
+    std::filesystem::path fp = locale_path_impl(in);
+    std::string rv;
+    auto append = [&](const std::filesystem::path &seg) {
+        if (!rv.empty()) {
+            rv += "_";
+            rv.push_back(std::filesystem::path::preferred_separator);
+        }
+        for (auto ch : seg.string()) {
+            if (need_escape[(size_t)ch])
+                rv.append(rep[ch].data(), 3);
+            else if (ch == '_')
+                rv += "__";
+            else
+                rv.push_back(ch);
+        }
+    };
+
+    if (fp.is_absolute() && fp.has_root_name())
+        append(fp.root_name());
+    for (auto seg : fp.relative_path())
+        append(seg);
+    
+    return (fp.is_absolute()?"A":std::string{alter_prefix}) + rv;
+}
+
 void Tools::mkdir(const std::string &path)
 {
+#ifdef _WIN32
+    // in win32 create folder end with dot
+    // should add an additional slash
+    std::filesystem::create_directories(path + "\\");
+#else
     std::filesystem::create_directories(path);
+#endif
 }
 
 void Tools::set_permission(const std::string &file, std::string mode)
@@ -624,7 +696,7 @@ Tools::read_kvfile(const std::string &fname)
     //string strip function
     auto strip = [](const std::string &ss) -> std::string {
         int i=0, j=ss.size()-1;
-        while(ss[i] == ' ' && i<ss.size()) i++;
+        while(ss[i] == ' ' && i<(int)ss.size()) i++;
         while(ss[j] == ' ' && j>=i) j--;
         if (i <= j)
             return ss.substr(i, j-i+1);

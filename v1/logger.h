@@ -50,7 +50,7 @@ namespace cgnv1 {
     namespace logger_detail {
         template<typename T> typename std::enable_if<
             std::is_same<decltype(std::declval<T>().to_string()), std::string>::value,
-        std::string>::type _elem2str(T in) {
+        std::string>::type _elem2str(const T &in) {
             return in.to_string() + ", ";
         };
         
@@ -61,11 +61,17 @@ namespace cgnv1 {
         inline std::string _elem2str(const std::pair<std::string, std::string> &in) {
             return in.first + ": " + in.second + ", ";
         }
+        
+        template<typename T> typename std::enable_if<
+            std::is_same<decltype(std::declval<T>().to_string()), std::string>::value,
+        std::string>::type _elem2str(const std::pair<T, std::string> &in) {
+            return in.first.to_string() + ": " + in.second + ", ";
+        }
     }
     template<typename Type1> std::string Logger::fmt_list(
         const Type1 &ls, const std::string &indent, std::size_t maxlen
     ) {
-        using Type = typename std::decay<Type1>::type;
+        // using Type = typename std::decay<Type1>::type;
         std::string ss;
         auto iter = ls.begin();
         for (size_t i=0; i<ls.size() && i<maxlen; i++, iter++) {

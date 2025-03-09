@@ -35,6 +35,5 @@ static std::string flatcopy_to_dir(
     bool print_log = false
 );
 
-
 };
 } //namspace cgnv1

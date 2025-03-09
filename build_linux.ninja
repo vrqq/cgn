@@ -1,11 +1,11 @@
 ## CGN Development bootstrap
 ## builddir : the output folder
 ## ============================
-builddir = build_linux
+builddir = build_linuxd
 
 cflags = -I. -g -fPIC -std=c++17 -fsanitize=address -fcolor-diagnostics $
          -fshow-column -fshow-source-location -fcaret-diagnostics $
-         -fstandalone-debug -fno-limit-debug-info -fsanitize=address -DCGN_EXE_IMPLEMENT
+         -fstandalone-debug -fno-limit-debug-info -fsanitize=address -fsanitize=undefined -DCGN_EXE_IMPLEMENT
 
 rule cc
     deps    = gcc
@@ -21,7 +21,7 @@ rule link
     deps    = gcc
     depfile = $out.d
     command = clang++ -fuse-ld=lld -Wl,--warn-unresolved-symbols $
-              -Wl,--export-dynamic -fvisibility=default -fsanitize=address $
+              -Wl,--export-dynamic -fvisibility=default -fsanitize=address -fsanitize=undefined $
               -Wl,-rpath=$$ORIGIN -MMD -MF $out.d $cflags $in -o $out
 
 include cgn_v1.ninja

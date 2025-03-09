@@ -42,9 +42,15 @@ void NMakeInterpreter::interpret(context_type &x)
     api.mkdir(opt->out_prefix + "install");
     // api.mkdir(opt->out_prefix + "build");
 
-    x.override_vars["CC"]  = cxx.c_exe;
-    x.override_vars["CPP"] = cxx.cxx_exe;
-    x.override_vars["CXX"] = cxx.cxx_exe;
+    x.override_vars["CC"]  = cxx.exe_cc;
+    x.override_vars["CPP"] = cxx.exe_cxx;
+    x.override_vars["CXX"] = cxx.exe_cxx;
+    x.override_vars["AS"]  = cxx.exe_asm;
+    x.override_vars["CFLAGS"] = api.convert_list_to_string(
+            cxx.arg.cflags + cxx.extra_cflags_c, api.shell_escape);
+    x.override_vars["CPPFLAGS"] = x.override_vars["CXXFLAGS"]
+            = api.convert_list_to_string(
+                cxx.arg.cflags + cxx.extra_cflags_cpp, api.shell_escape);
     // x.override_vars["MAKEDIR"] = wr_cwd;
     x.override_vars[x.install_prefix_varname] = cwd_instl;
 

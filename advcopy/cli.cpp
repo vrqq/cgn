@@ -19,6 +19,18 @@ int show_help(char *arg0) {
         <<"    -stamp file   set timestamp file\n"
         <<"filelist.txt:\n"
         <<"    The order same with function call.\n"
+        <<"filelist.txt of copy_to_dir()\n"
+          " src1\n"
+          " src2 ...\n"
+          " src_base\n"
+          " dst_dir\n"
+        <<"filelist.txt of flatcopy_to_dir()\n"
+          " src1\n"
+          " src2 ...\n"
+          " dst_dir\n"
+        <<"filelist.txt of copy_rename()\n"
+          " srcfile\n"
+          " dstfile\n"
         <<std::endl;
     return 1;
 }

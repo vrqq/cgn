@@ -236,14 +236,16 @@ CGNImpl::active_script(const std::string &label)
                     "/DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
                     " /DCGN_VAR_PREFIX=" + def_var_prefix +
                     " /D\"CGN_ULABEL_PREFIX=\"" + def_ulabel_prefix + "\"\"" + 
-                    " /I. /utf-8 /EHsc /MD /Fo: " + Tools::shell_escape(outname);
+                    " /I. /utf-8 /EHsc /Fo: " + Tools::shell_escape(outname);
                 if (scriptcc_debug_mode)
-                    frsp<<" /Od /Zi /Fd: " + Tools::shell_escape(outname) + ".pdb";
+                    frsp<<" /D_DEBUG /MDd /Od /Zi /Fd: " + Tools::shell_escape(outname) + ".pdb";
+                else
+                    frsp<<" /MD";
             }
             else if (is_unix) {
                 if (is_clang && scriptcc_debug_mode) //llvm debug (lldb)
                     frsp<<"-g -glldb -fstandalone-debug -fno-limit-debug-info "
-                          "-fsanitize=address ";
+                          "-fsanitize=address -fsanitize=undefined ";
                 if (!is_clang && scriptcc_debug_mode) //gcc debug
                     frsp<<"-g ";
                 frsp<<"-c " << it << " -MMD -MF " + Tools::shell_escape(depname) +
@@ -889,7 +891,7 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
 
     //init path
     std::string dsuffix = (scriptcc_debug_mode? "d":"");
-    cgn_out = cmd_kvargs.at("cgn-out");
+    cgn_out = Tools::locale_path(cmd_kvargs.at("cgn-out"));
     cgn_out_unixsep = cgn_out.string();
     #ifdef _WIN32
     std::replace(cgn_out_unixsep.begin(), cgn_out_unixsep.end(), '\\', '/');
@@ -923,7 +925,18 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     // run vcvars64.bat if necessary
     #ifdef _WIN32
     if (cmd_kvargs.count("winenv")) {
-        auto resp = raymii::Command::exec("\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" 2>&1 >NUL && set");
+        std::vector<std::string> possible_scripts = {
+            R"(C:\Program Files (x86)\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat)",
+            R"(C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat)",
+            R"(C:\Program Files (x86)\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars32.bat)",
+            R"(C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars32.bat)",
+        };
+        raymii::CommandResult resp;
+        for (auto vcbat : possible_scripts) {
+            resp = raymii::Command::exec("\"" + vcbat + "\" 2>&1 >NUL && set");
+            if (resp.exitstatus == 0)
+                break;
+        }
         if (resp.exitstatus)
             throw std::runtime_error{"cannot run vcvars64.bat"};
         for (std::size_t b = 0, fdnext; b < resp.output.size(); b = fdnext+1) {

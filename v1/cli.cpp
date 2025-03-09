@@ -141,7 +141,7 @@ int main(int argc, char **argv)
             exit(2);
         }
     };
-    auto release0 = [](){ api.release(); };
+    // auto release0 = [](){ api.release(); };
 
 try{
     if (args[0] == "analyze" || args[0] == "analyse") {
