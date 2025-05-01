@@ -15,7 +15,7 @@
 #include <vector>
 #include <unordered_map>
 #include "../cgn.h"
-#include "cxx.cgn.bundle/cxx.cgn.h"
+#include "cxx/cxx.cgn.h"
 #include "general.cgn.bundle/bin_devel.cgn.h"
 
 // namespace cmake{
@@ -86,13 +86,15 @@ struct CMakeContext {
     friend class CMakeConfigInterpeter;
 private:
     cgn::CGNTargetOptIn *opt;
+    std::string     cc_env_loader;
+    cgn::GraphNode *cc_env_loader_adep;
 };
 
 struct CMakeInterpreter {
     using context_type = CMakeContext;
     
     constexpr static cgn::ConstLabelGroup<3> preload_labels() {
-        return {"@cgn.d//library/cxx.cgn.bundle",     //CxxInfo
+        return {"@cgn.d//library/cxx/cxx.cgn.cc",     //CxxInfo
                 "@cgn.d//library/general.cgn.bundle", //BinDevelInfo
                 "@cgn.d//library/cmake.cgn.cc"};
     }
@@ -105,9 +107,7 @@ struct CMakeConfigInterpeter
     using context_type = CMakeContext;
     
     constexpr static cgn::ConstLabelGroup<3> preload_labels() {
-        return {"@cgn.d//library/cxx.cgn.bundle",
-                "@cgn.d//library/general.cgn.bundle",
-                "@cgn.d//library/cmake.cgn.cc"};
+        return CMakeInterpreter::preload_labels();
     }
 
     CMAKE_CGN_API static void interpret(context_type &x);

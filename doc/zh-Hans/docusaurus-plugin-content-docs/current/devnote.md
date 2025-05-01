@@ -488,3 +488,26 @@ Windows下的root_name处理: API无论哪个函数, win下返回盘符永远大
 希望提供去除冗余的结果, 例如'./a/././b' => 'a/b'. 
 但考虑一种特殊情况: 共享文件夹下有一文件 `./c:\\windows` 若经预想的locale_path() 就变成绝对路径了, 显然不是我们想要的
 
+
+## MSVC交叉编译问题
+简单的办法是 在`cl.exe`前加命令 例如 `vcvarsall.bat $target_cpu > nul && cl.exe`
+但这个脚本执行的出奇的慢, 故考虑一种优化方式, 提供一个公共target 生成多种setenv的bat, 替代上述`vcvarsall.bat`.
+
+**脚本生成器**
+```ninja
+build out\obj\...\x86_to_x86.bat : run_bat @cgn.d\library\cxx\script_generator.bat | c:\Programs\...
+
+build out\obj\...\x64_to_arm64.bat : ...
+```
+
+**exampleA 使用方**
+```bat
+out\obj\...\x86_to_x86.bat && cl.exe
+```
+
+**exampleB 使用方**
+```ninja
+build out\obj\...\hello.o : msvc_cl ... | out\obj\...\x64_to_arm64.bat
+    cc = build out\obj\...\x64_to_arm64.bat && cl.exe
+```
+

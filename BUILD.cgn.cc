@@ -46,12 +46,6 @@ cxx_executable("cgn", x) {
     x.add_dep(":cgn_static", cxx::private_dep);
 }
 
-cxx_executable("test", x) {
-    x.srcs = {"test/test_cgn.cpp"};
-    x.add_dep(":cgn_static", cxx::private_dep);
-    x.add_dep("@third_party//googletest:gtest", cxx::private_dep);
-}
-
 file_utility("copy_cgn_host_tool", x) {
 }
 

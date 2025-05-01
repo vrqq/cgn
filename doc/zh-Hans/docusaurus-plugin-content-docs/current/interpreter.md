@@ -45,6 +45,16 @@
 * `CxxInfo[]` : 来自 inherit继承 和 `context.pub`
 * `LinkAndRunInfo[]` : 来自 当前target的产物 以及 非order_only继承减去当前target消耗的剩余
 
+## perl_interpreter
+TODO: 目前暂无perl需求, 故所有perl均依赖到 `@third_party//perl:perl_host_exe` 执行下述auto模式: win系统编译, 否则使用系统自带的perl
+
+**config**
+* `perl_exe_type` : `auto`, `label`, `path`
+* `perl_exe_addr` : perl路径, 或某个label
+
+**Interpreter functions**
+* `::test_exe()` : 返回 perl.exe路径, 版本等信息
+
 ## cmake(), cmake_config(): cmake_interpreter
 `@cgn.d//library/cmake.cgn.cc` 执行cmake.exe编译外部工程
 

@@ -226,6 +226,11 @@ struct CxxToolchainInfo
     // is_compiler_controlled_link: 
     //   true: $(exe_cc == exe_solink) -fuse-ld=lld -fuse-ld=gold
     bool is_compiler_controlled_link;
+ 
+    // for MSVC : derivatives of vcvarsall.bat
+    // for RHEL : "scl enable gcc-toolset-x bash" (NOT IMPLEMENT)
+    cgn::GraphNode *env_loader_script_anode = nullptr;
+    std::string     env_loader_script;
     
     // MSVC143 : Visual C++ 2022 (aka Visual C++ 14.3)
     // MSVC142 : Visual C++ 2019 (aka Visual C++ 14.2)
@@ -251,7 +256,7 @@ struct CxxInterpreter
     using context_type = CxxContext;
 
     constexpr static cgn::ConstLabelGroup<1> preload_labels() {
-        return {"@cgn.d//library/cxx.cgn.bundle"};
+        return {"@cgn.d//library/cxx/cxx.cgn.cc"};
     }
 
     // TBD
@@ -299,7 +304,7 @@ struct PrebuiltContext {
     //linux shared/static lib: .so / .a / .o
     std::vector<cgn::CGNPath> files;
 
-    PrebuiltContext(cgn::CGNTargetOptIn *opt) : opt(opt), name(opt->factory_name), cfg(opt->cfg) {}
+    PrebuiltContext(cgn::CGNTargetOptIn *opt) : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
 
     cgn::CGNTarget add_dep(const std::string &label) {
         auto rv = opt->quick_dep(label, cfg);
@@ -307,7 +312,7 @@ struct PrebuiltContext {
         return rv;
     }
 
-private: friend class CxxPrebuiltInterpreter;
+private: friend struct CxxPrebuiltInterpreter;
     cgn::CGNTargetOptIn *opt;
     char _max_pub_ninja_level = cgn::CGNTarget::NINJA_LEVEL_NONEED;
 };
@@ -316,7 +321,7 @@ struct CxxPrebuiltInterpreter {
     using context_type = PrebuiltContext;
 
     constexpr static cgn::ConstLabelGroup<1> preload_labels() {
-        return {"@cgn.d//library/cxx.cgn.bundle"};
+        return {"@cgn.d//library/cxx/cxx.cgn.cc"};
     }
     LANGCXX_CGN_BUNDLE_API static void interpret(context_type &x);
 };

@@ -182,7 +182,7 @@ struct FileUtilityInterpreter
 
     constexpr static cgn::ConstLabelGroup<3> preload_labels() {
         return {"@cgn.d//library/general.cgn.bundle",
-                "@cgn.d//library/cxx.cgn.bundle",
+                "@cgn.d//library/cxx/cxx.cgn.cc",
                 "@cgn.d//library/utility/file_utility.cgn.cc"};
     }
     CGN_UTILITY_API static void interpret(context_type &x);

@@ -972,18 +972,28 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     if (!fin) //create if not existed
         std::ofstream{obj_main_ninja};
     else {
+        auto test_valid = [](auto &ninja_file) {
+            if (!std::filesystem::is_regular_file(ninja_file))
+                return false;
+            std::string tgt = api.parent_path(ninja_file) + "/.stamp";
+            auto rv = raymii::Command::exec("ninja -f " + ninja_file + " -t query " + tgt);
+            return rv.exitstatus == 0;
+        };
         constexpr std::string_view SUBNINJA{"subninja "};
         bool need_rebuild = false;
         for (std::string ln; !fin.eof() && std::getline(fin, ln);)
             if (ln.size() > SUBNINJA.size()) {
                 auto subfile = NinjaFile::parse_ninja_str(
                                 ln.substr(SUBNINJA.size()));
-                if (std::filesystem::is_regular_file(subfile))
+                if (test_valid(subfile))
                     main_subninja.insert(subfile);
-                else //some .ninja files missing
+                else {//some .ninja files missing
                     need_rebuild = true;
+                    logger.verbose_paragraph("Loading: " + subfile + " missing or invalid content, regenerate.");
+                }
             }
         if (fin.close(); need_rebuild) {
+            logger.println("Regenerate ninja entry ", obj_main_ninja.string());
             std::ofstream fout{obj_main_ninja};
             for (auto ln : main_subninja)
                 fout<<"subninja " + NinjaFile::escape_path(ln) + "\n";

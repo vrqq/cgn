@@ -217,6 +217,12 @@ CxxToolchainInfo TargetWorker::step1_win_msvc(cgn::Configuration &cfg)
 {
     CxxToolchainInfo interp;
 
+    auto envdep = api.analyse_target("@cgn.d//library/cxx/vsenv_loader", cfg);
+    assert(envdep.errmsg.empty());
+    cfg.visit_keys(envdep.trimmed_cfg);
+    interp.env_loader_script = envdep.outputs[0];
+    interp.env_loader_script_anode = envdep.anode;
+
     bool target_x86 = (cfg["cpu"] == "x86");
     bool target_x64 = (cfg["cpu"] == "x86_64");
 
@@ -593,7 +599,7 @@ bool TargetWorker::step2_opt_confirm(const CxxToolchainInfo &_interp)
                           opt->out_prefix + opt->BUILD_ENTRY);
 
     // include rule.ninja
-    constexpr const char *rule_ninja = "@cgn.d//library/cxx.cgn.bundle/cxx_rule.ninja";
+    constexpr const char *rule_ninja = "@cgn.d//library/cxx/cxx_rule.ninja";
     static std::string rule_path = api.get_filepath(rule_ninja);
     opt->ninja->append_include(rule_path);
 
@@ -604,6 +610,18 @@ bool TargetWorker::step2_opt_confirm(const CxxToolchainInfo &_interp)
 
 void TargetWorker::step31_win()
 {
+    std::string ccenv;
+    // === add setenv batch dependency before cc.exe run ===
+    if (interp.env_loader_script.size())
+        ccenv = "cmd.exe /c " + two_escape(interp.env_loader_script) + " && ";
+    if (interp.env_loader_script_anode)
+        api.add_adep_edge(interp.env_loader_script_anode, opt->anode);
+    auto add_ccenv_njdep = [&](auto *build_field){
+        if (interp.env_loader_script.size())
+            build_field->implicit_inputs += {cgn::NinjaFile::escape_path(
+            interp.env_loader_script)};
+    };
+
     // std::string dyn_def_file;
 
     // build.ninja : source file => .o
@@ -628,11 +646,11 @@ void TargetWorker::step31_win()
         field->order_only      = cgn::NinjaFile::escape_path(opt->quickdep_ninja_dynhdr);
         if (file_type == 'A') {
             field->rule = "msvc_ml";
-            field->variables["cc"] = interp.exe_asm;
+            field->variables["cc"] = ccenv + interp.exe_asm;
             field->variables["cflags"] = list2str(interp.extra_cflags_asm);
         }else {
             field->rule = "msvc_cl";
-            field->variables["cc"] = interp.exe_cxx;
+            field->variables["cc"] = ccenv + interp.exe_cxx;
             field->variables["cflags"] = 
                 list2str(file_type=='+'? interp.extra_cflags_cpp:interp.extra_cflags_c) 
                 + list2str(carg.cflags)
@@ -640,6 +658,8 @@ void TargetWorker::step31_win()
                 + list2str(carg.defines, "/D");
             field->variables["pdb"] = opt->ninja->escape_path(pdbfile);
         }
+
+        add_ccenv_njdep(field);
 
         // NinjaBuild bug DirtyPatch:
         // add ./ prefix of src filepath to avoid string starting with '@'
@@ -676,7 +696,8 @@ void TargetWorker::step31_win()
         field->inputs = obj_out_ninja_esc
                       + cgn::NinjaFile::escape_path(x._lnr_to_self.object_files);
         field->outputs = {outfile_njesc};
-        field->variables["libexe"] = interp.exe_ar;
+        field->variables["libexe"] = ccenv + interp.exe_ar;
+        add_ccenv_njdep(field);
 
         _entry_postprocess(field->outputs);
         rvlnr->static_files = std::vector<std::string>{outfile} + rvlnr->static_files;
@@ -713,11 +734,12 @@ void TargetWorker::step31_win()
         field->outputs = {opt->ninja->escape_path(outfile)};
         if (x.role == 's') //only add .lib for .dll
             field->implicit_outputs = {opt->ninja->escape_path(outfile_implib)};
-        field->variables["link"] = (x.role=='s'? interp.exe_solink:interp.exe_xlink);
+        field->variables["link"] = ccenv + (x.role=='s'? interp.exe_solink:interp.exe_xlink);
         field->variables["ldflags"] = list2str(carg.ldflags)
                 + list2str(x.role=='s'? interp.extra_ldflags_so : interp.extra_ldflags_x)
                 + list2str(two_escape(x._wholearchive_a), "/WHOLEARCHIVE:");
-                   
+        add_ccenv_njdep(field);           
+        
         // generate entry
         _entry_postprocess(field->outputs);
 

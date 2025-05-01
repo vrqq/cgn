@@ -1,6 +1,6 @@
 #pragma once
 #include "../../cgn.h"
-#include "../cxx.cgn.bundle/cxx.cgn.h"
+#include "../cxx/cxx.cgn.h"
 #include "windef.h"
 
 // Usually as parameter for external-build-system input,

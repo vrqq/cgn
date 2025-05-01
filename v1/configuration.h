@@ -106,6 +106,10 @@ public:
             return (const std::string&)(*this) == (const std::string&)rhs;
         }
 
+        std::string string() const {
+            return (const std::string&)(*this);
+        }
+
         Cell(DataBlock *_data, const std::string &key)
         : _data(_data), key(key) {}
     

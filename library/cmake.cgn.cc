@@ -23,12 +23,14 @@ static std::string two_escape(const std::string &in) {
 
 CMakeContext::CMakeContext(cgn::CGNTargetOptIn *opt)
 : name(opt->factory_name), cfg(opt->cfg), opt(opt) {
-    auto cinfo = cxx::CxxInterpreter::test_param(cfg);
+    cxx::CxxToolchainInfo cinfo = cxx::CxxInterpreter::test_param(opt->cfg);
+    cc_env_loader      = cinfo.env_loader_script;
+    cc_env_loader_adep = cinfo.env_loader_script_anode;
 
     // vars["CMAKE_MESSAGE_LOG_LEVEL"] = "ERROR";
     // vars["CMAKE_INSTALL_MESSAGE"] = "NEVER";
-    vars["CMAKE_C_COMPILER"]   = cinfo.c_exe;
-    vars["CMAKE_CXX_COMPILER"] = cinfo.cxx_exe;
+    vars["CMAKE_C_COMPILER"]   = cinfo.exe_cc;
+    vars["CMAKE_CXX_COMPILER"] = cinfo.exe_cxx;
     
     if (cfg["optimization"] == "debug")
         vars["CMAKE_BUILD_TYPE"] = "DEBUG";
@@ -98,6 +100,10 @@ void CMakeInterpreter::interpret(context_type &x)
     if (opt->cache_result_found)
         return ;
 
+    // add cc_env_adep from cinfo
+    if (x.cc_env_loader_adep)
+        api.add_adep_edge(x.cc_env_loader_adep, opt->anode);
+
     // dir for cmake
     std::string build_dir = opt->out_prefix + "build";
     std::string install_dir = opt->out_prefix + "install";
@@ -165,6 +171,9 @@ void CMakeInterpreter::interpret(context_type &x)
         std::string cmd = "cmake";
         if (x.cfg["cmake_exe"] != "")
             cmd = fn_escape(x.cfg["cmake_exe"]);
+        if (x.cc_env_loader.size())
+            cmd = x.cc_env_loader + " && " + cmd;
+        
         cmd += " -G Ninja -S " + fn_escape(src_dir)
             + "  -B " + fn_escape(build_dir);
         for (auto item : x.vars) {

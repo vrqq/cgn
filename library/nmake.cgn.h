@@ -9,7 +9,7 @@
 #endif
 
 #include "../cgn.h"
-#include "cxx.cgn.bundle/cxx.cgn.h"
+#include "cxx/cxx.cgn.h"
 
 // variables assigned by Interpeter
 // https://learn.microsoft.com/en-us/cpp/build/reference/special-nmake-macros
@@ -72,7 +72,7 @@ struct NMakeInterpreter
     using context_type = NMakeContext;
     
     constexpr static cgn::ConstLabelGroup<2> preload_labels() {
-        return {"@cgn.d//library/cxx.cgn.bundle",
+        return {"@cgn.d//library/cxx/cxx.cgn.cc",
                 "@cgn.d//library/nmake.cgn.cc"};
     }
     NMAKE_CGN_API static void interpret(context_type &x);
