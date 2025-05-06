@@ -273,6 +273,13 @@ public:
     CGNTargetOpt *confirm_target_opt(CGNTargetOptIn *in);
 
     // The init function must be called before others.
+    // @param kvargs : 
+    //          kvargs["cgn-out"] = OS-perferred-path-string of output path (requirement)
+    //          kvargs["verbose"] : enable verbose mode
+    //          kvargs["scriptcc_debug"] : enable debug mode for ScriptCC
+    //          kvargs["halt_on_error"] : exit when analyse_target() return error
+    //          kvargs["winenv"] : call vcvars64.bat before ScriptCC (cl.exe)
+    //
     void init(const std::unordered_map<std::string, std::string> &kvargs);
 
     // Make sure to call this function prior to ~CGN(), as the CGN API is an 

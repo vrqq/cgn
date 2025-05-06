@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <thread>
 #include <atomic>
+#include <optional>
 
 #include "cgn_api.h"
 
@@ -85,7 +86,8 @@ int cgn_preload_all()
 
 int main(int argc, char **argv)
 {
-    //parse input cmdline
+    // parse input cmdline
+    // -------------------
     std::unordered_set<std::string> single_options{
         "scriptcc_debug", "halt_on_error", "verbose", "winenv"
     };
@@ -115,110 +117,19 @@ int main(int argc, char **argv)
             args.push_back(argv[i++]);
     }
 
-    //argument check
-    if (auto fd = args_kv.find("cgn-out"); fd != args_kv.end()){
-        if (fd->second.empty()) {
-            std::cerr<<"Invalid cgn-out dir"<<std::endl;
-            return show_helper(argv[0]);
-        }
-    }else
-        args_kv["cgn-out"] = "cgn-out";
-
     if (args.empty())
         return show_helper(argv[0]);
-    
+
     // register windows SEH handler
     init_win_exception_handler();
 
-    // API init function
-    auto init0 = [&](std::string cfgname="DEFAULT") {
-        api.init(args_kv);
-        auto [cfg, adep] = api.query_config(cfgname);
-        if (adep)
-            return cfg;
-        else {
-            std::cerr<<"'" + cfgname + "' config not found."<<std::endl;
-            exit(2);
-        }
-    };
-    // auto release0 = [](){ api.release(); };
+    std::shared_ptr<int> api_release;
 
-try{
-    if (args[0] == "analyze" || args[0] == "analyse") {
-        if (args.size() != 2)
-            return show_helper(argv[0]);
-        auto rv = api.analyse_target(args[1], init0());
-        if (rv.errmsg.size())
-            api.logger->paragraph(rv.errmsg);
-        api.release();
-        return 0;
-    }
-    if (args[0] == "build") {
-        if (args.size() < 2)
-            return show_helper(argv[0]);
-        std::string cfgname = "DEFAULT";
-        if (args.size() == 3)
-            cfgname = args[2];
-        api.build(args[1], init0(cfgname));
-        api.release();
-        return 0;
-    }
-    if (args[0] == "run") {
-        if (args.size() < 2)
-            return show_helper(argv[0]);
-        std::string cmd;
-        { //TODO: some variable is asan-failed without this scope (after api.release())
-            auto exe = api.build(args[1], init0());
-            if (exe.size()) {
-                cmd = api.shell_escape(exe);
-                for (std::size_t i=2; i<args.size(); i++)
-                    cmd += " " + api.shell_escape(args[i]);
-            }
-        }
-        api.release();
-        if (cmd.size())
-            system(cmd.c_str());
-        else
-            api.logger->paragraph("No executable found.");
-        return 0;
-    }
-    if (args[0] == "query") {
-        {
-            cgnv1::CGNTarget tmp;
-            std::cerr<<(void*)tmp.anode<<"\n";
-        }
-        if (args.size() < 2)
-            return show_helper(argv[0]);
-        std::string cfg_name = "DEFAULT";
-        if (args.size() >= 3) //using config 'DEFAULT' if no cfgname assigned
-            cfg_name = args[2];
-
-        api.init(args_kv);
-        auto [cfg, adep] = api.query_config(cfg_name);
-        if (adep == nullptr) {
-            std::cerr<<"Configuration "<<cfg_name<<" not found."<<std::endl;
-            api.release();
-            return 1;
-        }
-        { //TODO: variable 'rv' is asan-failed without this scope (after api.release())
-        auto rv = api.analyse_target(args[1], cfg);
-
-        char type = api.get_kvargs().count("verbose")?'H':'h';
-        std::cout<<"\n--- Target ---\n"
-                 <<args[1]<<" #"<<cfg.get_id()<<std::endl;
-        std::cout<<"\n--- Input Configuration ---\n"
-                 <<cgnv1::Logger::fmt_list(cfg, "", 999) <<std::endl;
-
-        std::cout<<"\n--- Analyse Result ---\n"<<rv.to_string(type)<<std::endl;
-        if (rv.errmsg.size())
-            std::cout<<rv.errmsg<<std::endl;
-        }
-        api.release();
-        return 0;
-    }
-    if (args[0] == "preload")
-        return cgn_preload_all();
-    if (args[0] == "tool") {
+try{do{
+    // cgn::CGNTools (static functions)
+    // --------------------------------
+    // [CMD] cgn tool xxxxxx
+    if (args[0] == "tool" || args[0] == "tools") {
         if (args.size() == 2 && args[1] == "parentprocess") {
             std::cout<<api.get_parent_process_name()<<"\n";
             return 0;
@@ -259,7 +170,87 @@ try{
         else
             return show_helper(argv[0]);
     }
-    if (args[0] == "gn") {}
+
+    // cgn::CGN API call
+    // -----------------
+
+    // requirement argument check
+    if (auto fd = args_kv.find("cgn-out"); fd != args_kv.end()){
+        if (fd->second.empty()) {
+            std::cerr<<"Invalid cgn-out dir"<<std::endl;
+            return show_helper(argv[0]);
+        }
+    }else
+        args_kv["cgn-out"] = "cgn-out";
+
+    // api.init()
+    api.init(args_kv);
+    api_release = std::shared_ptr<int>(new int, [](int* p){ api.release(); delete p;});
+
+    // using config 'DEFAULT' if no cfgname assigned
+    auto load_cfg = [](const std::string &name) -> cgnv1::Configuration {
+        auto [cfg, adep] = api.query_config(name.empty()?"DEFAULT":name);
+        if (adep)
+            return cfg;
+        else
+            throw std::runtime_error{"'" + name + "' config not found."};
+    };
+
+    // [CMD] cgn analyse @cell//target [cfgname]
+    if ((args[0] == "analyze" || args[0] == "analyse") && args.size() >= 2) {
+        auto rv = api.analyse_target(args[1], load_cfg(args.size()>=3?args[2]:""));
+        if (rv.errmsg.size())
+            api.logger->paragraph(rv.errmsg);
+        return 0;
+    }
+
+    // [CMD] cgn build @cell//target [cfgname]
+    if (args[0] == "build" && args.size() >= 2) {
+        api.build(args[1], load_cfg(args.size()>=3?args[2]:""));
+        return 0;
+    }
+
+    // [CMD] cgn run @cell//target [cfgname]
+    if (args[0] == "run" && args.size() >= 2) {
+        std::string cmd;
+        auto exe = api.build(args[1], load_cfg(args.size()>=3?args[2]:""));
+        if (exe.size()) {
+            cmd = api.shell_escape(exe);
+            for (std::size_t i=2; i<args.size(); i++)
+                cmd += " " + api.shell_escape(args[i]);
+        }
+
+        if (cmd.size())
+            system(cmd.c_str());
+        else
+            api.logger->paragraph("No executable found.");
+        return 0;
+    }
+
+    // [CMD] cgn query @cell//target [cfgname]
+    if (args[0] == "query" && args.size() >= 2) {
+        auto cfg = load_cfg(args.size()>=3?args[2]:"");
+        auto rv = api.analyse_target(args[1], cfg);
+
+        char type = api.get_kvargs().count("verbose")?'H':'h';
+        std::cout<<"\n--- Target ---\n"
+                 <<args[1]<<" #"<<cfg.get_id()<<std::endl;
+        std::cout<<"\n--- Input Configuration ---\n"
+                 <<cgnv1::Logger::fmt_list(cfg, "", 999) <<std::endl;
+
+        std::cout<<"\n--- Analyse Result ---\n"<<rv.to_string(type)<<std::endl;
+        if (rv.errmsg.size())
+            std::cout<<rv.errmsg<<std::endl;
+        return 0;
+    }
+
+    // [CMD] cgn preload
+    if (args[0] == "preload"){
+        cgn_preload_all();
+        return 0;
+    }
+
+    // [CMD] cgn clean
     if (args[0] == "clean") {
         std::cout<<"Cleaning..."<<std::endl;
         std::filesystem::path dir{args_kv["cgn-out"]};
@@ -268,14 +259,14 @@ try{
         else
             std::cerr<<dir.string()<<"\n"
                      <<"Warning: it seems not a cgn-out folder, do nothing."<<std::endl;
+        return 0;
     }
 
-}catch(std::exception &e) { //windows CRT won't show anything for unhandled exception.
+}while(0);}catch(std::exception &e) { //windows CRT won't show anything for unhandled exception.
     std::cerr<<"\n---EXCEPTION---\n"
              <<e.what()
              <<"\n==============="<<std::endl;
-    api.release();
-    return 1;
+    return 0;
 }
 
     return show_helper(argv[0]);

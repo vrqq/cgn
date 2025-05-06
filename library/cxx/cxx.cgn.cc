@@ -370,10 +370,12 @@ CxxToolchainInfo TargetWorker::step1_linux_gcc(cgn::Configuration &cfg)
     std::string prefix = cfg["cxx_prefix"];
     interp.exe_cc  = (prefix + "gcc");
     interp.exe_cxx = (prefix + "g++");
+    interp.exe_asm = (prefix + "gcc");
     interp.exe_ar  = (prefix + "gcc-ar");
-    interp.exe_solink = (prefix + "g++") + " -shared";
+    interp.exe_solink = (prefix + "g++");
     interp.exe_xlink  = (prefix + "g++");
     interp.is_compiler_controlled_link = true;
+    interp.extra_ldflags_so = {"-shared"};
 
     std::vector<std::string> cflags_1st, ldflags_1st;
     interp.arg.cflags += {
@@ -448,10 +450,11 @@ CxxToolchainInfo TargetWorker::step1_linuxllvm_and_xcode(cgn::Configuration &cfg
     std::string prefix = cfg["cxx_prefix"];
     interp.exe_cc  = (prefix + "clang");
     interp.exe_cxx = (prefix + "clang++");
+    interp.exe_asm = (prefix + "clang");
     interp.exe_ar     = (prefix + "ar");
     interp.exe_solink = (prefix + "clang++");
-    interp.extra_ldflags_so = {"-shared"};
     interp.exe_xlink  = (prefix + "clang++");
+    interp.extra_ldflags_so = {"-shared"};
     if (cfg["os"] == "linux") {
         interp.exe_ar     = (prefix + "llvm-ar");
         interp.exe_solink = (prefix + "clang++");
@@ -616,7 +619,7 @@ void TargetWorker::step31_win()
         ccenv = "cmd.exe /c " + two_escape(interp.env_loader_script) + " && ";
     if (interp.env_loader_script_anode)
         api.add_adep_edge(interp.env_loader_script_anode, opt->anode);
-    auto add_ccenv_njdep = [&](auto *build_field){
+    auto add_ccenv_njdep = [&](cgn::NinjaFile::BuildSection *build_field){
         if (interp.env_loader_script.size())
             build_field->implicit_inputs += {cgn::NinjaFile::escape_path(
             interp.env_loader_script)};
