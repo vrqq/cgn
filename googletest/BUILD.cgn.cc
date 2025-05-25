@@ -1,5 +1,9 @@
 #include <cgn>
 
+void myfunc1(GitFetcher::context_type& x) {}
+std::shared_ptr<void> myvar1 = api.bind_target_factory<GitFetcher>(CGN_ULABEL_PREFIX "NAMENAME", &myfunc1);
+
+
 git("googletest.git", x) {
     x.repo = "https://github.com/google/googletest.git";
     x.commit_id = "2954cb8d879886403d55343f941ae7d0216e0f6b";
@@ -35,30 +39,14 @@ cxx_sources("gmock_main", x) {
     x.add_dep(":gmock", cxx::inherit);
 }
 
-// group("googletest", x) {
-//     x.add_dep(":gmock");
-//     x.add_dep(":gtest");
-// }
 alias("googletest", x) {
     x.actual_label = ":gmock";
 }
 
-file_utility("devel", x) {
-    auto opt = x.new_devel_opt();
-    opt.allow_linknrun = true;
-    x.collect_devel_on_build(":gtest", opt);
-    x.collect_devel_on_build(":gmock", opt);
-
-    x.flat_copy_on_build({
-        cgn::make_path_base_script("repo/googletest/include/gtest"),
-        cgn::make_path_base_script("repo/googlemock/include/gmock")
-    },cgn::make_path_base_out("include"));
-}
-
-// bin_devel("devel", x) {
-//     x.include = {
-//         {gmock + "/include", {"gmock/*.h"}},
-//         {gtest + "/include", {"gtest/*.h"}}
-//     };
-//     x.add_from_target(":googletest", x.allow_linknrun);
+// gen_bin_devel("devel", x) {
+//     auto opt = x.new_collect_opt();
+//     opt.copy_from_linknrun = true;
+//     opt.copy_from_cxx_include = true;
+//     x.collect_from_target(":gtest", x.cfg, opt);
+//     x.collect_from_target(":gmock", x.cfg, opt);
 // }

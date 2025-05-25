@@ -3,7 +3,7 @@
 // <out>/lang_pb/bin/my_proto.o
 #define PROTOC_CGN_IMPL
 #include <fstream>
-#include "@cgn.d/library/cxx.cgn.bundle/cxx.cgn.h"
+#include "@cgn.d/library/cxx/cxx.cgn.h"
 #include "proto.cgn.h"
 static std::string two_escape(const std::string &in) {
     return cgn::NinjaFile::escape_path(cgn::CGN::shell_escape(in));
@@ -127,7 +127,7 @@ void ProtobufInterpreter::interpret(context_type &x)
     if (!pb_opt->cache_result_found) {
         // ninja[protoc] run
         pb_opt->ninja->append_include(
-            api.get_filepath("@cgn.d//library/general.cgn.bundle/rule.ninja")
+            api.get_filepath("@cgn.d//library/utility/rule.ninja")
         );
 
         // *.proto => *.pb.h / *.pb.cc

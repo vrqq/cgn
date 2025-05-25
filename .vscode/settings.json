@@ -1,5 +1,6 @@
 {
     "C_Cpp.default.includePath": [
         "..", // for <cgn> build script
-    ]
+    ],
+    "cmake.sourceDirectory": "/project/fable/andromeda/@third_party/oneapi/repo"
 }

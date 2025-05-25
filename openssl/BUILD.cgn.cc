@@ -16,9 +16,11 @@ git("openssl.git", x) {
 // but "export perl.exe" in command line, so we have to ref it
 // in ninja->order_only[] form.
 //
+// Openssl is using perl to generate Makefile for all platforms.
+//
 // for windows https://github.com/openssl/openssl/blob/master/NOTES-WINDOWS.md
 custom_command("openssl3_build", x) {
-    auto perl_target = x.add_dep("@third_party//perl:perl_host_exe", "host_release");
+    auto perl_target = x.add_dep("@cgn.d//library/perl:host_exe", "host_release");
     if (perl_target.outputs.size() == 0)
         return x.opt_confirm_error("Perl exe not found");
     std::string perl_dep = perl_target.ninja_entry;
@@ -66,6 +68,14 @@ custom_command("openssl3_build", x) {
     // --debug --release
     std::string arg_build_type = (x.cfg["optimization"] == "debug"?"--debug":"--release");
 
+    // --with-zlib-lib, --with-zlib-include. (TODO)
+    // cgn::CGNTarget zlib = x.add_dep("@third_party//zlib", x.cfg);
+    // std::string arg_zlib = zlib.get<BinDevelInfo>()->base;
+
+    // --with-zstd-lib, --with-zstd-include. (TODO)
+    // cgn::CGNTarget zstd = x.add_dep("@third_party//zstd", x.cfg);
+    // std::string arg_zstd = zlib.get<BinDevelInfo>()->base;
+
     // opt confirm
     if (x.opt_confirm_cached())
         return ;
@@ -73,6 +83,9 @@ custom_command("openssl3_build", x) {
     cgn::CGNPath build_dir  = cgn::make_path_base_out("build");
     std::string install_dir = x.rebase_path(cgn::make_path_base_out("install"), "");
     std::string etc_dir     = x.rebase_path(cgn::make_path_base_out("etc"), "");
+
+    std::string build_log   = x.rebase_path(cgn::make_path_base_out("build.log"), "");
+    std::string instl_log   = x.rebase_path(cgn::make_path_base_out("install.log"), "");
     api.mkdir(x.rebase_path(build_dir));
     api.mkdir(install_dir);
     api.mkdir(etc_dir);
@@ -86,7 +99,7 @@ custom_command("openssl3_build", x) {
     else 
         x.watch_outputs = {
             cgn::make_path_base_out("install/bin/openssl"),
-            cgn::make_path_base_out("install/lib/libopenssl.a")
+            cgn::make_path_base_out("install/lib64/libopenssl.a")
         };
 
     // prepare enviromnent for make / nmake
@@ -99,15 +112,18 @@ custom_command("openssl3_build", x) {
     // https://github.com/openssl/openssl/blob/master/INSTALL.md#out-of-tree-builds
     x.append_pushd(build_dir);
     std::string src_cfgdir = x.rebase_path("repo/Configure", "");
-    x.append_cmd({perl_exe, src_cfgdir, cfg_arg, 
+    x.append_cmd({perl_exe, src_cfgdir, cfg_arg, arg_build_type,
         "--prefix=" + install_dir,
         "--openssldir=" + etc_dir
     });
 
-    if (x.cfg["os"] == "win")
-        x.append_cmd({"nmake"}), x.append_cmd({"nmake", "install"});
-    else
-        x.append_cmd({"make", "-j"}), x.append_cmd({"make", "install"});
+    if (x.cfg["os"] == "win") {
+        x.append_escaped_cmd({"nmake > " + api.shell_escape(build_log)});
+        x.append_escaped_cmd({"nmake install >> " + api.shell_escape(build_log)});
+    }else{
+        x.append_escaped_cmd({"make -j > " + api.shell_escape(build_log)});
+        x.append_escaped_cmd("make install > " + api.shell_escape(instl_log));
+    }
 
     x.append_popd(); // for touch .stamp in interpreter
 
@@ -116,6 +132,23 @@ custom_command("openssl3_build", x) {
         cgn::make_path_base_out("install"),
         cgn::make_path_base_out("etc")
     };
+
+    // TODO: the form of bin_devel hasn't been determined.
+    // auto *bin_devel = x.analysis_infos.get<BinDevelInfo>(true);
+    // bin_devel->base = x.rebase_path(cgn::make_path_base_out("install"));
+}
+
+custom_command("openssl3_exe", x) {
+    cgn::CGNTarget buildt = x.add_dep(":openssl3_build", x.cfg);
+    std::string inst_dir = buildt.outputs[0];
+    if (x.cfg["os"] == "win")
+        x.analysis_outputs = {
+            cgn::make_path_base_working(inst_dir + "/bin/openssl.exe")
+        };
+    else
+        x.analysis_outputs = {
+            cgn::make_path_base_working(inst_dir + "/bin/openssl")
+        };
 }
 
 cxx_prebuilt("openssl3_static" , x) {
@@ -133,4 +166,9 @@ cxx_prebuilt("openssl3_static" , x) {
 
 alias("openssl", x) {
     x.actual_label = ":openssl3_static";
+}
+
+alias("host_exe", x) {
+    x.actual_label = ":openssl3_exe";
+    x.load_named_config("host_release");
 }

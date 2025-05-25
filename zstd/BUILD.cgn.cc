@@ -17,11 +17,17 @@ cxx_static("zstd", x) {
         x.defines += {"DEBUGLEVEL=0"};
     else
         x.defines += {"NDEBUG"};
-    if (x.cfg["os"] == "win" && x.cfg["toolchain"] != "llvm")
+
+    if (x.cfg["os"] == "win" && x.cfg["cxx_toolchain"] != "llvm")
         x.defines += {"ZSTD_HEAPMODE=0"};
     
-    x.srcs = {ZSTD_ROOT + "/lib/common/*.c", ZSTD_ROOT + "/lib/compress/*.c", 
-              ZSTD_ROOT + "/lib/decompress/*.c", ZSTD_ROOT + "/lib/decompress/*.S", 
+    if (x.cfg["cxx_toolchain"] == "msvc" || x.cfg["cpu"] != "x86_64")
+        x.defines += {"ZSTD_DISABLE_ASM"};
+    else
+        x.srcs += {ZSTD_ROOT + "/lib/decompress/*.S"};
+
+    x.srcs += {ZSTD_ROOT + "/lib/common/*.c", ZSTD_ROOT + "/lib/compress/*.c", 
+              ZSTD_ROOT + "/lib/decompress/*.c", 
               ZSTD_ROOT + "/lib/dictBuilder/*.c", ZSTD_ROOT + "/lib/legacy/*.c"};
               
     x.pub.include_dirs = {
@@ -31,4 +37,27 @@ cxx_static("zstd", x) {
         ZSTD_ROOT + "/lib/decompress",
         ZSTD_ROOT + "/lib/dictBuilder"
     };
+}
+
+alias("lib", x) { x.actual_label = ":zstd"; }
+
+cxx_executable("exe", x) {
+    x.defines = {"ZSTD_GZCOMPRESS", "ZSTD_GZDECOMPRESS"};
+    x.perferred_binary_name = std::string{"zstd"} + (x.cfg["os"] == "win"?".exe":"");
+    x.srcs = {
+        ZSTD_ROOT + "/programs/benchfn.c",
+        ZSTD_ROOT + "/programs/benchzstd.c",
+        ZSTD_ROOT + "/programs/datagen.c",
+        ZSTD_ROOT + "/programs/dibio.c",
+        ZSTD_ROOT + "/programs/fileio_asyncio.c",
+        ZSTD_ROOT + "/programs/fileio.c",
+        ZSTD_ROOT + "/programs/lorem.c",
+        ZSTD_ROOT + "/programs/timefn.c",
+        ZSTD_ROOT + "/programs/util.c",
+        ZSTD_ROOT + "/programs/zstdcli.c",
+        ZSTD_ROOT + "/programs/zstdcli_trace.c"
+    };
+
+    x.add_dep("@third_party//zlib:z", cxx::private_dep);
+    x.add_dep(":zstd", cxx::private_dep);
 }

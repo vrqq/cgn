@@ -82,10 +82,9 @@ struct ProtobufInterpreter
 {
     using context_type = ProtobufContext;
 
-    constexpr static cgn::ConstLabelGroup<3> preload_labels() {
+    constexpr static cgn::ConstLabelGroup<2> preload_labels() {
         return {"@third_party//protobuf/proto.cgn.cc", 
-                "@cgn.d//library/cxx.cgn.bundle",
-                "@cgn.d//library/general.cgn.bundle"};
+                "@cgn.d//library/cxx/cxx.cgn.cc"};
     }
 
     PROTOC_CGN_API static void interpret(context_type &x);

@@ -10,22 +10,23 @@ git("boringssl.git", x) {
     x.dest_dir = "repo";
 }
 
-// DEPECRATED
+// DEPECRATED, using ":ssl" and ":crypto" instead.
 // https://github.com/google/boringssl/blob/master/BUILDING.md
 cmake("boringssl.cmake", x) {
     x.sources_dir = "repo";
     x.outputs = {"lib64/libboringssl.a"};
 
-    // TODO: cfg["host_release"]
-    cgn::CGNTarget nasm = x.add_dep_with_named_config("@third_party//nasm", "host_release");
-    if (x.cfg["host_os"] == "win")
+    if (x.cfg["host_os"] == "win") {
+        cgn::CGNTarget nasm = x.add_dep_with_named_config("@third_party//nasm", "host_release");
         x.vars["CMAKE_ASM_NASM_COMPILER"] = nasm.outputs[0];
+    }
 }
 
-std::vector<std::string> src_prefix(const std::vector<std::string> &in) {
-    std::vector<std::string> rv;
+template<typename RV = std::string>
+std::vector<RV> src_prefix(const std::vector<std::string> &in) {
+    std::vector<RV> rv;
     for (auto &it : in)
-        rv.push_back("repo/" + it);
+        rv.push_back(RV{"repo/" + it});
     return rv;
 }
 
@@ -33,8 +34,8 @@ bool is_msan(cxx::CxxContext &x) {
     return (x.cfg["cxx_msan"] != "");
 }
 void apply_build_setting(cxx::CxxContext &x, bool for_test = false) {
-    x.pub.include_dirs += src_prefix({"include"});
-    x.include_dirs     += src_prefix({"include"});
+    x.pub.include_dirs += src_prefix<cgn::CGNPath>({"include"});
+    x.include_dirs     += src_prefix<cgn::CGNPath>({"include"});
     if (!for_test)
         x.defines += {"BORINGSSL_IMPLEMENTATION"};
     // x.defines += {"OPENSSL_SMALL"};
