@@ -1,3 +1,8 @@
+// for external project build by cmake
+// DEPS ON : 
+//   @cgn.d//library/cxx/cxx.cgn.cc
+//   @cgn.d//library/utility/bin_devel.cgn.cc
+//
 // Rule cmake("name", x)
 // return value : LinkAndRunInfo[], CxxInfo[]
 // depend on    : cxx.cgn.h
@@ -14,9 +19,9 @@
 #pragma once
 #include <vector>
 #include <unordered_map>
-#include "../cgn.h"
-#include "cxx/cxx.cgn.h"
-#include "general.cgn.bundle/bin_devel.cgn.h"
+#include "../../cgn.h"
+#include "../cxx/cxx.cgn.h"
+#include "../utility/bin_devel_info.cgn.h"
 
 // namespace cmake{
 
@@ -79,8 +84,8 @@ struct CMakeContext {
         return opt->quick_dep_namedcfg(label, cfg_name, merge_cfg_visit);
     }
 
-    BinDevelInfo *get_bindevel(const std::string &factory_label) 
-    { return add_dep(factory_label).get<BinDevelInfo>(false); }
+    // BinDevelInfo *get_bindevel(const std::string &factory_label) 
+    // { return add_dep(factory_label).get<BinDevelInfo>(false); }
 
     friend class CMakeInterpreter;
     friend class CMakeConfigInterpeter;
@@ -94,9 +99,9 @@ struct CMakeInterpreter {
     using context_type = CMakeContext;
     
     constexpr static cgn::ConstLabelGroup<3> preload_labels() {
-        return {"@cgn.d//library/cxx/cxx.cgn.cc",     //CxxInfo
-                "@cgn.d//library/general.cgn.bundle", //BinDevelInfo
-                "@cgn.d//library/cmake.cgn.cc"};
+        return {"@cgn.d//library/cxx/cxx.cgn.cc",                 //CxxInfo
+                "@cgn.d//library/utility/bin_devel_info.cgn.cc",  //BinDevelInfo
+                "@cgn.d//library/external/cmake.cgn.cc"};
     }
     CMAKE_CGN_API static void interpret(context_type &x);
 }; //CMakeInterpreter

@@ -4,33 +4,30 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <cstdio>
 #include "advcopy.h"
 
 int show_help(char *arg0) {
     std::cerr
         <<"Usage: \n"
-        <<arg0 <<" copy_to_dir      [options...] filelist.txt\n"
-        <<arg0 <<" flat_copy_to_dir [options...] filelist.txt\n"
-        <<arg0 <<" copy_rename      [options...] filelist.txt\n"
+        <<arg0 <<" copy_to_dir      argfile.txt [logfile.txt]\n"
+        <<arg0 <<" flat_copy_to_dir argfile.txt [logfile.txt]\n"
+        <<arg0 <<" copy_rename      argfile.txt [logfile.txt]\n"
         <<arg0 <<" match <pattern_string>\n"
         <<arg0 <<" debug <pattern_string>\n"
-        <<"Options:\n"
-        <<"    -MF file      set Makefile dependency file\n"
-        <<"    -stamp file   set timestamp file\n"
-        <<"filelist.txt:\n"
-        <<"    The order same with function call.\n"
-        <<"filelist.txt of copy_to_dir()\n"
-          " src1\n"
-          " src2 ...\n"
-          " src_base\n"
-          " dst_dir\n"
-        <<"filelist.txt of flatcopy_to_dir()\n"
-          " src1\n"
-          " src2 ...\n"
-          " dst_dir\n"
-        <<"filelist.txt of copy_rename()\n"
-          " srcfile\n"
-          " dstfile\n"
+        <<"Options in argfile:\n"
+        <<"    @MF makefile_dependency_file.d\n"
+        <<"    @stamp timestamp_file.stamp\n"
+        <<"    @src   src or src_rel\n"
+        <<"    @srcex src_exclude\n"
+        <<"    @sbase src_base (copy_to_dir only)\n"
+        <<"    @dst   dst_dir (copy_to_dir) or dst_file (copy_rename)\n"
+        <<"Example argfile.txt of copy_to_dir()\n"
+        <<" @MF out1.d\n"
+        <<" @s1 src1\n"
+        <<" @s1 src2\n"
+        <<" @sbase src_base\n"
+        <<" @dst dst_dir\n"
         <<std::endl;
     return 1;
 }
@@ -38,23 +35,41 @@ int show_help(char *arg0) {
 int main(int argc, char **argv)
 {
     // parse cli
-    std::unordered_map<std::string, std::string> args_kv;
-    std::vector<std::string> args_str;
-    for (int i=1; i<argc; i++) {
-        if (argv[i][0] == '-') {
-            args_kv[argv[i]] = (i+1<argc)?argv[i+1]:"";
-            i++; // extra i++
+    if (argc != 3 && argc != 4){
+        std::cerr<<"Missing args, 2 or 3 args required, current is "<<argc-1<<std::endl;
+        return show_help(argv[0]);
+    }
+    std::string arg1 = argv[1];
+    std::string arg2 = argv[2];
+    if (argc == 4)
+        std::freopen(argv[3], "w", stdout);
+
+    // parse argfile
+    std::unordered_map<std::string, std::vector<std::string>> fn_args;
+    std::ifstream fin(arg2);
+    if (!fin) {
+        std::cerr<<"Cannot open file " + arg2<<"\n";
+        return show_help(argv[0]);
+    }
+    while(fin) {
+        std::string ss;
+        if (std::getline(fin, ss).eof())
+            break;
+        
+        for (std::size_t i=0; i<ss.size(); i++){
+            if (ss[i] == ' ')
+                continue; //remove prefix ' '
+            if (auto fd = ss.find(' ', i); fd != ss.npos)
+                fn_args[ss.substr(i, fd-i)].push_back(ss.substr(fd+1));
+            else
+                fn_args[ss.substr(i)].push_back("");
         }
-        else
-            args_str.push_back(argv[i]);
     }
 
-    // parse filelist.txt and call function
-    if (args_str.empty())
-        return show_help(argv[0]);
-    if (args_str.size() == 2 && args_str[0] == "match") {
+    // select function
+    if (arg1 == "match") {
         std::string errmsg;
-        auto rv = cgnv1::AdvanceCopy::file_match(args_str[1], &errmsg);
+        auto rv = cgnv1::AdvanceCopy::file_match(arg2, &errmsg);
         if (errmsg.size()) {
             std::cerr<<errmsg<<std::endl;
             return 1;
@@ -63,66 +78,56 @@ int main(int argc, char **argv)
             std::cout<<it<<"\n";
         return 0;
     }
-    if (args_str.size() == 2 && args_str[0] == "debug") {
+    if (arg1 == "debug") {
         std::string errmsg;
-        cgnv1::AdvanceCopy::match_debug(args_str[1]);
+        cgnv1::AdvanceCopy::match_debug(arg2);
         return 0;
     }
-    if (args_str.size() == 2) {
-        std::string depfile   = args_kv["-MF"];
-        std::string stampfile = args_kv["-stamp"];
-        std::vector<std::string> filelist;
 
-        std::ifstream fin(args_str[1]);
-        if (!fin) {
-            std::cerr<<"Cannot open file " + args_str[1]<<"\n";
-            return show_help(argv[0]);
+    std::string depfile   = fn_args["MF"].empty()?"":fn_args["MF"][0];
+    std::string stampfile = fn_args["stamp"].empty()?"":fn_args["stamp"][0];
+    if (arg1 == "copy_to_dir") {
+        if (fn_args["@src"].empty() || fn_args["@sbase"].empty() || fn_args["@dst"].empty()) {
+            std::cerr<<"Missing src or dst in argfile\n";
+            return 1;
         }
-        while(fin) {
-            std::string ss;
-            if (std::getline(fin, ss).eof())
-                break;
-            filelist.push_back(ss);
+        
+        if (auto emsg = cgnv1::AdvanceCopy::copy_to_dir(
+            fn_args["@src"],
+            fn_args["@srcex"],
+            fn_args["@sbase"][0],
+            fn_args["@dst"][0],
+            depfile,
+            stampfile,
+            true
+        ); emsg.size()) {
+            std::cerr<<emsg<<std::endl;
+            return 1;
         }
-
-        if (args_str[0] == "copy_to_dir") {
-            if (filelist.size() < 3) {
-                std::cerr<<args_str[1]<<" insufficient args\n";
-                return 1;
-            }
-            std::string dst_dir = filelist.back();
-            filelist.pop_back();
-
-            std::string src_base = filelist.back();
-            filelist.pop_back();
-
-            if (auto emsg = cgnv1::AdvanceCopy::copy_to_dir(
-                filelist, src_base, dst_dir, depfile, stampfile, true
-            ); emsg.size()) {
-                std::cerr<<emsg<<std::endl;
-                return 1;
-            }
-            return 0;
-        }
-
-        if (args_str[0] == "flat_copy_to_dir") {
-            if (filelist.size() < 2) {
-                std::cerr<<args_str[1]<<" insufficient args\n";
-                return 1;
-            }
-
-            std::string dst_dir = filelist.back();
-            filelist.pop_back();
-
-            if (auto emsg = cgnv1::AdvanceCopy::flatcopy_to_dir(
-                filelist, dst_dir, depfile, stampfile, true
-            ); emsg.size()) {
-                std::cerr<<emsg<<std::endl;
-                return 1;
-            }
-            return 0;
-        }
+        return 0;
     }
 
+    if (arg1 == "flat_copy_to_dir") {
+        if (fn_args["@src"].empty() || fn_args["@dst"].empty()) {
+            std::cerr<<"Missing src or dst in argfile\n";
+            return 1;
+        }
+
+        if (auto emsg = cgnv1::AdvanceCopy::flatcopy_to_dir(
+            fn_args["@src"],
+            fn_args["@srcex"],
+            fn_args["@dst"][0],
+            depfile,
+            stampfile,
+            true
+        ); emsg.size()) {
+            std::cerr<<emsg<<std::endl;
+            return 1;
+        }
+        return 0;
+    }
+
+    // no function matched
+    std::cerr<<"Unsupported command "<<arg1<<" "<<arg2<<std::endl;
     return show_help(argv[0]);
 } //main()

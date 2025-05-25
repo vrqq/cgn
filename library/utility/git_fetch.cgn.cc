@@ -1,17 +1,17 @@
-#define GENERAL_CGN_BUNDLE_IMPL
+#define CGN_LIBRARY_GIT_IMPL
 #include "git_fetch.cgn.h"
 
 static std::string two_escape(const std::string &in) {
     return cgn::NinjaFile::escape_path(cgn::CGN::shell_escape(in));
 }
 
-GENERAL_CGN_BUNDLE_API void GitFetcher::interpret(context_type &x)
+CGN_LIBRARY_GIT_API void GitFetcher::interpret(context_type &x)
 {
     cgn::CGNTargetOpt *opt = x.opt->confirm();
     if (opt->cache_result_found)
         return ;
 
-    constexpr const char *rule = "@cgn.d//library/general.cgn.bundle/rule.ninja";
+    constexpr const char *rule = "@cgn.d//library/utility/quick_run.ninja";
     static std::string rule_path = api.get_filepath(rule);
 
     opt->ninja->append_include(rule_path);

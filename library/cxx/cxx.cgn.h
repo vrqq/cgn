@@ -1,3 +1,6 @@
+// C++ compiler
+// NO-DEPS
+// 
 // cflags, ldflags: the last would cover the previous one
 // include_dirs: search from left to right
 //

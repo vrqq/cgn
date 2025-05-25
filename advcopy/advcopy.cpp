@@ -11,22 +11,6 @@ namespace fs = std::filesystem;
 
 namespace {
 
-struct SearchRecord {
-    bool opt_skip_invalid_symlink;
-
-    // only regular_file, symlink_file or empty_dir
-    // pair<path matched pattern, the relative path of matched path (empty allowed)>
-    // the full path need to copy: {pair.first / pair.second}
-    std::vector<std::pair<fs::path, fs::path>> file_need_copy;
-
-    // regular_file, symlink_file or directory
-    // node add to depfile
-    std::vector<fs::path> node_need_watch;
-
-    // std::vector<std::string> result;
-    std::string errmsg;
-};
-
 // for example 'aa/bb/str1**str2'
 //      prefix : 'aa/bb'
 //      before : 'str1'
@@ -38,7 +22,7 @@ static void case_2stars(
     const fs::path &prefix,
     std::string_view before_2star,
     std::string_view after_2star,
-    SearchRecord &rec,
+    AdvanceCopy::SearchRecord &rec,
     bool is_prefix_matched
 ) {
     assert(fs::is_directory(prefix));
@@ -83,7 +67,7 @@ static void case_2stars(
 static void path_search_impl(
     const fs::path &prefix,
     std::string remain,
-    SearchRecord &rec
+    AdvanceCopy::SearchRecord &rec
 ) {
     assert(!fs::is_symlink(prefix) && fs::is_directory(prefix));
     if (rec.errmsg.size())
@@ -180,24 +164,6 @@ static void path_search_impl(
 
 }  //void path_search_impl()
 
-SearchRecord path_search(const std::string &pattern, bool skip_invalid_symlink = false)
-{
-    SearchRecord rec;
-    rec.opt_skip_invalid_symlink = skip_invalid_symlink;
-    fs::path fp{pattern};
-    
-    fp = fp.lexically_normal().make_preferred();
-    while (fp.has_filename() && fp.filename() == ".")
-        fp = fp.parent_path();
-    
-    // case: current dir
-    if (fp.has_root_path())
-        path_search_impl(fp.root_path(), fp.relative_path().string(), rec);
-    else
-        path_search_impl(fs::path{"."}, fp.string(), rec);
-
-    return rec;
-}
 
 std::string makefile_escape(const std::string &in)
 {
@@ -263,6 +229,24 @@ std::pair<std::string, bool> copy_impl(const fs::path &src, const fs::path &dst)
 
 } //namespace<>
 
+AdvanceCopy::SearchRecord AdvanceCopy::path_search(const std::string &pattern)
+{
+    SearchRecord rec;
+    // rec.opt_skip_invalid_symlink = skip_invalid_symlink;
+    fs::path fp{pattern};
+    
+    fp = fp.lexically_normal().make_preferred();
+    while (fp.has_filename() && fp.filename() == ".")
+        fp = fp.parent_path();
+    
+    // case: current dir
+    if (fp.has_root_path())
+        path_search_impl(fp.root_path(), fp.relative_path().string(), rec);
+    else
+        path_search_impl(fs::path{"."}, fp.string(), rec);
+
+    return rec;
+}
 
 std::vector<std::string> AdvanceCopy::file_match(
     const std::string &pattern,
@@ -310,6 +294,7 @@ void AdvanceCopy::match_debug(const std::string &pattern)
 
 std::string AdvanceCopy::flatcopy_to_dir(
     const std::vector<std::string> &src_list, 
+    const std::vector<std::string> &src_exclude, 
     const std::string &dst_dir,
     const std::string depfile,
     const std::string stampfile,
@@ -320,8 +305,21 @@ std::string AdvanceCopy::flatcopy_to_dir(
     std::ofstream fdep(depfile);
     fdep<<makefile_escape(stampfile)<<" : ";
 
+    // calculate files which is exclude
+    std::unordered_set<fs::path> exclude_list;
+    for (auto pattern : src_exclude) {
+        auto rec = path_search(pattern);
+        if (rec.errmsg.size())
+            return pattern + " : " + rec.errmsg;
+        for (auto [_src1, _src2] : rec.file_need_copy) {
+            fs::path src = _src2.empty()? _src1 : (_src1 / _src2);
+            exclude_list.insert(src);
+        }
+    }
+
+    // calculate files which want to copy
     for (auto pattern : src_list) {
-        auto rec = path_search(pattern, true);
+        auto rec = path_search(pattern);
         if (rec.errmsg.size())
             return pattern + " : " + rec.errmsg;
         
@@ -332,6 +330,13 @@ std::string AdvanceCopy::flatcopy_to_dir(
             fs::path dst = fs::path{dst_dir} / _src1.filename();
             if (!_src2.empty())
                 dst /= _src2;
+            
+            if (exclude_list.count(src)) {
+                if (print_log)
+                    std::cout<<"  "<<src.string()<<" excluded\n";
+                continue;
+            }
+            
             auto [errmsg, updated] = copy_impl(src, dst);
             if (errmsg.size())
                 return errmsg;
@@ -349,6 +354,7 @@ std::string AdvanceCopy::flatcopy_to_dir(
 
 std::string AdvanceCopy::copy_to_dir(
     const std::vector<std::string> &srcs_part2, 
+    const std::vector<std::string> &srcs_exclude, 
     const std::string &src_base, 
     const std::string &dst_dir,
     const std::string depfile,
@@ -360,9 +366,23 @@ std::string AdvanceCopy::copy_to_dir(
     std::ofstream fdep(depfile);
     fdep<<makefile_escape(stampfile)<<" : ";
 
+    // calculate files which is exclude
+    std::unordered_set<fs::path> exclude_list;
+    for (auto pattern : srcs_exclude) {
+        auto rec = path_search((fs::path{src_base} / pattern).string());
+        if (rec.errmsg.size())
+            return pattern + " : " + rec.errmsg;
+        for (auto [_src1, _src2] : rec.file_need_copy) {
+            fs::path src = _src2.empty()? _src1 : (_src1 / _src2);
+            src = fs::proximate(src, "./");
+            exclude_list.insert(src);
+        }
+    }
+
+    // calculate files which want to copy
     for (auto pattern : srcs_part2) {
         fs::path src_pattern = fs::path{src_base} / pattern;
-        auto rec = path_search(src_pattern.string(), true);
+        auto rec = path_search(src_pattern.string());
         if (rec.errmsg.size())
             return pattern + " : " + rec.errmsg;
         
@@ -372,6 +392,13 @@ std::string AdvanceCopy::copy_to_dir(
             fs::path src = _src2.empty()? _src1 : (_src1 / _src2);
             src = fs::proximate(src, "./");
             fs::path dst = fs::path{dst_dir} / src.lexically_proximate(src_base);
+
+            if (exclude_list.count(src)) {
+                if (print_log)
+                    std::cout<<"  "<<src.string()<<" excluded\n";
+                continue;
+            }
+
             auto [errmsg, updated] = copy_impl(src, dst);
             if (errmsg.size())
                 return errmsg;

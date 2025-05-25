@@ -1,7 +1,16 @@
+#ifdef _WIN32
+    #ifdef CGN_LIBRARY_GIT_IMPL
+        #define CGN_LIBRARY_GIT_API  __declspec(dllexport)
+    #else
+        #define CGN_LIBRARY_GIT_API
+    #endif
+#else
+    #define CGN_LIBRARY_GIT_API __attribute__((visibility("default")))
+#endif
+
 #pragma once
 #include <string>
 #include "../../cgn.h"
-#include "windef.h"
 
 // Git DEPOT
 // ---------
@@ -38,18 +47,9 @@ struct GitFetcher
     using context_type = GitContext;
 
     constexpr static cgn::ConstLabelGroup<1> preload_labels() {
-        return {"@cgn.d//library/general.cgn.bundle"};
+        return {"@cgn.d//library/utility/git_fetch.cgn.cc"};
     }
-    GENERAL_CGN_BUNDLE_API static void interpret(context_type &x);
+    CGN_LIBRARY_GIT_API static void interpret(context_type &x);
 };
 
 #define git(name, x) CGN_RULE_DEFINE(GitFetcher, name, x)
-
-
-// HTTP Downloader
-
-// struct UnarchiveContext
-// {
-//     std::string ;
-//     std::string download_to;
-// };

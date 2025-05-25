@@ -75,6 +75,8 @@ void CustomInterpreter::interpret(context_type &x)
 
     for (auto p : x.analysis_outputs)
         opt->result.outputs += {x.rebase_path(p)};
+    
+    (cgn::InfoTable&)(opt->result) = x.analysis_infos;
 
     if (opt->file_unchanged)
         return ;

@@ -1115,6 +1115,11 @@ CxxToolchainInfo TargetWorker::step1_minimum(cgn::Configuration &cfg)
         rv.is_compiler_controlled_link = true;
     }
     if (cfg["cxx_toolchain"] == "msvc") {
+        auto envdep = api.analyse_target("@cgn.d//library/cxx/vsenv_loader", cfg);
+        assert(envdep.errmsg.empty());
+        cfg.visit_keys(envdep.trimmed_cfg);
+        rv.env_loader_script = envdep.outputs[0];
+        rv.env_loader_script_anode = envdep.anode;
         rv.exe_cc = prefix + "cl.exe";
         rv.exe_cxx = prefix + "cl.exe";
         rv.exe_ar = prefix + "lib.exe";
@@ -1122,18 +1127,18 @@ CxxToolchainInfo TargetWorker::step1_minimum(cgn::Configuration &cfg)
         rv.extra_ldflags_so = {"/DLL"};
         rv.exe_asm = prefix + (cfg["host_cpu"]=="x86"? "ml.exe":"ml64.exe");
         rv.is_compiler_controlled_link = false;
-        rv.arg.defines += {
-            "WINVER=" + std::string{mimimum_winver},
-            "_WIN32_WINNT=" + std::string{mimimum_winver},
-            (cfg["msvc_runtime"] == "MDd"? "_DEBUG" : "NDEBUG")
-        };
-        rv.arg.cflags = {
-            "/utf-8", "/wd4828",   // illegal character in UTF-8
-            "/EHsc",               // Enables standard C++ stack unwinding
-            (cfg["msvc_runtime"] == "MDd"? "/MDd" : (
-             cfg["msvc_runtime"] == "MD"?  "/MD" : (
-             cfg["msvc_runtime"] == "MTd"? "/MT": "/MTd")))
-        };
+        // rv.arg.defines += {
+        //     "WINVER=" + std::string{mimimum_winver},
+        //     "_WIN32_WINNT=" + std::string{mimimum_winver},
+        //     (cfg["msvc_runtime"] == "MDd"? "_DEBUG" : "NDEBUG")
+        // };
+        // rv.arg.cflags = {
+        //     "/utf-8", "/wd4828",   // illegal character in UTF-8
+        //     "/EHsc",               // Enables standard C++ stack unwinding
+        //     (cfg["msvc_runtime"] == "MDd"? "/MDd" : (
+        //      cfg["msvc_runtime"] == "MD"?  "/MD" : (
+        //      cfg["msvc_runtime"] == "MTd"? "/MT": "/MTd")))
+        // };
     }
 
     if (cfg["os"] == "linux")

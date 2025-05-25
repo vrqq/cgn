@@ -5,6 +5,13 @@
 // otherwise: using os internal "perl"
 custom_command("host_exe", x) {
     cgn::CGNPath perl_exe;
+    auto hostcfg = api.query_config("host_release");
+    if (!hostcfg.second) {
+        x.opt_confirm_error("config 'host_release' not found");
+        return ;
+    }
+    x.cfg = hostcfg.first;
+    x.add_dep(hostcfg.second);
 
     if (x.cfg["perl_interpreter"] == "" || x.cfg["perl_interpreter"] == "auto") {
         perl_exe = cgn::make_path_base_working("perl");

@@ -125,6 +125,8 @@ struct LinkAndRunInfo : BaseInfo {
     
     // The files which not link directly but required when running.
     // It may the indirect dependency, and folder path also accepted.
+    // runtime_files[dest_dir] = src_file_abs-or-rel-path
+    // e.g. For dll loaded by exe, dll.dest_dir usually shown as 'BASE_ON_OUTPUT + rel_path_of_exe'
     std::unordered_map<CGNPath, std::string, CGNPath::Hasher> runtime_files;
     // FileLayout runtime_files;
 

@@ -1,3 +1,5 @@
+// create a custom build script
+// NO-DEPS
 #pragma once
 #ifdef _WIN32
     #ifdef CGN_UTILITY_IMPL
@@ -20,6 +22,9 @@ struct CustomCommand
 
     // CGNTarget.result.outputs[]
     std::vector<cgn::CGNPath> analysis_outputs;
+    
+    // CGNTarget.result.infos[]
+    cgn::InfoTable analysis_infos;
 
     // add_dep() usually called before opt_confirm()
     cgn::CGNTarget 
@@ -30,7 +35,11 @@ struct CustomCommand
     add_dep(const std::string &label, const std::string &cfg_name) {
         return opt->quick_dep_namedcfg(label, cfg_name, true);
     }
-    
+
+    void add_dep(cgn::GraphNode *anode) {
+        opt->quickdep_early_anodes.push_back(anode);
+    }
+
     std::string 
     rebase_path(const cgn::CGNPath &p, const std::string &new_base = ".") {
         return api.rebase_path(p, new_base, opt);
@@ -45,6 +54,8 @@ struct CustomCommand
         return opt->confirm()->cache_result_found;
     }
     
+    // TODO:
+    //   helper class ShellScriptWorker
     CGN_UTILITY_API void append_setenv(const std::string &key, const std::string &value);
     CGN_UTILITY_API void append_setenv(const std::unordered_map<std::string, std::string> &data);
     CGN_UTILITY_API void append_pushd(const cgn::CGNPath &path);
@@ -56,6 +67,7 @@ struct CustomCommand
     //   helper function like auto-devel-info-generator
     //                        auto-cxxinfo-generator
     //                        pkgconfig-generator
+    //  Do not use function to do, using XXWorker instead, like CopyWorker.
     // CGN_UTILITY_API void set_analysis_result();
 
     CustomCommand(cgn::CGNTargetOptIn *opt)

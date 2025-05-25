@@ -11,8 +11,8 @@
 // run cmake -B -S in ninja command then run cmake install to deploy
 // 
 #define CMAKE_CGN_IMPL
-#include "../v1/raymii_command.hpp"
-#include "general.cgn.bundle/bin_devel.cgn.h"
+#include "../../v1/raymii_command.hpp"
+#include "../utility/bin_devel.cgn.h"
 #include "cmake.cgn.h"
 
 // namespace cmake{
@@ -124,7 +124,7 @@ void CMakeInterpreter::interpret(context_type &x)
     // only <output_dir>/<lib_dir> applied
     auto *bin_devel = opt->result.get<BinDevelInfo>(true);
     bin_devel->base = install_dir;
-    bin_devel->include_dir = install_dir + opt->path_separator + "include";
+    // bin_devel->include_dir = install_dir + opt->path_separator + "include";
 
     auto *lrinfo = opt->result.get<cgn::LinkAndRunInfo>(true);
     std::unordered_set<std::string> dllstem, alldirs;
@@ -137,13 +137,13 @@ void CMakeInterpreter::interpret(context_type &x)
         std::string filename = file.substr(fd1);
         std::string ext  = cgn::Tools::get_lowercase_extension(filename);
         std::string stem = filename.substr(0, filename.size() - ext.size());
-        if (fd1) { // dir existed
-            std::string dir = file.substr(0, fd1-1);
-            if (dir == "bin")
-                bin_devel->bin_dir = install_dir + opt->path_separator + "bin";
-            if (dir == "lib" || dir == "lib64")
-                bin_devel->lib_dir = install_dir + opt->path_separator + dir;
-        }
+        // if (fd1) { // dir existed
+        //     std::string dir = file.substr(0, fd1-1);
+        //     if (dir == "bin")
+        //         bin_devel->bin_dir = install_dir + opt->path_separator + "bin";
+        //     if (dir == "lib" || dir == "lib64")
+        //         bin_devel->lib_dir = install_dir + opt->path_separator + dir;
+        // }
         if (ext == "a")
             lrinfo->static_files.push_back(fullp);
         else if (ext == "so" || filename.find(".so.") != filename.npos)
@@ -163,7 +163,9 @@ void CMakeInterpreter::interpret(context_type &x)
             lrinfo->static_files.push_back(item.second);
 
     // generate CxxInfo in return value
-    x.pub.include_dirs.push_back(bin_devel->include_dir);
+    for (auto &dir : x.pub.include_dirs)
+        dir = cgn::make_path_base_working(api.rebase_path(dir, ".", opt));
+    x.pub.include_dirs.push_back(cgn::make_path_base_working(install_dir + "include"));
     opt->result.set(x.pub);
 
     // prepare cmake gen command
@@ -301,8 +303,8 @@ void CMakeConfigInterpeter::interpret(
             cmd += "=" + two_escape(item.second);
     }
 
-    // rule to run custom command
-    std::string rulepath = api.get_filepath("@cgn.d//library/general.cgn.bundle/rule.ninja");
+    // rule to run custom command (require 'quick_run' rule)
+    std::string rulepath = api.get_filepath("@cgn.d//library/utility/quick_run.ninja");
     opt->ninja->append_include(rulepath);
 
     // target cmake gen

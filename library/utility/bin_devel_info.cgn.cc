@@ -1,9 +1,9 @@
-#define GENERAL_CGN_BUNDLE_IMPL
+#define CGN_BINDEVEL_IMPL
 #include <map>
 #include "../../cgn.h"
-#include "bin_devel.cgn.h"
+#include "bin_devel_info.cgn.h"
 
-GENERAL_CGN_BUNDLE_API const cgn::BaseInfo::VTable*
+CGN_BINDEVEL_API const cgn::BaseInfo::VTable*
 BinDevelInfo::_glb_bindevel_vtable()
 {
     const static cgn::BaseInfo::VTable v = {
@@ -12,18 +12,25 @@ BinDevelInfo::_glb_bindevel_vtable()
         },
         [](void *ecx, const cgn::BaseInfo *rhs) {
             BinDevelInfo *self = (BinDevelInfo*)ecx;
-            if (self->base.empty() && self->include_dir.empty() && self->bin_dir.empty() && self->lib_dir.empty()) {
+            if (self->install_dir.empty()){
                 *self = *(BinDevelInfo*)rhs;
                 return true;
             }
+            // if (self->base.empty() && self->include_dir.empty() && self->bin_dir.empty() && self->lib_dir.empty()) {
+            //     *self = *(BinDevelInfo*)rhs;
+            //     return true;
+            // }
             return false;
         }, 
         [](const void *ecx, char type) -> std::string { 
             auto *self = (BinDevelInfo *)ecx;
             return std::string{"{\n"}
-                + "   base: " + self->base + "\n"
+                + " base: " + self->install_dir + "\n"
                 + " incdir: " + self->include_dir + "\n"
                 + " libdir: " + self->lib_dir + "\n"
+                + " bindir: " + self->bin_dir + "\n"
+                // + "   within_cmakeconfig: " + (self->within_cmakeconfig?"true":"false") + "\n"
+                // + "   within_pkgconfig  : " + (self->within_pkgconfig?"true":"false") + "\n"
                 + "}";
         }
     };

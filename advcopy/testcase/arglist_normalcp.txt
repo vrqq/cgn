@@ -1,0 +1,8 @@
+@MF advcp.d
+@stamp advcp.stamp
+
+@src aa/*.txt
+@src aa/bb
+@src **.in
+@sbase @cgn.d/advcopy/testcase
+@dst /tmp/advcopy_flat/

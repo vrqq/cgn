@@ -511,3 +511,25 @@ build out\obj\...\hello.o : msvc_cl ... | out\obj\...\x64_to_arm64.bat
     cc = build out\obj\...\x64_to_arm64.bat && cl.exe
 ```
 
+
+## nmake() 的多种case
+Makefile有时写的比较自由, 需要执行nmake.exe的cwd和Makefile同时指定.
+
+我们拟支持如下几种可能
+* 只能in-src-dir build (例如perl), 无论是否支持`make clean`, 编译会污染源代码文件夹, 在多config同时编译时, 可能会冲突. 例如编译很缓慢, ninja又规划了debug和release同时编译, 此时两种编译参数会污染源码.
+* 支持指定 `BUILD_DIR`, 可以out of source compile, 故直接编译即可, 无需copy.
+
+## 并不简单的BinDevel
+以linux系统举例, 一个 cxx_shared() 仅包含他自己, 不含他下属的依赖. 打包bin_devel有两种语义:
+* 生成一个对外发布的包
+* 仍然在内部使用 仅供external project例如cmake, nmake等 引用内部包
+    * 若为linux系统, 由cxx_shared或其他生成的.so 内部用rpath 定位到其依赖(相对路径), 此时直接复制文件, 必定找不到依赖.
+    * 若为windows系统, 内部由manifest定位, 复制当前so, 还需一并复制其依赖.(runtime files)
+
+目前暂定考虑了两个演化方向:
+* cxx_shadow_devel()
+    * 对linux生成空so, 和空.a, 指向实际的文件. include文件夹复制过来
+    * 对windows 复制.lib (静态库lib直接复制) 已包含了全部的导出表, include文件夹也复制过来
+
+* pkg()
+    * 打包
