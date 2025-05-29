@@ -12,7 +12,7 @@
 // 
 #define CMAKE_CGN_IMPL
 #include "../../v1/raymii_command.hpp"
-#include "../utility/bin_devel.cgn.h"
+#include "../utility/bin_devel_info.cgn.h"
 #include "cmake.cgn.h"
 
 // namespace cmake{
@@ -123,7 +123,7 @@ void CMakeInterpreter::interpret(context_type &x)
     // generate LinkAndRunInfo and BinDevelInfo in return value
     // only <output_dir>/<lib_dir> applied
     auto *bin_devel = opt->result.get<BinDevelInfo>(true);
-    bin_devel->base = install_dir;
+    bin_devel->install_dir = install_dir;
     // bin_devel->include_dir = install_dir + opt->path_separator + "include";
 
     auto *lrinfo = opt->result.get<cgn::LinkAndRunInfo>(true);

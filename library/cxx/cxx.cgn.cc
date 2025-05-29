@@ -130,7 +130,7 @@ static char src_path_convert(
     auto gen = [&]() {
         // using whole name 'file1' instead of 'left' to avoid name conflict
         // : src["a.cpp", "a.c"] => dst["a.o", "a.o"]
-        *path_in  = api.rebase_path(file1, ".", opt.src_prefix);
+        *path_in  = file1; // api.rebase_path(file1, ".", opt.src_prefix);
         *path_out = opt.out_prefix + api.mangle_path_to_relative(file1) + (dot_obj?".obj":".o");
 
         // since path_in and opt.out_prefix is not in same driver in windows,
@@ -610,7 +610,6 @@ bool TargetWorker::step2_opt_confirm(const CxxToolchainInfo &_interp)
 
 } // TargetWorker::step2_opt_confirm()
 
-
 void TargetWorker::step31_win()
 {
     std::string ccenv;
@@ -631,7 +630,8 @@ void TargetWorker::step31_win()
     std::string pdbfile = opt->out_prefix + "__vc.pdb";
     std::vector<std::string> obj_out;
     std::vector<std::string> obj_out_ninja_esc;
-    for (auto &file : x.srcs) {
+    for (auto &_file : x.srcs) {
+        std::string file = api.rebase_path(_file, ".", opt);
         std::string path_in, path_out;
         auto file_type = src_path_convert(file, *opt, &path_in, &path_out, true);
         if (file_type == 0)
@@ -786,7 +786,8 @@ void TargetWorker::step31_unix()
     std::vector<std::string> obj_out;
     std::vector<std::string> obj_out_ninja_esc;
     std::string dyn_def_file;
-    for (auto &ss : x.srcs) {
+    for (auto &_ss : x.srcs) {
+        std::string ss = api.rebase_path(_ss, ".", opt);
         // if (ss[0] == '.' && ss[1] == '.')
         //     ss = api.abspath(ss);  // using abspath to present file outside project
         std::string path_in, path_out;
@@ -814,8 +815,7 @@ void TargetWorker::step31_unix()
                 field->variables["cc"] = interp.exe_cc;
                 field->variables["cflags"] += list2str(interp.extra_cflags_c);
             }
-            field->variables["cflags"] += list2str(carg.cflags)
-                                        + list2str(carg_include_dirs, "-I")
+            field->variables["cflags"] += list2str(carg_include_dirs, "-I")
                                         + list2str(carg.defines, "-D");
             obj_out.push_back(path_out);
             obj_out_ninja_esc.push_back(field->outputs[0]);
@@ -986,12 +986,18 @@ void CxxInterpreter::interpret(context_type &x)
     //     TODO: target with file_glob() would re-analyse each time.
     //           so we should use external executable to generate ninja dyndep.
     //           @cgn.d//library/advtools
-    std::vector<std::string> real_srcs;
+    std::vector<cgn::CGNPath> real_srcs;
     for (auto &ss : x.srcs) {
-        if (ss.find('*') == ss.npos) //if not file_glob
+        if (ss.type == ss.BASE_ON_OUTPUT)
+            return x.opt->confirm_with_error("Wrong path in x.src[] " + ss.to_string());
+        if (ss.rpath.find('*') == ss.rpath.npos) //if not file_glob
             real_srcs += {ss};
-        else
-            real_srcs += api.file_glob(x.opt->src_prefix + ss, x.opt->src_prefix);
+        else {
+            std::string path2 = api.rebase_path(ss, ".", x.opt);
+            for (const auto &it : api.file_glob(path2, ".")) {
+                real_srcs.push_back(cgn::make_path_base_working(it));
+            }
+        }
     }
     std::swap(x.srcs, real_srcs);
 

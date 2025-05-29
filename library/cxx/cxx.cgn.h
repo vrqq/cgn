@@ -160,7 +160,7 @@ struct CxxContext : CxxInfo
 
     // only c, cpp source file included, no header required.
     // CGNPathArray srcs;
-    std::vector<std::string> srcs;
+    CGNPathArray srcs;
 
     // the cxx build argument apply on target who depended on current one,
     // but not apply on current target.
