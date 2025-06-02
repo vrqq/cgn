@@ -71,7 +71,7 @@ void CustomInterpreter::interpret(context_type &x)
         rule_name = "run_bat_bash";
     }
 
-    opt->result.ninja_dep_level = cgn::CGNTarget::NINJA_LEVEL_DYNDEP;
+    opt->result.ninja_dep_level = x.ninja_dep_level;
 
     for (auto p : x.analysis_outputs)
         opt->result.outputs += {x.rebase_path(p)};
@@ -118,20 +118,31 @@ void CustomInterpreter::interpret(context_type &x)
     }
 
     // write build.ninja
-    std::string rulepath = api.get_filepath("@cgn.d//library/utility/runbat.ninja");
-    opt->ninja->append_include(rulepath);
-    cgn::NinjaFile::BuildSection *field = opt->ninja->append_build();
+    cgn::NinjaFile::BuildSection *field;
     if (x.script_content.size()) {
+        std::string rulepath = api.get_filepath("@cgn.d//library/utility/runbat.ninja");
+        opt->ninja->append_include(rulepath);
+
+        field = opt->ninja->append_build();
         field->rule = rule_name;
         field->variables["factory_name"] = opt->factory_label;
+        field->variables["restat"] = "1";
         field->inputs  = {opt->ninja->escape_path(bat_file)};
     }
-    else
-        field->rule = "phony";
+    else {
+        std::string rulepath = api.get_filepath("@cgn.d//library/utility/quick_run.ninja");
+        opt->ninja->append_include(rulepath);
 
+        field = opt->ninja->append_build();
+        field->rule = (x.cfg["host_os"]=="win")?"win_stamp":"unix_stamp";
+    }
+
+    // For custom_command, there's usually no way to add a right dependency to 
+    // order_only target, it may not generate '.d' and the 'rule runbat' also 
+    // don't have dyndep option.
     field->outputs = {opt->ninja->escape_path(phony_file)};
-    field->implicit_inputs = opt->ninja->escape_path(opt->quickdep_ninja_full);
-    field->order_only      = opt->ninja->escape_path(opt->quickdep_ninja_dynhdr);
+    field->implicit_inputs = opt->ninja->escape_path(opt->quickdep_ninja_full)
+                           + opt->ninja->escape_path(opt->quickdep_ninja_dynhdr);
     for (auto it : x.watch_inputs)
         field->implicit_inputs += {
             opt->ninja->escape_path(x.rebase_path(it))

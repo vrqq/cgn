@@ -26,6 +26,8 @@ struct CustomCommand
     // CGNTarget.result.infos[]
     cgn::InfoTable analysis_infos;
 
+    char ninja_dep_level = cgn::CGNTarget::NINJA_LEVEL_DYNDEP;
+
     // add_dep() usually called before opt_confirm()
     cgn::CGNTarget 
     add_dep(const std::string &label, const cgn::Configuration &cfg) {

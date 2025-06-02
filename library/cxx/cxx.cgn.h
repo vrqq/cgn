@@ -117,6 +117,12 @@ public:
         lhs.insert(lhs.end(), rhs.begin(), rhs.end());
         return lhs;
     }
+
+    CGNPathArray &operator+=(const std::vector<std::string> &rhs) {
+        for (auto &p1 : rhs)
+            this->push_back(cgn::make_path_base_script(p1));
+        return *this;
+    }
 };
 
 struct CxxInfo : cgn::BaseInfo

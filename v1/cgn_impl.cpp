@@ -2,6 +2,7 @@
 #include <sstream>
 #include <optional>
 #include <filesystem>
+#include <algorithm>
 #include <vector>
 #include <cassert>
 #include <array>
@@ -968,35 +969,41 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
                 (cgn_out / "configurations").string(), &graph);
 
     //prepare obj-main-ninja (entry of all targets)
+    logger.println("Loading previous main.ninja entrypoint");
     std::ifstream fin(obj_main_ninja, std::ios::in);
     if (!fin) //create if not existed
         std::ofstream{obj_main_ninja};
-    else {
-        auto test_valid = [](auto &ninja_file) {
+    else { //Load and test previous main.ninja
+        // helper fn to test some .ninja files missing in obj_main_ninja
+        auto test_ninja_file = [&](const std::string &ninja_file) {
             if (!std::filesystem::is_regular_file(ninja_file))
                 return false;
             std::string tgt = api.parent_path(ninja_file) + "/.stamp";
-            auto rv = raymii::Command::exec("ninja -f " + ninja_file + " -t query " + tgt);
+            auto rv = raymii::Command::exec("ninja -f " + obj_main_ninja.string() + " -t query " + tgt);
             return rv.exitstatus == 0;
         };
+        
+        // load all rows in main.ninja
         constexpr std::string_view SUBNINJA{"subninja "};
-        bool need_rebuild = false;
+        bool entry_tested = false, need_rebuild = false;
         for (std::string ln; !fin.eof() && std::getline(fin, ln);)
             if (ln.size() > SUBNINJA.size()) {
                 auto subfile = NinjaFile::parse_ninja_str(
                                 ln.substr(SUBNINJA.size()));
-                if (test_valid(subfile))
-                    main_subninja.insert(subfile);
-                else {//some .ninja files missing
+                if (!entry_tested && !test_ninja_file(subfile)) {
                     need_rebuild = true;
-                    logger.verbose_paragraph("Loading: " + subfile + " missing or invalid content, regenerate.");
+                    logger.verbose_paragraph("\n" + subfile + " missing or invalid content, regenerate.\n");
+                    break;
                 }
+                entry_tested = true;  //test the first one entry
+                main_subninja.insert(subfile);
             }
+
+        // clear previous main.ninja if error found.
         if (fin.close(); need_rebuild) {
-            logger.println("Regenerate ninja entry ", obj_main_ninja.string());
+            logger.verbose_paragraph("Clear ninja entry " + obj_main_ninja.string() + "\n");
+            main_subninja.clear();
             std::ofstream fout{obj_main_ninja};
-            for (auto ln : main_subninja)
-                fout<<"subninja " + NinjaFile::escape_path(ln) + "\n";
             fout.close();
         }
     }
