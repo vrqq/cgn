@@ -34,10 +34,6 @@ custom_command("openssl3_build", x) {
     std::string nasm_dir = api.parent_path(nasm_exe);
     x.watch_inputs += {cgn::make_path_base_working(nasm_exe)};
 
-    // auto zstd_target = x.add_dep("@third_party//zstd", x.cfg);
-    // std::string zstd_include = zstd_target.get<cxx::CxxInfo>(false)->include_dirs[0];
-    // std::string zstd_lib     = 
-
     std::string cfg_arg;
 
     // perl Configure [cfg_arg]
@@ -86,6 +82,7 @@ custom_command("openssl3_build", x) {
 
     std::string build_log   = x.rebase_path(cgn::make_path_base_out("build.log"), "");
     std::string instl_log   = x.rebase_path(cgn::make_path_base_out("install.log"), "");
+    std::string config_log  = x.rebase_path(cgn::make_path_base_out("config.log"), "");
     api.mkdir(x.rebase_path(build_dir));
     api.mkdir(install_dir);
     api.mkdir(etc_dir);
@@ -99,7 +96,8 @@ custom_command("openssl3_build", x) {
     else 
         x.watch_outputs = {
             cgn::make_path_base_out("install/bin/openssl"),
-            cgn::make_path_base_out("install/lib64/libopenssl.a")
+            cgn::make_path_base_out("install/lib64/libssl.a"),
+            cgn::make_path_base_out("install/lib64/libcrypto.a")
         };
 
     // prepare enviromnent for make / nmake
@@ -112,14 +110,18 @@ custom_command("openssl3_build", x) {
     // https://github.com/openssl/openssl/blob/master/INSTALL.md#out-of-tree-builds
     x.append_pushd(build_dir);
     std::string src_cfgdir = x.rebase_path("repo/Configure", "");
-    x.append_cmd({perl_exe, src_cfgdir, cfg_arg, arg_build_type,
-        "--prefix=" + install_dir,
-        "--openssldir=" + etc_dir
-    });
+    x.append_escaped_cmd(
+        api.shell_escape(perl_exe) 
+        + " " + api.shell_escape(src_cfgdir)
+        + " " + cfg_arg + " " + arg_build_type
+        + " --prefix=" + api.shell_escape(install_dir)
+        + " --openssldir=" + api.shell_escape(etc_dir)
+        + " > " + api.shell_escape(config_log)
+    );
 
     if (x.cfg["os"] == "win") {
         x.append_escaped_cmd({"nmake > " + api.shell_escape(build_log)});
-        x.append_escaped_cmd({"nmake install >> " + api.shell_escape(build_log)});
+        x.append_escaped_cmd({"nmake install > " + api.shell_escape(instl_log)});
     }else{
         x.append_escaped_cmd({"make -j > " + api.shell_escape(build_log)});
         x.append_escaped_cmd("make install > " + api.shell_escape(instl_log));
@@ -155,17 +157,60 @@ cxx_prebuilt("openssl3_static" , x) {
     cgn::CGNTarget buildt = x.add_dep(":openssl3_build");
     auto instdir = buildt.outputs[0];
 
-    x.pub.include_dirs = {instdir + "/include"};
-    if (x.cfg["cxx_toolchain"] == "msvc")
-        x.files = {
-            cgn::make_path_base_working(instdir + "/lib/openssl.lib")
-        };
+    x.pub.include_dirs = {cgn::make_path_base_working(instdir + "/include")};
+    if (x.cfg["cxx_toolchain"] == "msvc") {
+        return ;
+        // x.opt->confirm_with_error("In windows MSVC, no static library supported, using shared library instead.");
+        // return ;
+    }
     else
-        x.files = {cgn::make_path_base_working(instdir + "/lib/libopenssl.a")};
+        x.files = {
+            cgn::make_path_base_working(instdir + "/lib64/libssl.a"),
+            cgn::make_path_base_working(instdir + "/lib64/libcrypto.a")
+        };
+}
+
+cxx_prebuilt("openssl3_shared", x) {
+    cgn::CGNTarget buildt = x.add_dep(":openssl3_build");
+    auto instdir = buildt.outputs[0];
+
+    x.pub.include_dirs = {instdir + "/include"};
+    if (x.cfg["cxx_toolchain"] == "msvc"){
+        x.files = {
+            cgn::make_path_base_working(instdir + "/lib/libssl.lib"),
+            cgn::make_path_base_working(instdir + "/bin/libssl-3-x64.dll"),
+            cgn::make_path_base_working(instdir + "/lib/libcrypto.lib"),
+            cgn::make_path_base_working(instdir + "/bin/libcrypto-3-x64.dll"),
+        };
+        if (x.cfg["optimization"] == "debug")
+            x.files += {
+                cgn::make_path_base_working(instdir + "/bin/libssl-3-x64.pdb"),
+                cgn::make_path_base_working(instdir + "/bin/libcrypto-3-x64.pdb")
+            };
+    }
+    else
+        x.files = {
+            cgn::make_path_base_working(instdir + "/lib64/libssl.so"),
+            cgn::make_path_base_working(instdir + "/lib64/libssl.so.3"),
+            cgn::make_path_base_working(instdir + "/lib64/libcrypto.so"),
+            cgn::make_path_base_working(instdir + "/lib64/libcrypto.so.3")
+        };
+}
+
+cxx_sources("host_prebuilt", x) {
+    if (x.cfg["os"] != "win")
+        x.pub.ldflags = {"-lssl", "-lcrypto"};
+    else
+        x.pub.ldflags = {"/Lssl", "/Lcrypto"};
 }
 
 alias("openssl", x) {
-    x.actual_label = ":openssl3_static";
+    if (x.cfg["cxx_toolchain"] == "msvc")
+        x.actual_label = ":openssl3_shared";
+    else
+        x.actual_label = ":openssl3_static";
+
+    // x.actual_label = ":host_prebuilt";
 }
 
 alias("host_exe", x) {
