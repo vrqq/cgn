@@ -127,7 +127,7 @@ void ProtobufInterpreter::interpret(context_type &x)
     if (!pb_opt->cache_result_found) {
         // ninja[protoc] run
         pb_opt->ninja->append_include(
-            api.get_filepath("@cgn.d//library/utility/rule.ninja")
+            api.get_filepath("@cgn.d//library/utility/quick_run.ninja")
         );
 
         // *.proto => *.pb.h / *.pb.cc
