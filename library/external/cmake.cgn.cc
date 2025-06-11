@@ -165,7 +165,7 @@ void CMakeInterpreter::interpret(context_type &x)
     // generate CxxInfo in return value
     for (auto &dir : x.pub.include_dirs)
         dir = cgn::make_path_base_working(api.rebase_path(dir, ".", opt));
-    x.pub.include_dirs.push_back(cgn::make_path_base_working(install_dir + "include"));
+    x.pub.include_dirs.push_back(cgn::make_path_base_working(install_dir + "/include"));
     opt->result.set(x.pub);
 
     // prepare cmake gen command
