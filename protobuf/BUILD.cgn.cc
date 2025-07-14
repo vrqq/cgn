@@ -79,13 +79,14 @@ std::vector<std::string> add_prefix(std::vector<std::string> in, std::string pre
 // dir : repo/third_party/utf8_range
 // ---------------------------------
 
-cxx_static("utf8_range", x) {
+cxx_sources("utf8_range", x) {
     x.pub.include_dirs = {"repo/third_party/utf8_range"};
     x.srcs = {"repo/third_party/utf8_range/utf8_range.c"};
 }
 
 cxx_static("utf8_validity", x) {
     x.pub.include_dirs = {"repo/third_party/utf8_range"};
+    x.add_dep(":utf8_range", cxx::inherit);
     x.add_dep("@third_party//abseil-cpp", cxx::inherit);
 }
 

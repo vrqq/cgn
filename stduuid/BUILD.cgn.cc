@@ -6,6 +6,6 @@ git("stduuid.git", x) {
     x.dest_dir = "repo";
 }
 
-cxx_sources("stduuid", x) {
-    x.pub.include_dirs = {"repo/include", "repo/gsl"};
+cxx_prebuilt("stduuid", x) {
+    x.pub.include_dirs = {"repo/include", "repo"};
 }
