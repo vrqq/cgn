@@ -149,7 +149,7 @@ static char src_path_convert(
     
     // check current file is c/cpp source file
     if (ext == "def") {
-        *path_in = cgn::Tools::locale_path(opt.src_prefix + file1);
+        *path_in = file1; //cgn::Tools::locale_path(opt.src_prefix + file1);
         return 'D';
     }
     if (ext == "cc" || ext == "cpp" || ext == "cxx" || ext == "c++")
@@ -466,6 +466,7 @@ CxxToolchainInfo TargetWorker::step1_linuxllvm_and_xcode(cgn::Configuration &cfg
 
     interp.arg.cflags += {
         "-fvisibility=hidden",
+        "-fno-common",
         "-fcolor-diagnostics", "-Wreturn-type", 
         "-I.", "-fPIC", "-pthread"};
     
@@ -585,6 +586,7 @@ bool TargetWorker::step2_opt_confirm(const CxxToolchainInfo &_interp)
     // === generate result ===
     // Merge infos from Context::_pub_infos
     opt->result.merge_from(x._pub_infos);
+    opt->result.ninja_dep_level = x._max_pub_ninja_level;
 
     // init CxxInfo and LinkAndRunInfo for return value
     auto rvcxx = opt->result.get<CxxInfo>(true);
@@ -770,7 +772,7 @@ void TargetWorker::step31_win()
         rvlnr->runtime_files[cgn::make_path_base_out(outfile_fname)] = outfile;
 
         opt->result.outputs = {outfile, outfile_implib};
-        opt->result.ninja_dep_level = x._max_pub_ninja_level;
+        // opt->result.ninja_dep_level = x._max_pub_ninja_level;
     } // if (role=='s' or 'x')
 
 } //TargetWorker::step31_win()
@@ -961,7 +963,7 @@ void TargetWorker::step31_unix()
         rvlnr->shared_files = std::vector<std::string>{outfile} + rvlnr->shared_files;
 
         opt->result.outputs = {outfile};
-        opt->result.ninja_dep_level = x._max_pub_ninja_level;
+        // opt->result.ninja_dep_level = x._max_pub_ninja_level;
         return ;
     } // if (role=='s' or 'x')
 } //TargetWorker::step31_unix()

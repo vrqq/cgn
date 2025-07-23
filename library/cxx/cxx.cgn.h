@@ -123,6 +123,24 @@ public:
             this->push_back(cgn::make_path_base_script(p1));
         return *this;
     }
+
+    CGNPathArray &operator+=(std::initializer_list<std::string> rhs) {
+        for (auto &p1 : rhs)
+            this->push_back(cgn::make_path_base_script(p1));
+        return *this;
+    }
+    
+    CGNPathArray &operator+=(const CGNPathArray &rhs) {
+        this->insert(this->end(), rhs.begin(), rhs.end());
+        return *this;
+    }
+
+    CGNPathArray &operator+=(CGNPathArray&& rhs) {
+        this->insert(this->end(),
+                     std::make_move_iterator(rhs.begin()),
+                     std::make_move_iterator(rhs.end()));
+        return *this;
+    }
 };
 
 struct CxxInfo : cgn::BaseInfo
