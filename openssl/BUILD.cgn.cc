@@ -88,11 +88,20 @@ custom_command("openssl3_build", x) {
     api.mkdir(etc_dir);
 
     // compile output
-    if (x.cfg["os"] == "win")
+    if (x.cfg["os"] == "win"){
         x.watch_outputs = {
             cgn::make_path_base_out("install/bin/openssl.exe"),
-            cgn::make_path_base_out("install/lib/openssl.lib")
+            cgn::make_path_base_out("install/lib/libssl.lib"),
+            cgn::make_path_base_out("install/bin/libssl-3-x64.dll"),
+            cgn::make_path_base_out("install/lib/libcrypto.lib"),
+            cgn::make_path_base_out("install/bin/libcrypto-3-x64.dll"),
         };
+        if (x.cfg["optimization"] == "debug")
+            x.watch_outputs += {
+                cgn::make_path_base_out("install/bin/libssl-3-x64.pdb"),
+                cgn::make_path_base_out("install/bin/libcrypto-3-x64.pdb")
+            };
+    }
     else 
         x.watch_outputs = {
             cgn::make_path_base_out("install/bin/openssl"),

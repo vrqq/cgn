@@ -40,12 +40,33 @@ git("node22.git", x) {
 // EXPORT
 // ------
 
+group("nodejs.git", x) {
+    x.add_deps({":node-addon-api.git", ":node20.git", ":node22.git"});
+}
+
+cxx_static("node20_win_export", x) {
+    x.perferred_binary_name = "node.lib";
+    if (x.cfg["os"] == "win" && x.cfg["cpu"] == "x86_64")
+        x.srcs = {"node20-win64-export.def"};
+    if (x.cfg["os"] == "win" && x.cfg["cpu"] == "x86")
+        x.srcs = {"node20-win86-export.def"};
+}
+
 cxx_prebuilt("napi9", x) {
     x.pub.include_dirs = {"node20/src"};
     x.pub.defines = {"NAPI_VERSION=9"};
     x.add_dep(":node-addon-api");
+    if (x.cfg["os"] == "win")
+        x.add_dep(":node20_win_export");
 }
 
+cxx_static("node22_win_export", x) {
+    x.perferred_binary_name = "node.lib";
+    if (x.cfg["os"] == "win" && x.cfg["cpu"] == "x86_64")
+        x.srcs = {"node22-win64-export.def"};
+    if (x.cfg["os"] == "win" && x.cfg["cpu"] == "x86")
+        x.srcs = {"node22-win86-export.def"};
+}
 cxx_prebuilt("napi10", x) {
     x.pub.include_dirs = {"node22/src"};
     x.pub.defines = {"NAPI_VERSION=10"};

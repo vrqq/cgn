@@ -7,32 +7,34 @@ git("tbb.git", x) {
     x.dest_dir = "repo";
 }
 
-static std::string _os_str(const cgn::Configuration cfg) {
+static std::string _tbb_def_file(const cgn::Configuration cfg) {
+    if (cfg["cxx_toolchain"] == "llvm" && cfg["os"] == "linux")
+        return "expose_for_lld.def";
+    
+    auto _rv = [](std::string mid){ return "repo/src/tbb/def/" + mid + "-tbb.def"; };
     // repo/cmake/compiler/Clang.cmake
     // script for for llvm linker (lld) is not same as GNU ld
     if (cfg["cxx_toolchain"] == "llvm" && cfg["os"] == "mac")
-        return "mac64"; 
+        return _rv("mac64");
 
     if (cfg["cxx_toolchain"] == "msvc") {
         if (cfg["os"] == "win" && cfg["cpu"] == "x86")
-            return "win32";
+            return _rv("win32");
         if (cfg["os"] == "win" && cfg["cpu"] == "x86_64")
-            return "win64";
+            return _rv("win64");
     }
 
     if (cfg["os"] == "linux" && cfg["cpu"] == "x86")
-        return "lin32";
+        return _rv("lin32");
     if (cfg["os"] == "linux" && cfg["cpu"] == "x86_64")
-        return "lin64";
+        return _rv("lin64");
+
     return "";
 }
 
 cxx_shared("tbb", x) {
     x.pub.include_dirs = x.include_dirs = {"repo/include"};
-    x.srcs = {"repo/src/tbb/*.cpp", 
-              "expose_for_lld.def",
-            //  "repo/src/tbb/def/" + _os_str(x.cfg) + "-tbb.def"
-            };
+    x.srcs = {"repo/src/tbb/*.cpp", _tbb_def_file(x.cfg)};
 
     if (x.cfg["cxx_toolchain"] == "gcc" || x.cfg["cxx_toolchain"] == "llvm") {
         if (x.cfg["cpu"] == "x86" || x.cfg["cpu"] == "x86_64")
@@ -69,6 +71,6 @@ cxx_shared("tbbmalloc", x) {
               "repo/src/tbbmalloc/frontend.cpp",
               "repo/src/tbbmalloc/large_objects.cpp",
               "repo/src/tbbmalloc/tbbmalloc.cpp", 
-              "repo/src/tbb/def/" + _os_str(x.cfg) + "-tbbbind.def"};
+              _tbb_def_file(x.cfg)};
     x.defines = {"__TBBMALLOC_BUILD"};
 }
