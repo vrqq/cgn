@@ -78,8 +78,8 @@ struct GroupInterpreter
             const cgn::Configuration &cfg
         );
 
-        GroupContext(cgn::CGNTargetOptIn *opt)
-        : name(opt->factory_label), cfg(opt->cfg) {}
+        GroupContext(cgn::CGNTargetOptIn *_opt)
+        : name(_opt->factory_label), cfg(_opt->cfg), opt(_opt) {}
 
     private: friend struct GroupInterpreter;
         cgn::CGNTargetOptIn *opt;
