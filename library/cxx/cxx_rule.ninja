@@ -15,7 +15,7 @@ rule msvc_ml
     command = ${cc} /nologo ${cflags} /Fo ${out} ${in}
 
 rule msvc_lib
-    command = ${libexe} /nologo /OUT:${out} ${in}
+    command = ${libexe} /nologo /OUT:${out} ${arflags} ${in}
 
 rule msvc_link
     command = ${link} /nologo @${out}.rsp
@@ -24,7 +24,7 @@ rule msvc_link
     description = LINK ${out}
 
 rule gcc_ar
-    command = rm -f ${out} && ${exe} rcs ${out} ${in}
+    command = rm -f ${out} && ${exe} rcs ${arflags} ${out} ${in}
     description = AR ${out}
 
 rule crun

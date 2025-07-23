@@ -286,10 +286,13 @@ CxxToolchainInfo TargetWorker::step1_win_msvc(cgn::Configuration &cfg)
         // The /LARGEADDRESSAWARE option tells the linker that the application 
         // can handle addresses larger than 2 gigabytes.
         interp.arg.ldflags += {"/SAFESEH", "/MACHINE:X86", "/LARGEADDRESSAWARE"};
+        interp.arg.arflags += {"/MACHINE:X86"};
     }
-    if (cfg["cpu"] == "x86_64")
+    if (cfg["cpu"] == "x86_64"){
         interp.arg.defines += {"_AMD64_"};  
         interp.arg.ldflags += {"/MACHINE:X64"};
+        interp.arg.arflags += {"/MACHINE:X64"};
+    }
 
     //["msvc_runtime"]
     if (cfg["msvc_runtime"] == "MDd") {
@@ -626,8 +629,6 @@ void TargetWorker::step31_win()
             interp.env_loader_script)};
     };
 
-    // std::string dyn_def_file;
-
     // build.ninja : source file => .o
     std::string pdbfile = opt->out_prefix + "__vc.pdb";
     std::vector<std::string> obj_out;
@@ -639,7 +640,7 @@ void TargetWorker::step31_win()
         if (file_type == 0)
             continue;
         if (file_type == 'D') {
-            // dyn_def_file = path_in;
+            carg.arflags += {"/DEF:" + path_in};
             carg.ldflags += {"/DEF:" + path_in};
             continue;
         }
@@ -702,6 +703,7 @@ void TargetWorker::step31_win()
                       + cgn::NinjaFile::escape_path(x._lnr_to_self.object_files);
         field->outputs = {outfile_njesc};
         field->variables["libexe"] = ccenv + interp.exe_ar;
+        field->variables["arflags"] = list2str(carg.arflags);
         add_ccenv_njdep(field);
 
         _entry_postprocess(field->outputs);
@@ -847,6 +849,7 @@ void TargetWorker::step31_unix()
                       + cgn::NinjaFile::escape_path(x._lnr_to_self.object_files);
         field->outputs = {outfile_njesc};
         field->variables["exe"] = interp.exe_ar;
+        field->variables["arflags"] = list2str(carg.arflags);
 
         _entry_postprocess(field->outputs);
         rvlnr->static_files = std::vector<std::string>{outfile} + rvlnr->static_files;

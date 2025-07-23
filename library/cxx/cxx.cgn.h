@@ -156,8 +156,10 @@ struct CxxInfo : cgn::BaseInfo
     std::vector<std::string>
         cflags,        // compiler specific cflags, shell-escaped required
                        // e.g.: "-Idir\\ 1"
-        ldflags;       // flags when linking, shell-escaped required
+        ldflags,       // flags when linking, shell-escaped required
                        // e.g.："-Wl,--rpath=\\$ORIGIN", "/L:ws2_32.lib"
+        arflags;       // flags for static library archiver
+                       // 'ar' on linux, 'lib.exe' on windows
                        
     static const char *name() { return "CxxInfo"; }
     CxxInfo() : BaseInfo{&_glb_cxx_vtable()} {}
