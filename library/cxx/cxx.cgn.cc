@@ -629,6 +629,8 @@ void TargetWorker::step31_win()
             interp.env_loader_script)};
     };
 
+    std::string def_file;
+
     // build.ninja : source file => .o
     std::string pdbfile = opt->out_prefix + "__vc.pdb";
     std::vector<std::string> obj_out;
@@ -640,8 +642,7 @@ void TargetWorker::step31_win()
         if (file_type == 0)
             continue;
         if (file_type == 'D') {
-            carg.arflags += {"/DEF:" + path_in};
-            carg.ldflags += {"/DEF:" + path_in};
+            def_file = path_in;
             continue;
         }
         //field->input has been moved into cflags
@@ -704,6 +705,10 @@ void TargetWorker::step31_win()
         field->outputs = {outfile_njesc};
         field->variables["libexe"] = ccenv + interp.exe_ar;
         field->variables["arflags"] = list2str(carg.arflags);
+        if (def_file.size()) {
+            field->variables["arflags"] += "/DEF:" + def_file + " ";
+            field->implicit_inputs += {cgn::NinjaFile::escape_path(def_file)};
+        }
         add_ccenv_njdep(field);
 
         _entry_postprocess(field->outputs);
@@ -745,6 +750,10 @@ void TargetWorker::step31_win()
         field->variables["ldflags"] = list2str(carg.ldflags)
                 + list2str(x.role=='s'? interp.extra_ldflags_so : interp.extra_ldflags_x)
                 + list2str(two_escape(x._wholearchive_a), "/WHOLEARCHIVE:");
+        if (def_file.size()) {
+            field->variables["arflags"] += "/DEF:" + def_file + " ";
+            field->implicit_inputs += {cgn::NinjaFile::escape_path(def_file)};
+        }
         add_ccenv_njdep(field);           
         
         // generate entry
