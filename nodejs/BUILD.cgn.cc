@@ -71,4 +71,6 @@ cxx_prebuilt("napi10", x) {
     x.pub.include_dirs = {"node22/src"};
     x.pub.defines = {"NAPI_VERSION=10"};
     x.add_dep(":node-addon-api");
+    if (x.cfg["os"] == "win")
+        x.add_dep(":node22_win_export");
 }

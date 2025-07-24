@@ -1,4 +1,4 @@
-LIBRARY "node22.exe"
+LIBRARY "node.exe"
 EXPORTS
 
 ??$MakeCheckOpString@HH@base@v8@@YAPEAV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@HHPEBD@Z @1
