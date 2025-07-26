@@ -19,6 +19,13 @@ cxx_prebuilt("node-addon-api", x) {
     };
 }
 
+cxx_sources("node-gyp-image-redir", x) {
+    x.srcs = {"node-gyp-src/win_delay_load_hook.cc"};
+    x.defines = {"HOST_BINARY=\\\"node.exe\\\""};
+    x.pub.ldflags = {"/DELAYLOAD:node.exe", "delayimp.lib"};
+}
+
+
 // nodejs/node repository
 // ----------------------
 
@@ -44,6 +51,7 @@ group("nodejs.git", x) {
     x.add_deps({":node-addon-api.git", ":node20.git", ":node22.git"});
 }
 
+// napi 9 for vanilla node 20
 cxx_static("node20_win_export", x) {
     x.perferred_binary_name = "node.lib";
     if (x.cfg["os"] == "win" && x.cfg["cpu"] == "x86_64")
@@ -51,7 +59,6 @@ cxx_static("node20_win_export", x) {
     if (x.cfg["os"] == "win" && x.cfg["cpu"] == "x86")
         x.srcs = {"node20-win86-export.def"};
 }
-
 cxx_prebuilt("napi9", x) {
     x.pub.include_dirs = {"node20/src"};
     x.pub.defines = {"NAPI_VERSION=9"};
@@ -60,6 +67,7 @@ cxx_prebuilt("napi9", x) {
         x.add_dep(":node20_win_export");
 }
 
+// napi 10, for vanilla node 22
 cxx_static("node22_win_export", x) {
     x.perferred_binary_name = "node.lib";
     if (x.cfg["os"] == "win" && x.cfg["cpu"] == "x86_64")
@@ -73,4 +81,35 @@ cxx_prebuilt("napi10", x) {
     x.add_dep(":node-addon-api");
     if (x.cfg["os"] == "win")
         x.add_dep(":node22_win_export");
+}
+
+// electron 37.2.4 within electron-node, libuv, v8, and openssl and others bundle inside
+// Here we only provide the node_api header and napi header
+cxx_static("electron_37.2.4_win_export", x) {
+    x.perferred_binary_name = "node.lib";
+    if (x.cfg["os"] == "win" && x.cfg["cpu"] == "x86_64")
+        x.srcs = {"electron37.2.4-node-win64-export.def"};
+    if (x.cfg["os"] == "win" && x.cfg["cpu"] == "x86")
+        x.srcs = {"electron37.2.4-node-win86-export.def"};
+}
+cxx_prebuilt("electron_37.2.4", x) {
+    x.pub.defines = {
+        "NAPI_VERSION=10",
+        // "NODE_GYP_MODULE_NAME=addon",
+        // "USING_UV_SHARED=1", 
+        // "USING_V8_SHARED=1", "V8_DEPRECATION_WARNINGS=1;",
+        // "_FILE_OFFSET_BITS=64","ELECTRON_ENSURE_CONFIG_GYPI",
+        // "USING_ELECTRON_CONFIG_GYPI", "V8_COMPRESS_POINTERS", "V8_COMPRESS_POINTERS_IN_SHARED_CAGE", 
+        // "V8_31BIT_SMIS_ON_64BIT_ARCH", "V8_ENABLE_SANDBOX", "V8_EXTERNAL_CODE_SPACE",
+        // "OPENSSL_NO_PINSHARED","OPENSSL_THREADS","OPENSSL_NO_ASM",
+        // "NODE_ADDON_API_CPP_EXCEPTIONS",
+        // "BUILDING_NODE_EXTENSION",
+    };
+    // x.pub.include_dirs = {"electron37.2.4_headers/include/node"};
+    x.pub.include_dirs = {"node22/src"};
+    x.add_dep(":node-addon-api");
+    x.add_dep(":node-gyp-image-redir");
+    // x.files = {"electron_node_headers/node2.lib"};
+    if (x.cfg["os"] == "win")
+        x.add_dep(":electron_37.2.4_win_export");
 }
