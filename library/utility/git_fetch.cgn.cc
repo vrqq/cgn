@@ -33,7 +33,7 @@ CGN_LIBRARY_GIT_API void GitFetcher::interpret(context_type &x)
         std::string stamp = opt->out_prefix + opt->BUILD_ENTRY;
         std::string cmd = two_escape(tool.outputs[0]) 
                         + " --stamp " + two_escape(stamp)
-                        + " --dir " + two_escape(dest_dir);
+                        + " --dir " + two_escape(dest_dir)
                         + " " + x.repo + " " + x.commit_id;
         field->variables["cmd"] = cmd;
         field->outputs = {opt->ninja->escape_path(stamp)};
@@ -43,22 +43,33 @@ CGN_LIBRARY_GIT_API void GitFetcher::interpret(context_type &x)
         std::string touchfile = api.locale_path(
             opt->src_prefix + x.dest_dir + opt->BUILD_ENTRY);
         #ifdef _WIN32
-        std::string cmd_true = "echo.>NUL";
+        std::string cmd_true = "echo .>NUL";
         std::string suffix = "cmd /c \"type nul >" + touchfile + "\""
                            + " 1 > nul";
+        std::string cmd = std::string{"cmd.exe /c \""}
+                        + "(mkdir " + two_escape(dest_dir) + " || " + cmd_true + ")"
+                        + " && pushd " + two_escape(dest_dir)
+                        + " && (git init || " + cmd_true + ")"
+                        + " && (git remote add origin " + x.repo + " || " + cmd_true + ")"
+                        + " && git fetch --depth=1 --recurse-submodules=on-demand origin " + x.commit_id
+                        + " && git reset --hard " + x.commit_id
+                        + " && popd"
+                        + " && type nul > " + two_escape(touchfile)
+                        + "\"";
         #else
         std::string cmd_true = "true";
         std::string suffix = "touch " + touchfile
                            + " 1> /dev/null 2>&1";
-        #endif
-        
         std::string cmd = "mkdir -p " + two_escape(dest_dir)
                         + " && cd " + two_escape(dest_dir)
                         + " && (git init || " + cmd_true + ")"
                         + " && (git remote add origin " + x.repo + " || " + cmd_true + ")"
                         + " && git fetch --depth=1 --recurse-submodules=on-demand origin " + x.commit_id
                         + " && git reset --hard " + x.commit_id
-                        + " && cd " + api.rebase_path(".", dest_dir); //cdback
+                        + " && cd " + api.rebase_path(".", dest_dir) //cdback 
+                        + " && touch " + touchfile + " 1> /dev/null 2>&1";
+        #endif
+        
 
         // cmd + x.post_script
         if (x.post_script.command.size()) {
@@ -73,9 +84,6 @@ CGN_LIBRARY_GIT_API void GitFetcher::interpret(context_type &x)
                 cmd += opt->ninja->escape_path(api.shell_escape(arg)) + " ";
             cmd += cdback;
         }
-
-        //cmd + stampfile
-        cmd += " && " + suffix;
 
         field->variables["cmd"] = cmd;
         field->variables["desc"] = "GIT FETCH " + x.repo;

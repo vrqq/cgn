@@ -1,5 +1,4 @@
 {
-    "C_Cpp.default.compilerPath": "/usr/bin/clang++",
     "C_Cpp.default.includePath": [
         "..", // for <cgn> build script
         "../@third_party/googletest/repo/googletest/include", // for "test"
