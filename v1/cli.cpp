@@ -123,8 +123,6 @@ int main(int argc, char **argv)
     // register windows SEH handler
     init_win_exception_handler();
 
-    std::shared_ptr<int> api_release;
-
 try{do{
     // cgn::CGNTools (static functions)
     // --------------------------------
@@ -183,10 +181,14 @@ try{do{
     }else
         args_kv["cgn-out"] = "cgn-out";
 
+
+    auto api_release = std::shared_ptr<int>(new int, [](int* p){ 
+        api.release(); delete p;
+    });
+
     // api.init()
     api.init(args_kv);
-    api_release = std::shared_ptr<int>(new int, [](int* p){ api.release(); delete p;});
-
+    
     // using config 'DEFAULT' if no cfgname assigned
     auto load_cfg = [](const std::string &name) -> cgnv1::Configuration {
         auto [cfg, adep] = api.query_config(name.empty()?"DEFAULT":name);
@@ -266,7 +268,7 @@ try{do{
     std::cerr<<"\n---EXCEPTION---\n"
              <<e.what()
              <<"\n==============="<<std::endl;
-    return 0;
+    return 1;
 }
 
     return show_helper(argv[0]);

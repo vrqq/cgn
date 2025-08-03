@@ -932,6 +932,27 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
             R"(C:\Program Files (x86)\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars32.bat)",
             R"(C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars32.bat)",
         };
+
+        if (cmd_kvargs["winenv"].size()){
+            possible_scripts = {cmd_kvargs["winenv"]};
+            logger.verbose_paragraph("Using winenv bat file from cli: " + possible_scripts[0]);
+        }
+        else {
+            raymii::CommandResult vswhere_test = raymii::Command::exec(
+                R"("C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe")" 
+                " -latest -products *"
+                " -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64"
+                " -property installationPath");
+            if (vswhere_test.exitstatus == 0) {
+                std::string vsdir = vswhere_test.output;
+                if (auto fd = vsdir.find('\n'); fd != vsdir.npos)
+                    vsdir = vsdir.substr(0, fd);
+                possible_scripts = {vsdir + R"(\VC\Auxiliary\Build\vcvars64.bat)",
+                                    vsdir + R"(\VC\Auxiliary\Build\vcvars32.bat)"};
+                logger.verbose_paragraph("Using vswhere.exe to detect script : " + possible_scripts[0]);
+            }
+        }
+
         raymii::CommandResult resp;
         for (auto vcbat : possible_scripts) {
             resp = raymii::Command::exec("\"" + vcbat + "\" 2>&1 >NUL && set");

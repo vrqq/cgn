@@ -33,6 +33,19 @@ if defined VCVARSALL (
 rem === Search predefined locations ===
 set FOUND=0
 
+rem Using vswhere.exe to test location
+set VSWHERE_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe
+if not exist "%VSWHERE_PATH%" (
+    goto :search_by_candidate
+)
+for /f "usebackq tokens=*" %%i in (`"%VSWHERE_PATH%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do (
+    set "VCVARSALL=%%i\VC\Auxiliary\Build\vcvarsall.bat"
+    set "FOUND=1"
+    goto :found
+)
+
+rem If no vswhere.exe found, test by candidate[] below
+:search_by_candidate
 set "CANDIDATE[0]=C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
 set "CANDIDATE[1]=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat"
 set "CANDIDATE[2]=C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat"

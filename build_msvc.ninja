@@ -7,7 +7,7 @@ builddir = build_wind
 rule cc
     deps    = msvc
     rspfile = ${out}.d
-    rspfile_content = /nologo /showIncludes /std:c++17 /I. /errorReport:prompt /DCGN_EXE_IMPLEMENT /DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_CONSOLE /D_AMD64_ /Gy /Oi /Od /D_DEBUG /MDd /EHsc /utf-8 /EHs /c ${in} /Fo: ${out} /Zi /Fd: ${out}.pdb
+    rspfile_content = /nologo /showIncludes /std:c++17 /I. /errorReport:prompt /DCGN_EXE_IMPLEMENT /DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_CONSOLE /D_AMD64_ /Gy /Oi /Od /D_DEBUG /MDd /EHa /utf-8 /c ${in} /Fo: ${out} /Zi /Fd: ${out}.pdb
     command = cl.exe @${out}.d
 
 rule ar
