@@ -234,14 +234,17 @@ CGNImpl::active_script(const std::string &label)
                 //      2. use TLS to storage CGN_ULABEL_PREFIX when load_library
                 //
                 frsp<< "/c " << ("." / pt).string() <<" /nologo /showIncludes /Od /Gy "
-                    "/DWINVER=0x0A00 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
+                    "/DWINVER=0x0603 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
                     " /DCGN_VAR_PREFIX=" + def_var_prefix +
                     " /D\"CGN_ULABEL_PREFIX=\"" + def_ulabel_prefix + "\"\"" + 
                     " /I. /utf-8 /EHsc /Fo: " + Tools::shell_escape(outname);
-                if (scriptcc_debug_mode)
-                    frsp<<" /D_DEBUG /MDd /Od /Zi /Fd: " + Tools::shell_escape(outname) + ".pdb";
-                else
+                #ifdef _DEBUG
+                    frsp<<" /D_DEBUG /MDd";
+                #else
                     frsp<<" /MD";
+                #endif
+                if (scriptcc_debug_mode)
+                    frsp<<" /Od /Zi /Fd: " + Tools::shell_escape(outname) + ".pdb";
             }
             else if (is_unix) {
                 if (is_clang && scriptcc_debug_mode) //llvm debug (lldb)
@@ -884,8 +887,11 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
 
     //init logger system
     // (always true, current in development)
-    scriptcc_debug_mode = cmd_kvargs.count("scriptcc_debug");
-    halt_on_error = cmd_kvargs.count("halt_on_error");
+    // recommended writing: (using underscore way)
+    //  "scriptcc_debug", "halt_on_error"
+    scriptcc_debug_mode = cmd_kvargs.count("scriptcc_debug") || cmd_kvargs.count("scriptcc-debug");
+    halt_on_error = cmd_kvargs.count("halt_on_error") || cmd_kvargs.count("halt_onerror") 
+                 || cmd_kvargs.count("halt-on-error") || cmd_kvargs.count("halt-onerror");
     logger.set_verbose(cmd_kvargs.count("verbose"));
 
     logger.verbose_paragraph("CWD: " + std::filesystem::current_path().string());

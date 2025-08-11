@@ -166,7 +166,7 @@ struct TargetWorker
 {
     // win10==0x0A00; win7==0x0601;
     // win8.1/Server2012R2==0x0603;
-    static constexpr const char *mimimum_winver = "0x0603";
+    static constexpr const char *mimimum_winver = "0x0A00";
 
     // extra function
     // generate the mimimum cflags and ldflags for external build system like
@@ -571,6 +571,9 @@ bool TargetWorker::step2_opt_confirm(const CxxToolchainInfo &_interp)
                 api.rebase_path(it, ".", x.opt) ));
     } (x.include_dirs + x._cxx_to_self.include_dirs + interp.arg.include_dirs);
 
+    // cpp define priority merge : TODO
+    // auto def_priority_merge = [](StrSet priority, StrSet candidate) {};
+
     // auto def_to_cflag = [](CxxInfo &inf) {
     //     for (auto &def : inf.defines)
     //         inf.cflags += {"/D" + cgn::Tools::shell_escape(def)};
@@ -628,6 +631,12 @@ void TargetWorker::step31_win()
             build_field->implicit_inputs += {cgn::NinjaFile::escape_path(
             interp.env_loader_script)};
     };
+
+    // patch for .lib in windows : 
+    //   if field->inputs empty, lib.exe would not generate any files,
+    //   so here we feed a empty source file here.
+    if (x.role == 'a' && x.srcs.empty() && x._lnr_to_self.object_files.empty())
+        x.srcs = {cgn::make_path_base_working("@cgn.d//library/cxx/vsenv_loader/empty_file.c")};
 
     std::string def_file;
 
