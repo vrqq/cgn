@@ -1102,18 +1102,36 @@ cgn::CGNTarget CxxContext::add_dep(
     }
     
     // cxx_executable() and cxx_shared() for both msvc and GNU
-    //   r_lnk.obj and r_lnk.a would consume by current target interpreter
-    //   r_lnk.a with wholearchive (inherit dep) do not storage into _lnr_to_self
+    //   r_lnk.obj and r_lnk.a would use by current target interpreter for (cxx::private_dep)
+    //   r_lnk.obj and r_lnk.a would both export since visiblity(hidden) when (cxx::inherit)
+    //   r_lnk.a with wholearchive (cxx::pack_obj) do not storage into _lnr_to_self
     //   r_lnk.so link to current one
     //   r_lnk.rt processed later in interpreter
-    if (role == 's' || role == 'x') {
-        if ((flag & cxx::inherit) && r_lnr) {
-            _wholearchive_a += std::move(r_lnr->static_files);  //move and clear this entry
-            auto *pub_lr = _pub_infos.get<cgn::LinkAndRunInfo>(true);
-            pub_lr->shared_files += r_lnr->shared_files;
-            pub_lr->runtime_files.insert(r_lnr->runtime_files.begin(), r_lnr->runtime_files.end());
-        }
+    if (r_lnr && (role == 's' || role == 'x')) {
+        // Record 'wholearchive' in the separator along with 'dep.static'
+        if (flag & cxx::pack_obj)
+            _wholearchive_a += std::move(r_lnr->static_files);
         _lnr_to_self.merge_entry(r_lnr);
+
+        // If the pack_obj special flag is set, the current object files are 
+        // not exposed, even if the inherit flag is set. In this case, inherit 
+        // only affects the CxxInfo field.
+        if (flag & cxx::pack_obj)
+            r_lnr->object_files.clear();
+
+        // special for cxx_executable(), consume all runtime_files from deps
+        if (role == 'x')
+            r_lnr->runtime_files.clear();
+        else{
+            auto &pubrt = _pub_infos.get<cgn::LinkAndRunInfo>(true)->runtime_files;
+            pubrt.insert(std::make_move_iterator(r_lnr->runtime_files.begin()), 
+                         std::make_move_iterator(r_lnr->runtime_files.end()));
+            r_lnr->runtime_files.clear();
+        }
+            
+        if (flag & cxx::inherit)
+            _pub_infos.get<cgn::LinkAndRunInfo>(true)->merge_entry(r_lnr);
+
     }
 
     return early;

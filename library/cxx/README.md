@@ -4,12 +4,16 @@
     * `cxx_static(cxx::CxxStaticContext)`
     * `cxx_shared(cxx::CxxSharedContext)`
     * `cxx_executable(cxx::CxxExecutableContext)`
+	* `cxx_prebuilt(cxx::PrebuiltContext)`
     * clang ThinLTO
     * TODO: msvc incremental build
 
 **.add_dep()**
-* `cxx::private_dep` 仅对自己有效
-* `cxx::inherit` 对自己和有效 且public
+* `cxx::private_dep` 仅对自己有效 : 依赖项不向上传递
+* `cxx::inherit` 对自己和有效 且public : 依赖项尽可能向上传递
+* `cxx::pack_obj` 特殊flag 尽可能的将从dep来的obj/static_lib打包
+	* 尽量在当前target消费掉 `LinkAndRunInfo.static` 和 `LinkAndRunInfo.object` 不向上传递, 若消费不掉 再遵循`private_dep` 和 `inherit` 两个flag决定是否传递.
+* `LinkAndRunInfo.runtime` 无论哪种flag, 均截止至`cxx_executable()`并复制到同文件夹
 
 **(CxxInfo)this 和 this.pub**
 * `(CxxInfo)this` 仅对自己有效 不对外public
@@ -34,48 +38,54 @@
 
 ## C/C++ interpreter 处理流程
 仅处理dep上游传来的 `BuildAndRunInfo` 和 `CxxInfo`, 其余一律转发.
-下文缩写 `brin => BuildAndRunInfo from dep-input`, `brin.rt => [BuildAndRunInfo].runtime`, `cxin => CxxInfo from dep-input` 等等
+下文缩写: `dep` from dep-input, `rv` 当前target的输出, `self_buildarg` 作用于当前target的编译参数, `move()`表示将该项目移走并清空
 
 ```
-cxx_sources(x)
-	for private/inherit BuildAndRunInfo：
-		brin => rv[BrInfo]
-	for private CxxInfo
-		cxin => self_buildarg
-	for cxin as public CxxInfo
-		cxin => rv[CxxInfo] + self_buildarg
-	x.src => x.obj => rv[BrInfo].obj
-	// Option : 控制CxxInfo是否暴露
+// cxx::pack_obj 不起作用
+cxx_sources(x) {
+	for dep.BuildAndRunInfo
+		dep => rv
+	for priv_dep dep.CxxInfo
+		dep => self_buildarg
+	for inherit dep.CxxInfo
+		dep => self_buildarg + rv[CxxInfo]
+	gen-ninja: x.src => x.obj => rv[BuildAndRunInfo].obj 
+}
 
-cxx_static(x)
-	for private/inherit BuildAndRunInfo:
-		move(brin.obj) => x.src
-		brin.a / brin.so / brin.rt => rv[brInfo]
-	for private CxxInfo
-		cxin => self_buildarg
-	for inherit CxxInfo
-		cxin => self_buildarg + rv[cxxInfo]
-	x.src => x.a => rv[brInfo].a
-	// Option 1: CxxInfo是否向上暴露
-	// Option 2: 是否将dep的.obj打包进当前.a
 
-cxx_shared/cxx_executable(x)
-	for private CxxInfo:
-		cxin => self_buildarg
-	for inherit CxxInfo:
-		cxin => self_buildarg + rv[CxxInfo]
-	for private/inherit BuildAndRunInfo：
-		self_buildarg.ldflags += "rpath=brin.so" (UNIX and NOT-PKG)
-		self_buildarg.ldflags += brin.so + move(brin.obj + brin.a)
-		brin.rt => rv[brInfo].rt (SHARED ONLY)
-		exec("cp brin.rt => x.out_folder") (EXECUTABLE ONLY)
-	for inherit BuildAndRunInfo：
-		brin.so => rv[brInfo].so
-		self_buildarg.ldflags += "/wholearchive:brin.a"
-	x.src => x.so/x.exe => rv[brInfo].so + rv[brInfo].rt
+// Option : pack_obj 优先控制 是否将dep.obj打包进当前.a
+cxx_static(x) {
+	for pack_obj dep.BuildAndRunInfo
+		move(dep.obj) => self.src
+	for inherit dep.BuildAndRunInfo
+		dep => rv[BuildAndRunInfo]
+	for priv_dep dep.CxxInfo
+		dep => self_buildarg
+	for inherit dep.CxxInfo
+		dep => self_buildarg + rv[cxxInfo]
+	gen-ninja: x.src => x.a => rv[BuildAndRunInfo].a
+}
+
+// Option : pack_obj 优先控制 是否将dep.obj + wholearchive(dep.static) 打包进当前.so
+cxx_shared/cxx_executable(x) {
+	for priv_dep dep.CxxInfo
+		dep => self_buildarg
+	for inherit dep.CxxInfo
+		dep => self_buildarg + rv[CxxInfo]
+	for pack_obj dep.BuildAndRunInfo
+		move(dep.static) => wholearchive into x.so
+		move(dep.object) => x.src
+	for private/inherit dep.BuildAndRunInfo
+		self_buildarg.ldflags += "rpath=dep.shared" (UNIX and NOT-PKG)
+		self_buildarg.ldflags += dep.shared + dep.object + dep.static
+		dep.runtime => rv[BuildAndRunInfo].runtime (for SHARED target)
+		exec("cp dep.runtime => x.out_folder") && clear(dep.runtime) (for EXECUTABLE target)
+	for inherit dep.BuildAndRunInfo
+		dep => rv[BuildAndRunInfo]
+	x.src => x.so/x.exe => rv[BuildAndRunInfo].so + rv[BuildAndRunInfo].rt
 	if target==WIN and x.src.contain(".mainfest"): (both PKG and NOT-PKG)
 		x.so => target_out/{manifest_name}/x.so
-		rv[brInfo].rt = {"manifest_pkg_name/x.dll"}
+		rv[BuildAndRunInfo].rt = {"manifest_pkg_name/x.dll"}
 		rv[CxxInfo].ldflags += "/manifestdependency:x.manifest"
 	if target==WIN: (both PKG and NOT-PKG)
 		x.so => target_out/x.so
@@ -94,18 +104,18 @@ cxx_shared/cxx_executable(x)
 	//		    DYNDEP-DLL 之后就不含 undefined symbol 了)
 	//
 	//			故private语义 需打包 obj/.a 同时 抹掉内部的dllexport
-
+}
 ```
 
-**可能的改进**
+**可能的改进 (TODO) **
 * `cxx_sources(x)`
 	* inherit : 暴露 dep.CxxInfo
 	* privcfg : 隐藏 dep.CxxInfo 例如从当前target间接调用dep内函数
 * `cxx_static(x)`
-	* packobj + inherit : dep.obj -> this.static && 暴露 dep.CxxInfo
-	* nopack  + inherit : dep.obj -> this.obj    && 暴露 dep.CxxInfo
-	* packobj + privcfg : dep.obj -> this.static && 不暴露 dep.CxxInfo && 削减 ranlib
-	* nopack  + privcfg : dep.obj -> this.obj    && 不暴露 dep.CxxInfo
+	* packobj + inherit : dep.obj -> thisrv.static && 暴露 dep.CxxInfo
+	* nopack  + inherit : dep.obj -> thisrv.obj    && 暴露 dep.CxxInfo
+	* packobj + privcfg : dep.obj -> thisrv.static && 不暴露 dep.CxxInfo && 削减 ranlib
+	* nopack  + privcfg : dep.obj -> thisrv.obj    && 不暴露 dep.CxxInfo
 * `cxx_shared/cxx_executable(x)`
 	* privdep : dep.obj 抹掉导出表
-	* inherit : dep.obj 正常link  && /wholearchive:pub.a
+	* inherit : dep.obj 正常link

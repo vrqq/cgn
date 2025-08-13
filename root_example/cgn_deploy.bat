@@ -23,3 +23,4 @@ echo copy basic files...
 copy @cgn.d\root_example\cgn .
 copy @cgn.d\root_example\cgn_setup.cgn.cc .
 copy @cgn.d\root_example\debug.bat .
+copy @cgn.d\root_example\query.bat .
