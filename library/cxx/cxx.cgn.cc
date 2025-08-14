@@ -753,6 +753,7 @@ void TargetWorker::step31_win()
                       + opt->ninja->escape_path(x._lnr_to_self.shared_files)
                       + opt->ninja->escape_path(x._wholearchive_a);
         field->outputs = {opt->ninja->escape_path(outfile)};
+        field->variables["restat"] = "1";
         if (x.role == 's') //only add .lib for .dll
             field->implicit_outputs = {opt->ninja->escape_path(outfile_implib)};
         field->variables["link"] = ccenv + (x.role=='s'? interp.exe_solink:interp.exe_xlink);
@@ -760,7 +761,7 @@ void TargetWorker::step31_win()
                 + list2str(x.role=='s'? interp.extra_ldflags_so : interp.extra_ldflags_x)
                 + list2str(two_escape(x._wholearchive_a), "/WHOLEARCHIVE:");
         if (def_file.size()) {
-            field->variables["arflags"] += "/DEF:" + def_file + " ";
+            field->variables["ldflags"] += "/DEF:" + def_file + " ";
             field->implicit_inputs += {cgn::NinjaFile::escape_path(def_file)};
         }
         add_ccenv_njdep(field);           

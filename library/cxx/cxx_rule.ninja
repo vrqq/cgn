@@ -15,7 +15,10 @@ rule msvc_ml
     command = ${cc} /nologo ${cflags} /Fo ${out} ${in}
 
 rule msvc_lib
-    command = ${libexe} /nologo /OUT:${out} ${arflags} ${in}
+    command = ${libexe} /nologo @${out}.rsp
+    rspfile = ${out}.rsp
+    rspfile_content = /OUT:${out} ${arflags} ${in}
+    description = LIB ${out}
 
 rule msvc_link
     command = ${link} /nologo @${out}.rsp
