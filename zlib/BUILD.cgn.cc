@@ -9,7 +9,7 @@ cxx_static("z", x) {
     x.pub.include_dirs = {"repo"};
     x.srcs = {"repo/*.c"};
     if (x.cfg["os"] == "win")
-        x.srcs += {"src/win32/zlib1.def"};
+        x.srcs += {"repo/win32/zlib.def"};
     if (x.cfg["os"] == "linux")
         x.cflags = {"-Wno-deprecated-non-prototype"};
     x.defines = {

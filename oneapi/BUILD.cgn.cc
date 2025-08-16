@@ -1,9 +1,9 @@
 #include "cgn"
 
-// oneTBB 2022.0.0 (Nov 1, 2024)
+// oneTBB 2022.2.0 (Jun 30, 2025)
 git("tbb.git", x) {
     x.repo = "https://github.com/uxlfoundation/oneTBB.git";
-    x.commit_id = "0c0ff192a2304e114bc9e6557582dfba101360ff";
+    x.commit_id = "06ce6212da6710f4bb2d20a1904b018aa44069bf";
     x.dest_dir = "repo";
 }
 
@@ -48,8 +48,13 @@ cxx_shared("tbb", x) {
     if (x.cfg["cxx_toolchain"] == "llvm")
         x.cflags += {"-fexceptions"};
 
-    if (x.cfg["os"] != "win")
+    if (x.cfg["os"] == "win"){
+        x.defines += {"WIN32", "__TBB_SKIP_DEPENDENCY_SIGNATURE_VERIFICATION=1"};
+        x.cflags += {"/external:W4", "/TP"};
+    }
+    else //not win
         x.ldflags += {"-pthread"};
+    
     if (x.cfg["os"] == "linux") {
         x.cflags += {"-fvisibility=default"};
         x.ldflags += {"-ldl", "-lrt"};
@@ -60,6 +65,8 @@ cxx_shared("tbb", x) {
         x.pub.defines += {"__TBB_NO_IMPLICIT_LINKAGE"};
         x.defines += {"__TBB_USE_ITT_NOTIFY"};
     }
+    if (x.cfg["optimization"] == "debug")
+        x.defines += {"TBB_USE_DEBUG"};
     x.pub.defines += {"USE_PTHREAD"};
     x.defines += {"__TBB_BUILD"};
 }

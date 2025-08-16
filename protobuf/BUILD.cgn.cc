@@ -11,10 +11,12 @@ git("protobuf.git", x) {
 namespace { //protobuf/build_defs/cpp_opts.bzl
 
 void config_target(cxx::CxxContext &x) {
-    if (x.cfg["toolchain"] == "msvc")
+    if (x.cfg["cxx_toolchain"] == "msvc")
         x.cflags = {
             "/wd4065",  // switch statement contains 'default' but no 'case' labels
+            "/wd4116",  // unnamed type definition in parentheses
             "/wd4146",  // unary minus operator applied to unsigned type
+            "/wd4175",  // not all control paths return a value
             "/wd4244",  // 'conversion' conversion from 'type1' to 'type2', possible loss of data
             "/wd4251",  // 'identifier' : class 'type' needs to have dll-interface to be used by clients of class 'type2'
             "/wd4267",  // 'var' : conversion from 'size_t' to 'type', possible loss of data
@@ -26,29 +28,32 @@ void config_target(cxx::CxxContext &x) {
             "/wd4506",  // no definition for inline function 'function'
             "/wd4800",  // 'type' : forcing value to bool 'true' or 'false' (performance warning)
             "/wd4996",  // The compiler encountered a deprecated declaration.
-            "/utf-8"    // Set source and execution character sets to UTF-8
+            "/utf-8",   // Set source and execution character sets to UTF-8
+            "/bigobj"   // Allow big object
         };
     
-    if (x.cfg["optimization"] == "release")
-        x.cflags = {
-            "-Wno-sign-compare",
-            "-Wno-nonnull",
-            "-Wno-missing-field-initializers"
-            "-Wno-overloaded-virtual",
-            "-Wno-attributes",
-        };
-    else
-        x.cflags = {
-            "-Woverloaded-virtual",
-            "-Wno-sign-compare",
-            "-Wno-nonnull",
-            "-Wno-missing-field-initializers"
-        };
+    if ((x.cfg["cxx_toolchain"]=="llvm" || x.cfg["cxx_toolchain"]=="gcc") && x.cfg["os"]=="linux") {
+        if (x.cfg["optimization"] == "release")
+            x.cflags = {
+                "-Wno-sign-compare",
+                "-Wno-nonnull",
+                "-Wno-missing-field-initializers"
+                "-Wno-overloaded-virtual",
+                "-Wno-attributes",
+            };
+        else
+            x.cflags = {
+                "-Woverloaded-virtual",
+                "-Wno-sign-compare",
+                "-Wno-nonnull",
+                "-Wno-missing-field-initializers"
+            };
+    }
     
     x.defines = {"HAVE_ZLIB", "GOOGLE_PROTOBUF_CMAKE_BUILD"};
 
     if (x.role == 'x') {
-        if (x.cfg["toolchain"] == "msvc")
+        if (x.cfg["cxx_toolchain"] == "msvc")
             x.ldflags = {
                 "-ignore:4221",
                 "Shell32.lib"
@@ -164,6 +169,7 @@ cxx_static("libprotobuf-lite", x) {
     config_target(x);
     x.srcs = add_prefix(libprotobuf_lite_srcs, "repo/");
     x.add_dep(":utf8_validity", cxx::inherit);
+    x.add_dep("@third_party//zlib", cxx::private_dep);
     x.add_dep("@third_party//abseil-cpp", cxx::inherit);
 }
 
@@ -178,6 +184,7 @@ cxx_static("libprotobuf", x) {
     config_target(x);
     x.srcs = add_prefix(libprotobuf_srcs, "repo/");
     x.add_dep(":utf8_validity", cxx::inherit);
+    x.add_dep("@third_party//zlib", cxx::private_dep);
     x.add_dep("@third_party//abseil-cpp", cxx::inherit);
 }
 

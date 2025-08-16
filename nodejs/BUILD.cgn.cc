@@ -108,8 +108,9 @@ cxx_prebuilt("electron_37.2.4", x) {
     // x.pub.include_dirs = {"electron37.2.4_headers/include/node"};
     x.pub.include_dirs = {"node22/src"};
     x.add_dep(":node-addon-api");
-    x.add_dep(":node-gyp-image-redir");
     // x.files = {"electron_node_headers/node2.lib"};
-    if (x.cfg["os"] == "win")
+    if (x.cfg["os"] == "win") {
+        x.add_dep(":node-gyp-image-redir");
         x.add_dep(":electron_37.2.4_win_export");
+    }
 }

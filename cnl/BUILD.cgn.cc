@@ -6,6 +6,7 @@ git("cnl.git", x) {
     x.dest_dir = "repo";
 }
 
+// Header only cpp library
 cxx_prebuilt("cnl", x) {
     x.pub.include_dirs = {"repo/include"};
 }
