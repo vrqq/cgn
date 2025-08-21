@@ -80,76 +80,13 @@ operator&(DepType a, DepType b) { return ((char)a & (char)b); }
 inline constexpr DepType 
 operator|(DepType a, DepType b) { return DepType((char)a | (char)b); }
 
-class CGNPathArray : public std::vector<cgn::CGNPath>
-{
-public:
-    CGNPathArray &operator=(const std::vector<std::string> &rhs) {
-        this->clear();
-        for (auto p1 : rhs)
-            this->push_back(cgn::make_path_base_script(p1));
-        return *this;
-    }
-    CGNPathArray &operator=(std::vector<std::string> &&rhs) {
-        this->clear();
-        for (auto p1 : rhs)
-            this->push_back(cgn::make_path_base_script(std::move(p1)));
-        return *this;
-    }
-    CGNPathArray &operator=(const std::initializer_list<cgn::CGNPath> &rhs) {
-        *(std::vector<cgn::CGNPath>*)this = rhs;
-        return *this;
-    }
-
-    CGNPathArray operator+(const std::vector<std::string> &rhs) {
-        CGNPathArray lhs = *this;
-        for (auto &p1 : rhs)
-            lhs.push_back(cgn::make_path_base_script(p1));
-        return lhs;
-    }
-    CGNPathArray operator+(std::vector<std::string> &&rhs) {
-        CGNPathArray lhs = *this;
-        for (auto &p1 : rhs)
-            lhs.push_back(cgn::make_path_base_script(std::move(p1)));
-        return lhs;
-    }
-    CGNPathArray operator+(const CGNPathArray &rhs) {
-        CGNPathArray lhs = *this;
-        lhs.insert(lhs.end(), rhs.begin(), rhs.end());
-        return lhs;
-    }
-
-    CGNPathArray &operator+=(const std::vector<std::string> &rhs) {
-        for (auto &p1 : rhs)
-            this->push_back(cgn::make_path_base_script(p1));
-        return *this;
-    }
-
-    CGNPathArray &operator+=(std::initializer_list<std::string> rhs) {
-        for (auto &p1 : rhs)
-            this->push_back(cgn::make_path_base_script(p1));
-        return *this;
-    }
-    
-    CGNPathArray &operator+=(const CGNPathArray &rhs) {
-        this->insert(this->end(), rhs.begin(), rhs.end());
-        return *this;
-    }
-
-    CGNPathArray &operator+=(CGNPathArray&& rhs) {
-        this->insert(this->end(),
-                     std::make_move_iterator(rhs.begin()),
-                     std::make_move_iterator(rhs.end()));
-        return *this;
-    }
-};
-
 struct CxxInfo : cgn::BaseInfo
 {
     std::unordered_set<std::string>
         defines;       // c++ define (no escape)
 
     // std::vector<cgn::CGNPath>
-    CGNPathArray 
+    cgn::CGNPathArray 
         include_dirs;  // dirs (no escape, '/' separate)
                        // as TargetInfos: relavent to working-root
 
@@ -186,7 +123,7 @@ struct CxxContext : CxxInfo
 
     // only c, cpp source file included, no header required.
     // CGNPathArray srcs;
-    CGNPathArray srcs;
+    cgn::CGNPathArray srcs;
 
     // the cxx build argument apply on target who depended on current one,
     // but not apply on current target.

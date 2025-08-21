@@ -383,6 +383,7 @@ CxxToolchainInfo TargetWorker::step1_linux_gcc(cgn::Configuration &cfg)
     std::vector<std::string> cflags_1st, ldflags_1st;
     interp.arg.cflags += {
         "-I.",
+        "-fno-common",
         "-fdiagnostics-color=always",
         "-fvisibility=hidden",
         "-Wl,--exclude-libs,ALL"
@@ -477,8 +478,11 @@ CxxToolchainInfo TargetWorker::step1_linuxllvm_and_xcode(cgn::Configuration &cfg
         "-L.",
         "-lpthread"
     };
-    if (cfg["os"] == "linux")
-        interp.arg.ldflags += {"-Wl,--warn-common", "-Wl,--warn-backrefs", "-lrt"};
+    if (cfg["os"] == "linux") {
+        if (cfg["cxx_asan"] == "")
+            interp.arg.ldflags += {"-Wl,--warn-common"};
+        interp.arg.ldflags += {"-Wl,--warn-backrefs", "-lrt"};
+    }
     if (cfg["os"] == "mac") //for macos : using warn-commons instead of warn-common
         interp.arg.ldflags += {"-fprofile-instr-generate", "-Wl,-warn_commons"};
 
@@ -503,7 +507,8 @@ CxxToolchainInfo TargetWorker::step1_linuxllvm_and_xcode(cgn::Configuration &cfg
             "-flto", "-Wl,--exclude-libs=ALL", "-Wl,--discard-all",
             // "-Wl,--thinlto-jobs=0", 
             // "-Wl,--thinlto-cache-dir=./thinlto_cache", 
-            // "-Wl,--thinlto-cache-policy,cache_size_bytes=1g"
+            // "-Wl,--thinlto-cache-policy,cache_size_bytes=1g",
+            "-Wl,--warn-unresolved-symbols"
         };
     }
 
@@ -536,8 +541,10 @@ CxxToolchainInfo TargetWorker::step1_linuxllvm_and_xcode(cgn::Configuration &cfg
     append_sanitizer((cfg["cxx_tsan"] != ""), "thread");
     append_sanitizer((cfg["cxx_msan"] != ""), "memory");
     append_sanitizer((cfg["cxx_lsan"] != ""), "leak");
-    interp.arg.cflags  += {"-fsanitize=" + sanitizer};
-    interp.arg.ldflags += {"-fsanitize=" + sanitizer};
+    if (sanitizer.size()) {
+        interp.arg.cflags  += {"-fsanitize=" + sanitizer, "-fno-omit-frame-pointer"};
+        interp.arg.ldflags += {"-fsanitize=" + sanitizer};
+    }
 
     return interp;
 } //TargetWorker::step1_linuxllvm_and_xcode()

@@ -36,6 +36,11 @@ struct GraphNode;
 // the value accept both the relavent path of working root and absolute path.
 // using FileLayout = std::map<std::string, std::string>;
 
+// There's 3 types of usage, a special case: 
+// CGNPath::type is meanless when CGNPath::rpath is abspath.
+//  * path base on dir of current BUILD.cgn.cc
+//  * path base on working_root (CWD, where cgn.exe running)
+//  * path base on output dir of current target
 struct CGNPath
 {
     struct Hasher {
@@ -77,6 +82,70 @@ inline CGNPath make_path_base_script(const std::string rel="")  {
 inline CGNPath make_path_base_working(const std::string rel="")  { 
     return CGNPath{CGNPath::BASE_ON_WORKINGROOT, rel};
 }
+
+// CGNPathArray, std::vector<CGNPath> with some extra operator
+class CGNPathArray : public std::vector<CGNPath>
+{
+public:
+    CGNPathArray &operator=(const std::vector<std::string> &rhs) {
+        this->clear();
+        for (auto p1 : rhs)
+            this->push_back(make_path_base_script(p1));
+        return *this;
+    }
+    CGNPathArray &operator=(std::vector<std::string> &&rhs) {
+        this->clear();
+        for (auto p1 : rhs)
+            this->push_back(make_path_base_script(std::move(p1)));
+        return *this;
+    }
+    CGNPathArray &operator=(const std::initializer_list<CGNPath> &rhs) {
+        *(std::vector<CGNPath>*)this = rhs;
+        return *this;
+    }
+
+    CGNPathArray operator+(const std::vector<std::string> &rhs) {
+        CGNPathArray lhs = *this;
+        for (auto &p1 : rhs)
+            lhs.push_back(make_path_base_script(p1));
+        return lhs;
+    }
+    CGNPathArray operator+(std::vector<std::string> &&rhs) {
+        CGNPathArray lhs = *this;
+        for (auto &p1 : rhs)
+            lhs.push_back(make_path_base_script(std::move(p1)));
+        return lhs;
+    }
+    CGNPathArray operator+(const CGNPathArray &rhs) {
+        CGNPathArray lhs = *this;
+        lhs.insert(lhs.end(), rhs.begin(), rhs.end());
+        return lhs;
+    }
+
+    CGNPathArray &operator+=(const std::vector<std::string> &rhs) {
+        for (auto &p1 : rhs)
+            this->push_back(make_path_base_script(p1));
+        return *this;
+    }
+
+    CGNPathArray &operator+=(std::initializer_list<std::string> rhs) {
+        for (auto &p1 : rhs)
+            this->push_back(make_path_base_script(p1));
+        return *this;
+    }
+    
+    CGNPathArray &operator+=(const CGNPathArray &rhs) {
+        this->insert(this->end(), rhs.begin(), rhs.end());
+        return *this;
+    }
+
+    CGNPathArray &operator+=(CGNPathArray&& rhs) {
+        this->insert(this->end(),
+                     std::make_move_iterator(rhs.begin()),
+                     std::make_move_iterator(rhs.end()));
+        return *this;
+    }
+}; //class CGNPathArray
 
 struct HostInfo {
     //os : win, linux, mac
