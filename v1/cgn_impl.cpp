@@ -557,7 +557,9 @@ CGNTarget CGNImpl::analyse_target(
 
     if (opt._facty_name.empty()) {
         if (last_dir.empty()) {
-            rv.errmsg = "target factory name must be assgined.";
+            rv.errmsg = "analyse: target factory name must be assgined.";
+            if (halt_on_error)
+                throw std::runtime_error{rv.errmsg};
             return rv;
         }
         opt._facty_name   = last_dir;
@@ -573,6 +575,8 @@ CGNTarget CGNImpl::analyse_target(
     auto adep_pop = [&](std::string errmsg = ""){ 
         adep_cycle_detection.erase(cycle_check_ss); 
         rv.errmsg = errmsg;
+        if (halt_on_error)
+            throw std::runtime_error{errmsg};
         return rv;
     };
     if (adep_cycle_detection.insert(cycle_check_ss).second == false)
@@ -592,7 +596,7 @@ CGNTarget CGNImpl::analyse_target(
     if (auto fd = factories.find(opt.factory_label); fd != factories.end())
         fn_loader = fd->second;
     else
-        return adep_pop("target factory not found.");
+        return adep_pop("analyse: target factory " + opt.factory_label  + " not found.");
     
     // call target builder (user lambda fn and interpreter inside)
     //  the API.confirm_target_opt() would process into next phase.

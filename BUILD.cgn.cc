@@ -46,11 +46,12 @@ cxx_executable("cgn", x) {
     x.add_dep(":cgn_static", cxx::private_dep);
 }
 
-file_utility("copy_cgn_host_tool", x) {
-}
 
 alias("cgn_host", x) {
     x.actual_label = ":cgn";
+    x.cfg["optimization"] = "release";
+    x.cfg["cpu"] = api.get_host_info().cpu;
+    x.cfg["os"]  = api.get_host_info().os;
     // if (x.cfg["CompileCGN"] != "")
     //     x.actual_label = ":cgn";
     // else
