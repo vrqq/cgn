@@ -925,14 +925,15 @@ void TargetWorker::step31_unix()
     //   with carg.ldflags and -wholearchive:x._wholearchive_a
     //   self.so + {so from deps} => rv[LRinfo].so
     if (x.role == 's' || x.role == 'x') {
+        std::string filename;
         std::string outfile;
         std::string outfile_njesc;
         if (x.role == 's')
-            outfile = opt->out_prefix + "lib" + x.name + ".so";
+            outfile = opt->out_prefix + (filename = "lib" + x.name + ".so");
         else
-            outfile = opt->out_prefix + x.name;
+            outfile = opt->out_prefix + (filename = x.name);
         if (x.perferred_binary_name.size())
-            outfile = opt->out_prefix + x.perferred_binary_name;
+            outfile = opt->out_prefix + (filename = x.perferred_binary_name);
         outfile_njesc = opt->ninja->escape_path(outfile);
 
         //prepare rpath argument
@@ -944,7 +945,7 @@ void TargetWorker::step31_unix()
                     two_escape("-Wl,-rpath=$ORIGIN")
                 };
                 rvlnr->runtime_files[
-                    cgn::make_path_base_out("lib" + x.name + ".so")
+                    cgn::make_path_base_out(filename)
                 ] = outfile;
             }
             else {

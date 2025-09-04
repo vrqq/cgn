@@ -437,6 +437,11 @@ std::string AdvanceCopy::copy_rename(
             return errmsg;
         if (print_log)
             std::cout<<"  "<<src<<"\n  └--> "<<(updated?dst:"skipped")<<"\n";
+        
+        std::ofstream fdep(depfile);
+        fdep<<makefile_escape(stampfile)<<" : "
+            <<makefile_escape(src)<<" "<<makefile_escape(dst);
+
         std::ofstream fstamp(stampfile);
     }
     return "";
