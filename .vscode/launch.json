@@ -8,12 +8,28 @@
             "type":"cppvsdbg",
             "request": "launch",
             "name": "win debug",
-            "program": "${workspaceFolder}/@cgn.d/build_wind/cgn.exe",
-            "cwd": "${workspaceRoot}",
+            "program": "${workspaceFolder}/build_wind/cgn.exe",
+            "cwd": "${workspaceRoot}/..",
+            "console": "integratedTerminal",
             "args": ["--winenv",
-                "--halt_on_error", "--scriptcc_debug", "-V",
+                "--halt_on_error", "--scriptcc_debug",
                 "--target", "msvc,debug", 
-                "query", "@third_party//asio:asio.git"
+                "query", "@aert//app/nodeapp:pkg_napi10"
+                // "query", "@third_party//asio:asio.git"
+            ]
+        },
+        {
+            "type": "lldb-dap",
+            "request": "launch",
+            "name": "linux debug",
+            "program": "${workspaceFolder}/build_linuxd/cgn",
+            "cwd": "${workspaceRoot}/..",
+            "args": [
+                "--halt_on_error", "--scriptcc_debug", "-V",
+                "--target", "llvm,debug,asan",
+                "--cgn-out", "C:\\workingdir\\cgntmp",
+                "query", "@aert//app/nodeapp:pkg_napi10"
+                // "query", "@third_party//asio:asio.git"
             ]
         },
     ]

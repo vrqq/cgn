@@ -237,14 +237,14 @@ CGNImpl::active_script(const std::string &label)
                     "/DWINVER=0x0603 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
                     " /DCGN_VAR_PREFIX=" + def_var_prefix +
                     " /D\"CGN_ULABEL_PREFIX=\"" + def_ulabel_prefix + "\"\"" + 
-                    " /I. /utf-8 /EHsc /Fo: " + Tools::shell_escape(outname);
+                    " /I. /utf-8 /EHsc /MP /fp:fast /Fo: " + Tools::shell_escape(outname);
                 #ifdef _DEBUG
                     frsp<<" /D_DEBUG /MDd";
                 #else
                     frsp<<" /MD";
                 #endif
                 if (scriptcc_debug_mode)
-                    frsp<<" /Od /Zi /Fd: " + Tools::shell_escape(outname) + ".pdb";
+                    frsp<<" /Od /Z7 /Fd: " + Tools::shell_escape(outname) + ".pdb";
             }
             else if (is_unix) {
                 if (is_clang && scriptcc_debug_mode) //llvm debug (lldb)

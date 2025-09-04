@@ -55,6 +55,14 @@ struct AdvanceCopy
         bool print_log = false
     );
 
+    static std::string copy_rename(
+        const std::string &src,
+        const std::string &dst,
+        const std::string &depfile,
+        const std::string &stampfile,
+        bool print_log = false
+    );
+
 }; //struct AdvanceCopy
 
 } //namspace cgnv1

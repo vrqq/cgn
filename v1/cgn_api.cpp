@@ -82,9 +82,22 @@ void CGN::init(const std::unordered_map<std::string, std::string> &kvargs)
 {
     if (pimpl)
         throw std::runtime_error{"Inited"};
+
+    // https://timsong-cpp.github.io/cppwp/n4659/expr.new#19
+    // If any part of the object initialization throws an exception, the allocation
+    // function’s deallocation function is called (if present).
+    // … Thus, when the constructor of an object created by a new expression throws
+    // an exception, the matching deallocation function is called to release the
+    // storage.
     pimpl = (CGNImpl*)::operator new (sizeof(CGNImpl));
-    new(pimpl) CGNImpl(kvargs);
-    logger = &(pimpl->logger);
+    try {
+        new(pimpl) CGNImpl(kvargs);
+        logger = &(pimpl->logger);
+    }catch(std::exception &e) {
+        ::operator delete(pimpl);
+        pimpl = nullptr;
+        throw e;
+    }
 }
 
 // Make sure to call this function prior to ~CGN(), as the CGN API is an 

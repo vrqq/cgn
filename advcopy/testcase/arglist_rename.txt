@@ -1,0 +1,5 @@
+@MF advcp.d
+@stamp advcp.stamp
+
+@src @cgn.d/advcopy/testcase/aa/fileZ.in
+@dst /tmp/advcopy_aa/fileZ.in.copy

@@ -173,6 +173,10 @@ try{do{
     // -----------------
 
     // requirement argument check
+    if (args_kv.count("cgn_out")) {
+        std::cerr<<"Incorrect use of argument 'cgn_out', use 'cgn-out' instead."<<std::endl;
+        return 1;
+    }
     if (auto fd = args_kv.find("cgn-out"); fd != args_kv.end()){
         if (fd->second.empty()) {
             std::cerr<<"Invalid cgn-out dir"<<std::endl;

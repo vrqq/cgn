@@ -13,6 +13,13 @@ static std::string varlist_to_string(
     return rv;
 }
 
+bool NinjaFile::BuildSection::operator==(const BuildSection &rhs) const {
+    return rule == rhs.rule 
+        && outputs == rhs.outputs && implicit_outputs == rhs.implicit_outputs
+        && inputs == rhs.inputs && implicit_inputs == rhs.implicit_inputs
+        && order_only == rhs.order_only && variables == rhs.variables;
+}
+
 std::string NinjaFile::BuildSection::to_string() {
     if (outputs.empty() || rule.empty())
         throw std::runtime_error{"NinjaFile: empty outputs or rule."};
@@ -77,6 +84,10 @@ std::string NinjaFile::GlobalVariable::to_string() {
 
 NinjaFile::BuildSection *NinjaFile::append_build() {
     return append_section<BuildSection>();
+}
+
+CGN_EXPORT void NinjaFile::append_build(const BuildSection &sect) {
+    sections.emplace_back(new BuildSection{sect});
 }
 
 NinjaFile::RuleSection *NinjaFile::append_rule() {

@@ -362,7 +362,7 @@ std::string AdvanceCopy::copy_to_dir(
     bool print_log
 ) {
     if (print_log)
-        std::cout<<"--- Copy ---\n";
+        std::cout<<"--- Copy to dir ---\n";
     std::ofstream fdep(depfile);
     fdep<<makefile_escape(stampfile)<<" : ";
 
@@ -414,5 +414,32 @@ std::string AdvanceCopy::copy_to_dir(
     std::ofstream fstamp(stampfile);
     return "";
 }
+
+std::string AdvanceCopy::copy_rename(
+    const std::string &src,
+    const std::string &dst,
+    const std::string &depfile,
+    const std::string &stampfile,
+    bool print_log
+) {
+    if (print_log)
+        std::cout<<"--- Copy ---\n";
+    if (!fs::exists(src))
+        return "Source " + src + " not exist.";
+    
+    if (fs::is_directory(src)){
+        std::cout<<"Source is directory, copy by copy_to_dir()\n";
+        return copy_to_dir({"*"}, {}, src, dst, depfile, stampfile, print_log);
+    }
+    else {
+        auto [errmsg, updated] = copy_impl(fs::path{src}, fs::path{dst});
+        if (errmsg.size())
+            return errmsg;
+        if (print_log)
+            std::cout<<"  "<<src<<"\n  └--> "<<(updated?dst:"skipped")<<"\n";
+        std::ofstream fstamp(stampfile);
+    }
+    return "";
+} //AdvanceCopy::copy_rename()
 
 } //namespace

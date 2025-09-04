@@ -5,4 +5,4 @@
 @src aa/bb
 @src **.in
 @sbase @cgn.d/advcopy/testcase
-@dst /tmp/advcopy_flat/
+@dst /tmp/advcopy_normal/

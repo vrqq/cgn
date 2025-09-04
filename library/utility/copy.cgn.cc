@@ -29,8 +29,8 @@ cgn::NinjaFile::BuildSection* CopyWorker::mkninja(
     const std::vector<std::string> &arg_content,
     const std::vector<std::string> &njtargets_orderdep
 ) {
-    if (opt->file_unchanged)
-        return target_n++, nullptr;
+    // if (opt->file_unchanged)
+    //     return target_n++, nullptr;
     
     if (target_n == 0) {
         std::string rulepath = api.get_filepath("@cgn.d//library/utility/advcopy.ninja");
@@ -40,12 +40,14 @@ cgn::NinjaFile::BuildSection* CopyWorker::mkninja(
     // generate copy_<i>.rsp
     std::string path_stub = opt->out_prefix + this->argfile_prefix 
                              + std::to_string(target_n++);
-    std::ofstream argout(path_stub + ".rsp");
-    argout<<"@MF " + path_stub + ".stamp.d\n"
-          <<"@stamp " + path_stub + ".stamp\n";
-    for (const auto &arg : arg_content)
-        argout << arg << "\n";
-    argout.close();
+    if (opt->file_unchanged == false) {
+        std::ofstream argout(path_stub + ".rsp");
+        argout<<"@MF " + path_stub + ".stamp.d\n"
+              <<"@stamp " + path_stub + ".stamp\n";
+        for (const auto &arg : arg_content)
+            argout << arg << "\n";
+        argout.close();
+    }
 
     auto *field = opt->ninja->append_build();
     field->rule = "advcopy";
@@ -60,29 +62,16 @@ cgn::NinjaFile::BuildSection* CopyWorker::mkninja(
     return field;
 }
 
-cgn::NinjaFile::BuildSection* CopyWorker::postgen_copyone(
+cgn::NinjaFile::BuildSection* CopyWorker::postgen_copy_rename(
     cgn::CGNTargetOpt *confirmed_opt,
     const std::string &src_file, const std::string &dst_file,
     const std::vector<std::string> &njtargets_orderdep
 ) {
     return this->mkninja(
-        confirmed_opt, "copyone", 
+        confirmed_opt, "copy_rename", 
         {"@src " + src_file, "@dst " + dst_file}, njtargets_orderdep
     );
 }
-
-// cgn::NinjaFile::BuildSection* CopyWorker::postgen_copyone(
-//     cgn::CGNTargetOpt *confirmed_opt,
-//     const cgn::CGNPath &src_file, const cgn::CGNPath &dst_file,
-//     const std::vector<std::string> &ninja_orderdep
-// ) {
-//     return this->mkninja(
-//         confirmed_opt, "copyone", 
-//         {api.rebase_path(src_file, ".", confirmed_opt), 
-//          api.rebase_path(dst_file, ".", confirmed_opt)}, 
-//         ninja_orderdep
-//     );
-// }
 
 cgn::NinjaFile::BuildSection* CopyWorker::postgen_flat_copy(
     cgn::CGNTargetOpt *confirmed_opt,
@@ -168,7 +157,7 @@ void CopyInterpreter::context_type::copy_rename_on_build(
     const cgn::CGNPath &dst_file
 ) {
     copy_records.push_back([=](cgn::CGNTargetOpt *opt, CopyWorker *w) {
-        return w->postgen_copyone(opt, api.rebase_path(src_file, ".", opt),
+        return w->postgen_copy_rename(opt, api.rebase_path(src_file, ".", opt),
             api.rebase_path(dst_file, ".", opt), opt->quickdep_ninja_dynhdr
         )->outputs[0];
     });

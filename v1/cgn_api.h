@@ -133,6 +133,9 @@ struct CGN_EXPORT Tools {
     // Checks if the given file status or path corresponds to a regular file.
     static bool is_regular_file(const std::string &path);
 
+    // Checks if path is absolute or not
+    static bool is_absolute_path(const std::string &path);
+
     // Escape char like ':', '\', '..' to make path valid for all OS
     // @param alter_prefix: the prefix for return value, 
     //                      if path is absolute path, this param is ignored and use 'A' instead.

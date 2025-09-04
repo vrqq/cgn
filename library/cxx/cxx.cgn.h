@@ -217,6 +217,7 @@ struct CxxToolchainInfo
     std::vector<std::string> extra_ldflags_x, extra_ldflags_so;
 };
 
+class NinjaDedup;
 struct CxxInterpreter
 {
     using context_type = CxxContext;
@@ -226,20 +227,17 @@ struct CxxInterpreter
     }
 
     // TBD
+    // generate the cflags and ldflags for external build system like
+    // pkg-config or cmake.
     //@param type : "minimum" = "cmake", "default" = "makefile"
     LANGCXX_CGN_BUNDLE_API static CxxToolchainInfo 
     test_param(cgn::Configuration &cfg, const std::string &type = "minimum");
 
-    // generate the mimimum cflags and ldflags for external build system like
-    // pkg-config or cmake.
-    // @return : CxxInfo::cflags and CxxInfo::ldflags
-    // LANGCXX_CGN_BUNDLE_API static CxxInfo
-    // test_minimum_flags(
-    //     cgn::Configuration &cfg, const CxxInfo &in,
-    //     const std::string &libfile = "");
-
     LANGCXX_CGN_BUNDLE_API static void
     interpret(context_type &x);
+
+private: friend class TargetWorker;
+    static std::unique_ptr<NinjaDedup> ninja_dedup;
 };
 
 template<typename TypeContext>

@@ -501,6 +501,11 @@ bool Tools::is_regular_file(const std::string &path)
     return std::filesystem::is_regular_file(path);
 }
 
+bool Tools::is_absolute_path(const std::string &path)
+{
+    return std::filesystem::path{path}.is_absolute();
+}
+
 static std::string _mangle_path_str_impl(const std::string &in) {
     constexpr static std::array<bool, 256> chk = [](){
         std::array<bool, 256> rv{};

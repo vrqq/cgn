@@ -33,6 +33,9 @@ public:
         // variables["dyndep"]
         std::unordered_map<std::string, std::string> variables;
 
+        CGN_EXPORT bool operator==(const BuildSection &rhs) const;
+        bool operator!=(const BuildSection &rhs) const { return !(*this == rhs); }
+        
         virtual std::string to_string();
         virtual ~BuildSection() {}
     };
@@ -78,6 +81,7 @@ public:
     };
 
     CGN_EXPORT BuildSection *append_build();
+    CGN_EXPORT void append_build(const BuildSection &sect);
     CGN_EXPORT RuleSection  *append_rule();
     CGN_EXPORT CommentSection *append_comment(const std::string &comment = "");
     CGN_EXPORT IncludeSection *append_include(const std::string &file = "");

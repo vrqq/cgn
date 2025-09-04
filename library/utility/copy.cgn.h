@@ -34,17 +34,11 @@ struct CopyWorker
     // @param from, to: absolute or relpath of CWD
     // @return Ninja build section, errmsg
     CGN_LIBRARY_COPY_API cgn::NinjaFile::BuildSection*
-    postgen_copyone(
+    postgen_copy_rename(
         cgn::CGNTargetOpt *confirmed_opt,
         const std::string &src_file, const std::string &dst_file,
         const std::vector<std::string> &njtargets_orderdep = {}
     );
-    // CGN_LIBRARY_COPY_API cgn::NinjaFile::BuildSection*
-    // postgen_copyone(
-    //     cgn::CGNTargetOpt *confirmed_opt,
-    //     const cgn::CGNPath &src_file, const cgn::CGNPath &dst_file,
-    //     const std::vector<std::string> &ninja_orderdep = {}
-    // );
 
     // @confirmed_opt : variable by opt->confirm();
     // @param src_patterns: the source pattern

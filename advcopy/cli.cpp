@@ -24,8 +24,8 @@ int show_help(char *arg0) {
         <<"    @dst   dst_dir (copy_to_dir) or dst_file (copy_rename)\n"
         <<"Example argfile.txt of copy_to_dir()\n"
         <<" @MF out1.d\n"
-        <<" @s1 src1\n"
-        <<" @s1 src2\n"
+        <<" @src src1\n"
+        <<" @src src2\n"
         <<" @sbase src_base\n"
         <<" @dst dst_dir\n"
         <<std::endl;
@@ -116,6 +116,24 @@ int main(int argc, char **argv)
         if (auto emsg = cgnv1::AdvanceCopy::flatcopy_to_dir(
             fn_args["@src"],
             fn_args["@srcex"],
+            fn_args["@dst"][0],
+            depfile,
+            stampfile,
+            true
+        ); emsg.size()) {
+            std::cerr<<emsg<<std::endl;
+            return 1;
+        }
+        return 0;
+    }
+
+    if (arg1 == "copy_rename") {
+        if (fn_args["@src"].empty() || fn_args["@dst"].empty()) {
+            std::cerr<<"Missing src or dst in argfile\n";
+            return 1;
+        }
+        if (auto emsg = cgnv1::AdvanceCopy::copy_rename(
+            fn_args["@src"][0],
             fn_args["@dst"][0],
             depfile,
             stampfile,
