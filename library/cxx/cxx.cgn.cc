@@ -110,7 +110,7 @@ static std::string lower_substr(
 //                    in src folder, so we have to add '_' before path_out.
 // case for path_out: cgn-out/.../ in same folder of current interpreter
 //                    add '__' (two underline) before path_out.
-// @param IN  file1   : filename in context.src
+// @param IN  file1   : filename in context.src after convert to working-root-rel
 // @param IN  opt     : opt from interpreter
 // @param OUT path_in : "input file relpath"
 // @param OUT path_out: "output file relpath"
@@ -128,24 +128,34 @@ static char src_path_convert(
     std::string left = file1.substr(0, fd);
     std::string ext = lower_substr(file1, fd+1);
 
+    // file1 : abspath or relpath of WorkingRoot => path_out : filename starting with opt.out_prefix
+    // under ${out_prefix} => ${out_prefix} + __ + file1
+    // under ${src_prefix} => ${out_prefix} + _ + file1
+    // othercase           => ${out_prefix} + mangle(file1) (mangle starting with 'A' or 'R')
     auto gen = [&]() {
         // using whole name 'file1' instead of 'left' to avoid name conflict
-        // : src["a.cpp", "a.c"] => dst["a.o", "a.o"]
-        *path_in  = file1; // api.rebase_path(file1, ".", opt.src_prefix);
-        *path_out = opt.out_prefix + api.mangle_path_to_relative(file1) + (dot_obj?".obj":".o");
+        // bad example : src["a.cpp", "a.c"] => dst["a.o", "a.o"]
+        *path_in = file1; // api.rebase_path(file1, ".", opt.src_prefix);
+        std::string src_dir = api.locale_path(opt.src_prefix);
 
         // since path_in and opt.out_prefix is not in same driver in windows,
         // using rebase_path() can only get the abspath of path_in and it's 
         // hard to check.
         bool start_with_outprefix = (path_in->size() > opt.out_prefix.size()
             && memcmp(path_in->c_str(), opt.out_prefix.c_str(), opt.out_prefix.size())==0);
+        bool start_with_srcprefix = (path_in->size() > src_dir.size()
+            && memcmp(path_in->c_str(), src_dir.c_str(), src_dir.size())==0);
         if (start_with_outprefix) {// path_in is inside out_prefix
             std::string probe1 = api.rebase_path(*path_in, opt.out_prefix);
             left = probe1.substr(0, probe1.rfind('.'));
-            *path_out = opt.out_prefix + "__" + left + (dot_obj?".obj":".o");
+            *path_out = cgn::Tools::locale_path(opt.out_prefix + "__" 
+                      + file1.substr(opt.out_prefix.size()) + (dot_obj?".obj":".o"));
         }
+        else if (start_with_srcprefix)
+            *path_out = cgn::Tools::locale_path(opt.out_prefix + "_" 
+                      + file1.substr(src_dir.size()) + (dot_obj?".obj":".o"));
         else
-            *path_out = cgn::Tools::locale_path(opt.out_prefix + "_" + left + (dot_obj?".obj":".o"));
+            *path_out = opt.out_prefix + api.mangle_path_to_relative(file1) + (dot_obj?".obj":".o");
     };
     
     // check current file is c/cpp source file

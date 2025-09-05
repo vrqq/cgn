@@ -46,6 +46,28 @@ cxx_executable("cgn", x) {
     x.add_dep(":cgn_static", cxx::private_dep);
 }
 
+alias("cgn_host_dbg", x) {
+    x.actual_label = ":cgn";
+
+    cgn::Configuration newcfg;
+    newcfg["optimization"] = "debug";
+    newcfg["cpu"] = x.cfg["cpu"];
+    newcfg["os"]  = x.cfg["os"];
+    if (x.cfg["os"] == "linux")
+        newcfg["cxx_asan"] = newcfg["cxx_ubsan"] = "true";
+
+    x.cfg = newcfg;
+}
+
+alias("cgn_host_rel", x) {
+    x.actual_label = ":cgn";
+
+    cgn::Configuration newcfg;
+    newcfg["optimization"] = "release";
+    newcfg["cpu"] = x.cfg["cpu"];
+    newcfg["os"]  = x.cfg["os"];
+    x.cfg = newcfg;
+}
 
 alias("cgn_host", x) {
     x.actual_label = ":cgn";
@@ -57,3 +79,18 @@ alias("cgn_host", x) {
     // else
     //     x.actual_label = ":copy_cgn_host_tool";
 }
+
+// custom_command("update", x) {
+//     x.append_cmd({"git", "submodule", "foreach", "git", "pull"});
+
+//     x.append_pushd("@cgn.d");
+//     if (x.cfg["host_os"] == "win") {
+//         x.append_cmd({"ninja", "-f", "build_msvc.ninja"});
+//         x.append_cmd({"ninja", "-f", "build_msvcrel.ninja"});
+//     }
+//     if (x.cfg["host_os"] == "linux") {
+//         x.append_cmd({"ninja", "-f", "build_linux.ninja"});
+//         x.append_cmd({"ninja", "-f", "build_linuxrel.ninja"});
+//     }
+//     x.append_popd();
+// }

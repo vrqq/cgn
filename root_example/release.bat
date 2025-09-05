@@ -1,0 +1,1 @@
+"@cgn.d\build_wind\cgn.exe" --halt_on_error --scriptcc_debug --target msvc,release build %1 %2 %3 %4
