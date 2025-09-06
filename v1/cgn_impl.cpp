@@ -233,7 +233,7 @@ CGNImpl::active_script(const std::string &label)
                 //      1. use /FI to insert char that can't be defined in cmd
                 //      2. use TLS to storage CGN_ULABEL_PREFIX when load_library
                 //
-                frsp<< "/c " << ("." / pt).string() <<" /nologo /showIncludes /Od /Gy "
+                frsp<< "/c " << ("." / pt).string() <<" /nologo /showIncludes /Gy "
                     "/DWINVER=0x0603 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
                     " /DCGN_VAR_PREFIX=" + def_var_prefix +
                     " /D\"CGN_ULABEL_PREFIX=\"" + def_ulabel_prefix + "\"\"" + 

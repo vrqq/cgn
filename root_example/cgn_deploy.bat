@@ -4,7 +4,11 @@ echo CGN deployment scriptcc_debug
 echo init monorepo
 
 REM 1. create empty git repository
-git init
+if exist ".git\" (
+    echo Already a git repo, skip init.
+) else (
+    git init
+)
 
 REM 2. Add @cgn.d @third_party as submodule or subtree
 echo Using submodule mode
