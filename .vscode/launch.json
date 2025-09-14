@@ -8,13 +8,15 @@
             "type":"cppvsdbg",
             "request": "launch",
             "name": "win debug",
-            "program": "${workspaceFolder}/build_wind/cgn.exe",
+            "program": "${workspaceFolder}/build_win/cgn.exe",
             "cwd": "${workspaceRoot}/..",
             "console": "integratedTerminal",
             "args": ["--winenv",
                 "--halt_on_error", "--scriptcc_debug",
+                "--cgn-out", "C:\\workingdir\\cgntmp",
                 "--target", "msvc,debug", 
-                "query", "@aert//app/nodeapp:pkg_napi10"
+                "query", "@cgn.d//:cgn"
+                // "query", "@aert//app/nodeapp:pkg_napi10"
                 // "query", "@third_party//asio:asio.git"
             ]
         },

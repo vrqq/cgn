@@ -87,6 +87,8 @@ inline CGNPath make_path_base_working(const std::string rel="")  {
 class CGNPathArray : public std::vector<CGNPath>
 {
 public:
+    using std::vector<CGNPath>::vector; // inherit all ctors
+
     CGNPathArray &operator=(const std::vector<std::string> &rhs) {
         this->clear();
         for (auto p1 : rhs)

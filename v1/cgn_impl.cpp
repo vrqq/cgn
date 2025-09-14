@@ -237,7 +237,7 @@ CGNImpl::active_script(const std::string &label)
                     "/DWINVER=0x0603 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
                     " /DCGN_VAR_PREFIX=" + def_var_prefix +
                     " /D\"CGN_ULABEL_PREFIX=\"" + def_ulabel_prefix + "\"\"" + 
-                    " /I. /utf-8 /EHsc /MP /fp:fast /Fo: " + Tools::shell_escape(outname);
+                    " /I. /utf-8 /EHa /MP /fp:fast /Fo: " + Tools::shell_escape(outname);
                 #ifdef _DEBUG
                     frsp<<" /D_DEBUG /MDd";
                 #else
@@ -848,7 +848,8 @@ std::pair<std::string, int> CGNImpl::build_target(
     logger.println(label + " analysed", "");
     graph.db_flush();
     
-    std::string cmd = "ninja -f " + obj_main_ninja.string() 
+    std::string cmd = (scriptcc_debug_mode?"ninja -f ":"ninja -d keepdepfile -d keeprsp -f ")
+                    + obj_main_ninja.string() 
                     + " " + Tools::shell_escape(rv.ninja_entry);
     if (logger.is_verbose())
         cmd += " --verbose";
@@ -905,6 +906,12 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     cgn_out = Tools::locale_path(cmd_kvargs.at("cgn-out"));
     cgn_out_unixsep = cgn_out.string();
     #ifdef _WIN32
+        #ifdef _DEBUG
+            dsuffix = "MDd";
+        #else
+            dsuffix = "MD";
+        #endif
+    dsuffix += (scriptcc_debug_mode? "pdb":"");
     std::replace(cgn_out_unixsep.begin(), cgn_out_unixsep.end(), '\\', '/');
     #endif
     analysis_path = cgn_out / ("analysis_" + Tools::get_host_info().os + dsuffix);
