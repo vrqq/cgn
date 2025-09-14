@@ -143,13 +143,13 @@ cxx_executable("crypto_test", x) {
 //         x.copy_wrbase_to_output(ssl.outputs + crypto.outputs + pki.outputs, "")
 //     };
 // }
-file_utility("devel", x) {
-    FileUtility::DevelOpt collect_op;
-    collect_op.allow_linknrun = true;
-    x.collect_devel_on_build(":ssl", collect_op);
-    x.collect_devel_on_build(":crypto", collect_op);
-    x.collect_devel_on_build(":pki", collect_op);
-}
+// file_utility("devel", x) {
+//     FileUtility::DevelOpt collect_op;
+//     collect_op.allow_linknrun = true;
+//     x.collect_devel_on_build(":ssl", collect_op);
+//     x.collect_devel_on_build(":crypto", collect_op);
+//     x.collect_devel_on_build(":pki", collect_op);
+// }
 
 // -- The second form: libboringssl.a
 cxx_static("libboringssl", x)

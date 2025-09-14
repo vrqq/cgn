@@ -70,13 +70,13 @@ cxx_executable("compile_test", x) {
 }
 
 // TODO: file_utility
-file_utility("devel", x) {
-    x.copy_on_build(
-        {"re2/filtered_re2.h", "re2/re2.h", "re2/set.h", "re2/stringpiece.h"},
-        cgn::make_path_base_script("repo"),
-        cgn::make_path_base_out("include")
-    );
-}
+// file_utility("devel", x) {
+//     x.copy_on_build(
+//         {"re2/filtered_re2.h", "re2/re2.h", "re2/set.h", "re2/stringpiece.h"},
+//         cgn::make_path_base_script("repo"),
+//         cgn::make_path_base_out("include")
+//     );
+// }
 // bin_devel("devel", x) {
 //     x.include = {
 //         {"repo", {"re2/filtered_re2.h", "re2/re2.h", "re2/set.h", "re2/stringpiece.h"}}

@@ -6,9 +6,9 @@ git("uWebSockets.git", x) {
     x.dest_dir = "repo";
 }
 
-file_utility("copy_include", x) {
-    x.copy_on_build({"*"}, cgn::make_path_base_script("repo/src"), cgn::make_path_base_script("repo_include/uWebSockets"));
-}
+// file_utility("copy_include", x) {
+//     x.copy_on_build({"*"}, cgn::make_path_base_script("repo/src"), cgn::make_path_base_script("repo_include/uWebSockets"));
+// }
 
 cxx_prebuilt("uWebSockets", x) {
     x.pub.include_dirs = {"repo_include"};

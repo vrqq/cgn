@@ -25,7 +25,7 @@ group("all_git", x) {
         "nasm:nasm.git",
         "nlohmann_json:nlohmann_json.git",
         "nodejs:nodejs.git",
-        "oneapi:oneapi.git",
+        "oneapi:tbb.git",
         "openssl:openssl.git",
         "perl:perl.git",
         "protobuf:protobuf.git",
