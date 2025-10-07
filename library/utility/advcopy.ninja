@@ -4,3 +4,4 @@ rule advcopy
     description = ${desc}
     deps = gcc
     depfile = ${out}.d
+    restat = 1

@@ -123,6 +123,15 @@ struct CGN_EXPORT Tools {
     static std::unordered_map<std::string, std::string> read_kvfile(
         const std::string &filepath);
 
+    // read whole file into std::string
+    static std::string read_wholefile(
+        const std::string &filepath, bool exception_if_not_found = false);
+
+    // update file content (mtime update implied) if data modified
+    // @return file written
+    static bool write_file_content_if_changed(
+        const std::string &filepath, const std::string &content);
+
     // get mtime of specific file
     static int64_t stat(const std::string &filepath);
 

@@ -1,7 +1,8 @@
 #define CGN_LIBRARY_COPY_IMPL
 
-#include "copy.cgn.h"
+#include <sstream>
 #include <fstream>
+#include "copy.cgn.h"
 
 static std::string two_escape(const std::string &in) {
     return cgn::NinjaFile::escape_path(api.shell_escape(in));
@@ -41,12 +42,12 @@ cgn::NinjaFile::BuildSection* CopyWorker::mkninja(
     std::string path_stub = opt->out_prefix + this->argfile_prefix 
                              + std::to_string(target_n++);
     if (opt->file_unchanged == false) {
-        std::ofstream argout(path_stub + ".rsp");
+        std::stringstream argout;
         argout<<"@MF " + path_stub + ".stamp.d\n"
               <<"@stamp " + path_stub + ".stamp\n";
         for (const auto &arg : arg_content)
             argout << arg << "\n";
-        argout.close();
+        api.write_file_content_if_changed(path_stub + ".rsp", argout.str());
     }
 
     auto *field = opt->ninja->append_build();

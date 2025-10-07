@@ -1,0 +1,17 @@
+{
+  "version": "0.2.1",
+  "defaults": {},
+  "configurations": [
+    {
+      "type": "default",
+      "name": "cgn-debug",
+      "project": "@cgn.d",   // or just "." if not CMake
+      "program": "${workspaceFolder}/@cgn.d/build_win/cgn.exe",
+      "args": ["--halt_on_error", "--scriptcc_debug",
+        "--cgn-out", "C:\workingdir\cgntmp", 
+        "--target", "msvc,debug", 
+        "build", "@cgn.d//:cgn"],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

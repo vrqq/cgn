@@ -724,6 +724,41 @@ Tools::read_kvfile(const std::string &fname)
     return rv;
 }
 
+std::string Tools::read_wholefile(const std::string &filepath, bool exception_if_not_found)
+{
+    std::ifstream in(filepath, std::ios::binary);
+    if (!in) {
+        if (exception_if_not_found)
+            throw std::runtime_error("Cannot open file: " + filepath);
+        return "";
+    }
+    std::ostringstream ss;
+    ss << in.rdbuf();   // read whole stream buffer
+    return ss.str();
+}
+
+bool Tools::write_file_content_if_changed(const std::string &filepath, const std::string &content)
+{
+    bool file_exist = false;
+    std::string last;
+    std::ifstream in(filepath, std::ios::binary);
+    if (in) {
+        file_exist = true;
+        std::ostringstream ss;
+        ss << in.rdbuf();
+        last = ss.str();
+        in.close();
+    }
+    if (last == content && file_exist)
+        return false;
+    
+    std::ofstream out(filepath, std::ios::binary);
+    if (!out)
+        throw std::runtime_error("Cannot write file: " + filepath);
+    out<<content;
+    return true;
+}
+
 bool Tools::setenv(const std::string &key, const std::string &value)
 {
 #ifdef _WIN32

@@ -147,6 +147,10 @@ void CustomInterpreter::interpret(context_type &x)
         field->implicit_inputs += {
             opt->ninja->escape_path(x.rebase_path(it))
         };
+    for (auto it : x.watch_orderonly)
+        field->order_only += {
+            opt->ninja->escape_path(x.rebase_path(it))
+        };
     for (auto it : x.watch_outputs)
         field->outputs += {
             opt->ninja->escape_path(x.rebase_path(it))

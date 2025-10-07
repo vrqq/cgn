@@ -18,7 +18,7 @@ struct CustomCommand
     const std::string &name;
     cgn::Configuration &cfg;
 
-    std::vector<cgn::CGNPath> watch_inputs, watch_outputs;
+    std::vector<cgn::CGNPath> watch_inputs, watch_orderonly, watch_outputs;
 
     // CGNTarget.result.outputs[]
     std::vector<cgn::CGNPath> analysis_outputs;
