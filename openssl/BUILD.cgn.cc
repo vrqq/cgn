@@ -1,4 +1,5 @@
 #include <cgn>
+#include "@cgn.d/library/perl/test_module.cgn.h"
 
 // Openssl 3.4.0
 git("openssl.git", x) {
@@ -19,13 +20,21 @@ git("openssl.git", x) {
 // Openssl is using perl to generate Makefile for all platforms.
 //
 // for windows https://github.com/openssl/openssl/blob/master/NOTES-WINDOWS.md
+//
+// Perl module dependency: perl-FindBin and others (dnf install perl-FindBin perl-IPC-Cmd ...) 
+//
+perl_test_module_existed("perl_test", x) {
+    x.module_names = {"FindBin", "IPC::Cmd", "File::Compare", "File::Copy", "Pod::Html"};
+}
 custom_command("openssl3_build", x) {
     auto perl_target = x.add_dep("@cgn.d//library/perl:host_exe", "host_release");
+    auto perl_modtest = x.add_dep(":perl_test", x.cfg);
     if (perl_target.outputs.size() == 0)
         return x.opt_confirm_error("Perl exe not found");
     std::string perl_dep = perl_target.ninja_entry;
     std::string perl_exe = perl_target.outputs[0];
     x.watch_inputs += {cgn::make_path_base_working(perl_dep)};
+    x.watch_orderonly += {cgn::make_path_base_working(perl_modtest.ninja_entry)};
 
     auto nasm_target = x.add_dep("@third_party//nasm", "host_release");
     if (nasm_target.outputs.size() == 0)
