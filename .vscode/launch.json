@@ -34,5 +34,17 @@
                 // "query", "@third_party//asio:asio.git"
             ]
         },
+        {
+            "name": "mac debug",
+            "type": "lldb-dap",
+            "request": "launch",
+            "program": "${workspaceFolder}/build_mac/cgn",
+            "cwd": "${workspaceRoot}/..",
+            "args": [
+                "--halt_on_error", "--scriptcc_debug", "-V",
+                "--target", "xcode,debug,asan",
+                "query", "@cgn.d//:cgn"
+            ],
+        },
     ]
 }

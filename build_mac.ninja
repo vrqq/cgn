@@ -25,7 +25,7 @@ rule link
     deps    = gcc
     depfile = $out.d
     command = clang++ -MMD -MF $out.d $cflags $
-              -Wl,-U,__Z9cgn_setupR12CGNInitSetup $
+              -Wl,-undefined,dynamic_lookup $
               -Wl,-all_load -fvisibility=default $in -o $out
 
 include cgn_v1.ninja

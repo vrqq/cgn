@@ -20,7 +20,7 @@
 // extern void __declspec(selectany) cgn_setup(CGNInitSetup &x);
 // CGN_EXPORT void cgn_setup(CGNInitSetup &x);
 #else
-extern void cgn_setup(cgnv1::CGNInitSetup &x) __attribute__((weak));
+extern void cgn_setup(cgnv1::CGNInitSetup &x) __attribute__((weak, visibility("default")));
 #endif
 
 #ifdef _WIN32
@@ -415,7 +415,7 @@ CGNImpl::active_script(const std::string &label)
     //        load into scripts[]
     s.sohandle = std::make_unique<DLHelper>(s.sofile);
     if (!s.sohandle->valid())
-        throw std::runtime_error{"cannot load cgn script."};
+        throw std::runtime_error{"cannot load cgn script " + s.sofile};
     return {(scripts[label] = std::move(s)).anode, ""};
 } //CGNImpl::active_script()
 
@@ -1120,7 +1120,9 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     if (!std::filesystem::exists(cgn_setup_filename))
         throw std::runtime_error{cgn_setup_filename + " not found"};
 
-    active_script("//" + cgn_setup_filename);
+    auto setup_so_resp = active_script("//" + cgn_setup_filename);
+    if (setup_so_resp.first == nullptr)
+        throw std::runtime_error{"cannot load cgn_setup :" + setup_so_resp.second};
     CGNInitSetup x;
     #ifndef _WIN32
         cgn_setup(x);

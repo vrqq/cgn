@@ -15,6 +15,8 @@ namespace cgnv1
 class CGNImpl {
 public:
 
+    // Load specific dynamic library by label.
+    // @return : pair{GraphNode*, error_message}
     std::pair<GraphNode*, std::string> active_script(const std::string &label);
 
     void offline_script(const std::string &label);
