@@ -43,6 +43,9 @@ cxx_static("cgn_static", x) {
 
 cxx_executable("cgn", x) {
     x.srcs = {base + "v1/cli.cpp",};
+    if (x.cfg["os"] == "mac")
+        x.ldflags = {"-Wl,-undefined,dynamic_lookup"};
+    
     x.add_dep(":cgn_static", cxx::private_dep);
 }
 

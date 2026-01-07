@@ -22,7 +22,7 @@
     * Host=Win   cxx_toolchain == `gcc`   : gcc.exe and ld.exe
 * `cxx_prefix`: 编译工具链前缀 默认为空
 * `cxx_sysroot` : 制定target OS的sysroot, 通常用于交叉编译
-* `llvm_stl` : `libc++` or empty
+* `llvm_stl` : `libc++` or empty(same as `libstdc++`)
 * `msvc_runtime` : `MD`, `MDd`, `MT`, `MTd`
 * `msvc_subsystem` : `CONSOLE`, `WINDOW`
 * `cxx_asan`  : AddressSanitizer

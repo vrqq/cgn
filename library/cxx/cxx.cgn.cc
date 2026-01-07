@@ -400,6 +400,9 @@ CxxToolchainInfo TargetWorker::step1_linux_gcc(cgn::Configuration &cfg)
         "-fvisibility=hidden",
         "-Wl,--exclude-libs,ALL"
     };
+    interp.extra_cflags_c = {"-std=c17"};
+    interp.extra_cflags_cpp = {"-std=c++17"};
+
     // using .def file to guide symbol expose
     // only valid for current target
     // if (dyn_def_file.empty())
@@ -500,6 +503,7 @@ CxxToolchainInfo TargetWorker::step1_linuxllvm_and_xcode(cgn::Configuration &cfg
 
     interp.arg.defines += {"_GNU_SOURCE"};
     interp.extra_cflags_c = {"-std=c17"};
+    interp.extra_cflags_cpp = {"-std=c++17"};
 
     //["optimization"]
     if (cfg["optimization"] == "debug") {
@@ -508,7 +512,8 @@ CxxToolchainInfo TargetWorker::step1_linuxllvm_and_xcode(cgn::Configuration &cfg
             "-g", "-Wall", "-Wextra", "-Wno-unused-parameter",
             "-fno-omit-frame-pointer", "-fno-optimize-sibling-calls",
             "-ftemplate-backtrace-limit=0", "-fno-limit-debug-info",
-            "-fstandalone-debug", "-fdebug-macro", "-glldb", //"-march=native",
+            "-fstandalone-debug",  "-glldb", //"-march=native",
+            // "-fdebug-macro", // this would trigger clang-cc1 bug to crash
             "-fcoverage-mapping", "-fprofile-instr-generate", "-ftime-trace"
             // "-flto=thin"
         };
@@ -554,7 +559,9 @@ CxxToolchainInfo TargetWorker::step1_linuxllvm_and_xcode(cgn::Configuration &cfg
     append_sanitizer((cfg["cxx_msan"] != ""), "memory");
     append_sanitizer((cfg["cxx_lsan"] != ""), "leak");
     if (sanitizer.size()) {
-        interp.arg.cflags  += {"-fsanitize=" + sanitizer, "-fno-omit-frame-pointer"};
+        interp.arg.cflags  += {"-fsanitize=" + sanitizer};
+        if (cfg["optimization"] != "debug")
+            interp.arg.cflags += {"-fno-omit-frame-pointer"};
         interp.arg.ldflags += {"-fsanitize=" + sanitizer};
     }
 

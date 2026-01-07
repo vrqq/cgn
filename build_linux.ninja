@@ -16,7 +16,7 @@ rule ar
     command = rm -f ${out} && ar rcs ${out} ${in}
 
 ## -Wl,--undefined=_Z9cgn_setupR12CGNInitSetup $
-##
+## -Wl,--warn-unresolved-symbols
 rule link
     deps    = gcc
     depfile = $out.d

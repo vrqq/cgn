@@ -2,10 +2,12 @@
 #include <string>
 #include <unordered_set>
 
-#if defined(CGN_SETUP_IMPL) && defined(_WIN32)
-    #define CGN_SETUP_IF __declspec(dllexport)
+#if defined(_WIN32)
+    #if defined(CGN_SETUP_IMPL)
+        #define CGN_SETUP_IF __declspec(dllexport)
+    #endif
 #else
-    #define CGN_SETUP_IF
+    #define CGN_SETUP_IF __attribute__((visibility("default")))
 #endif
 
 inline std::string extract(

@@ -19,8 +19,10 @@
 #ifdef _WIN32
 // extern void __declspec(selectany) cgn_setup(CGNInitSetup &x);
 // CGN_EXPORT void cgn_setup(CGNInitSetup &x);
-#else
+#elif defined(__linux__)
 extern void cgn_setup(cgnv1::CGNInitSetup &x) __attribute__((weak, visibility("default")));
+#else
+extern void cgn_setup(cgnv1::CGNInitSetup &x) __attribute__((visibility("default")));
 #endif
 
 #ifdef _WIN32
