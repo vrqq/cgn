@@ -8,10 +8,10 @@ TEST(CGNTest, CxxAnalysis)
     auto cfg = api.query_config("host_release");
     ASSERT_TRUE(cfg.second != nullptr);
 
-    cgn::CGNTarget lib = api.analyse_target("@cgn.d//test/cxx_test1:func1", cfg.first);
+    cgn::CGNTarget lib = api.create_target("@cgn.d//test/cxx_test1:func1", cfg.first);
     ASSERT_TRUE(lib.errmsg.empty());
 
-    cgn::CGNTarget exe = api.analyse_target("@cgn.d//test/cxx_test1", cfg.first);
+    cgn::CGNTarget exe = api.create_target("@cgn.d//test/cxx_test1", cfg.first);
     ASSERT_TRUE(exe.errmsg.empty());
 
     auto *lib_cinfo = lib.get<cxx::CxxInfo>(false);
@@ -40,12 +40,12 @@ TEST(CGNTest, CxxBuild)
 
 int main (int argc, char **argv) {
     std::cout<<"Warning! This is an intrusive test, executing it"
-               "         will alter files located in ${CWD}/cgn-out"<<std::endl;
+               "         will alter files located in ${CWD}/test-cgn-out"<<std::endl;
     std::cout<<"Press any key to continue."<<std::endl;
     getchar();
 
     std::unordered_map<std::string, std::string> kvargs;
-    kvargs["cgn-out"] = "cgn-out";
+    kvargs["cgn-out"] = "test-cgn-out";
     #ifdef _WIN32
     kvargs["winenv"] = "";
     #endif

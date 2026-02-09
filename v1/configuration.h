@@ -198,6 +198,7 @@ public:
         }
         return 0;
     }
+    bool empty() const { return !size(); }
 
     using iterator = type_data::iterator;
     using const_iterator = type_data::const_iterator;

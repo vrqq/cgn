@@ -105,7 +105,7 @@ private:
     LANGCXX_CGN_BUNDLE_API const static cgn::BaseInfo::VTable &_glb_cxx_vtable();
 };
 
-struct CxxContext : CxxInfo
+struct CxxContext : CxxInfo, private cgn::QuickDepContext
 {
     // 'x': cxx_executable, 's': cxx_shared, 'a': cxx_static, 'o': cxx_sources
     const char role;
@@ -144,11 +144,11 @@ struct CxxContext : CxxInfo
     // void set_runtime(const std::string &rout, const std::string &src);
 
 protected:
-    LANGCXX_CGN_BUNDLE_API CxxContext(char role, cgn::CGNTargetOptIn *opt);
+    LANGCXX_CGN_BUNDLE_API CxxContext(char role, cgn::CGNTargetOpt *opt);
 
 private: friend struct CxxInterpreter; // field for interpreter
     friend struct TargetWorker;
-    cgn::CGNTargetOptIn *opt;  //self opt
+    // cgn::CGNTargetOpt *opt;  //self opt
 
     // collection from deps, as the part of interpreter return value.
     // also with [CxxInfo] and [DefaultInfo] field inherit from deps.
@@ -178,7 +178,7 @@ private: friend struct CxxInterpreter; // field for interpreter
 };
 
 template <char ROLE> struct CxxContextType : CxxContext {
-    CxxContextType(cgn::CGNTargetOptIn *opt)
+    CxxContextType(cgn::CGNTargetOpt *opt)
     : CxxContext(ROLE, opt) {}
 };
 using CxxSourcesContext = CxxContextType<'o'>;
@@ -254,7 +254,7 @@ using CxxExecutableInterpreter = cxx::CxxInterpreterIF<cxx::CxxExecutableContext
 // Section: prebulit cxx library
 // -----------------------------
 
-struct PrebuiltContext {
+struct PrebuiltContext : protected cgn::QuickDepContext {
     const std::string &name;
     const cgn::Configuration &cfg;
 
@@ -268,17 +268,16 @@ struct PrebuiltContext {
     //linux shared/static lib: .so / .a / .o
     std::vector<cgn::CGNPath> files;
 
-    PrebuiltContext(cgn::CGNTargetOptIn *opt) : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
+    PrebuiltContext(cgn::CGNTargetOpt *opt) : name(opt->name), cfg(opt->cfg), cgn::QuickDepContext(opt) {}
 
+    cgn::CGNTarget add_dep(const std::string &label, const cgn::Configuration &cfg_in) {
+        return this->quick_dep(label, cfg_in);
+    }
     cgn::CGNTarget add_dep(const std::string &label) {
-        auto rv = opt->quick_dep(label, cfg);
-        _max_pub_ninja_level = std::max(_max_pub_ninja_level, rv.ninja_dep_level);
-        return rv;
+        return this->quick_dep(label, cfg);
     }
 
-private: friend struct CxxPrebuiltInterpreter;
-    cgn::CGNTargetOptIn *opt;
-    char _max_pub_ninja_level = cgn::CGNTarget::NINJA_LEVEL_NONEED;
+    friend struct CxxPrebuiltInterpreter;    
 };
 
 struct CxxPrebuiltInterpreter {

@@ -74,30 +74,39 @@ ConfigurationManager::ConfigurationManager(
 } //ConfigurationManager()
 
 static std::string 
-get_node_name(const std::string &name, const Configuration &cfg)
+node_name(const std::string &name)
 {
-    return "C-" + name + "-" + cfg.get_id();
+    return "C-" + name;
 }
 
+static std::string 
+node_name(const Configuration &cfg)
+{
+    return "C--" + cfg.get_id();
+}
+
+// Add an edge: GraphNode{hash} --> GraphNode{name}
 void ConfigurationManager::set_name(
     const std::string &name, const ConfigurationID &hash
 ) {
     // update named_cfg[name] point to cfg_by_id[hash]
     if (auto fdnow = cfg_by_id.find(hash); fdnow != cfg_by_id.end()) {
-        auto &last_cfg = named_cfgs[name];
+        auto &last_named_cfg = named_cfgs[name];
 
         // if the previous "name->hash" existed and not same as
         // current one, set the 'Node' invalid
-        if (last_cfg) {
-            if (last_cfg == &(fdnow->second))
+        if (last_named_cfg) {
+            if (last_named_cfg == &(fdnow->second))
                 return ;
-            std::string last = get_node_name(name, *last_cfg);
-            graph->set_node_status_to_stale_recursively(graph->get_node(last));
+            graph->set_node_status_to_stale_recursively(graph->get_node(node_name(*last_named_cfg)));
+            graph->remove_inbound_edges(graph->get_node(node_name(name)));
         }
 
         // then create the new GraphNode represent for "name->hash" relation
-        GraphNode *p = graph->get_node(get_node_name(name, fdnow->second));
-        last_cfg = &(fdnow->second);
+        last_named_cfg = &(fdnow->second);
+        GraphNode *p = graph->get_node(node_name(fdnow->second));
+        GraphNode *q = graph->get_node(node_name(name));
+        graph->add_edge(p, q);
         graph->set_stale_as_default_state(p);
         graph->set_node_status_to_latest(p);
     }
@@ -107,8 +116,8 @@ void ConfigurationManager::set_name(
 std::pair<Configuration, GraphNode *>
 ConfigurationManager::get(const std::string name) const {
     if (auto fd = named_cfgs.find(name); fd != named_cfgs.end())
-        return {*(fd->second), graph->get_node(get_node_name(name, *fd->second))};
-    return {Configuration{}, nullptr};
+        return {*(fd->second), graph->get_node(node_name(name))};
+    return {Configuration{}, graph->get_node(node_name(name))};
 }
 
 ConfigurationID ConfigurationManager::commit(Configuration &cfg)

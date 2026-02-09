@@ -11,10 +11,10 @@ std::string CGN::get_filepath(const std::string &file_label) const
 }
 
 // Clear all mtime cache, rescan all files to check which is changed and reload them.
-void CGN::start_new_round()
-{
-    return pimpl->start_new_round();
-}
+// void CGN::start_new_round()
+// {
+//     return pimpl->start_new_round();
+// }
 
 // load CGNScript, auto rebuild if necessary.
 std::pair<GraphNode*, std::string>
@@ -24,31 +24,46 @@ CGN::active_script(const std::string &label)
 }
 
 // unload CGNScript, it's safe to delete dll file after return.
-void CGN::offline_script(const std::string &label)
+std::string CGN::offline_script(const std::string &label)
 {
     return pimpl->offline_script(label);
 }
 
+std::string CGN::add_factory(
+    const std::string &factory_label,
+    std::function<void(CGNTargetOpt*)> loader
+) {
+    return pimpl->add_factory(factory_label, loader);
+}
+
+std::string CGN::remove_factory(
+    const std::string &factory_label
+) {
+    return pimpl->remove_factory(factory_label);
+}
+
 // Analyse specific target
-CGNTarget CGN::analyse_target(
+CGNTarget CGN::create_target(
     const std::string &label, const Configuration &cfg
 ) {
-    return pimpl->analyse_target(label, cfg);
+    return pimpl->create_target(label, cfg);
+}
+
+CGNTarget CGN::create_target(
+    CGNTargetOpt *opt_in, const std::function<void(CGNTargetOpt*)> &loader
+) {
+    return pimpl->create_target(opt_in, loader);
 }
 
 // Build specific target
 std::string CGN::build(const std::string &label, const Configuration &cfg)
 {
-    auto [exe, code] = pimpl->build_target(label, cfg);
-    if (exe.size() && code == 0)
-        return exe;
-    return "";
+    auto [tgt, code] = pimpl->create_and_build_target(label, cfg);
+    if (tgt.errmsg.size())
+        throw std::runtime_error{tgt.errmsg};
+    return (tgt.outputs.size() && code == 0)?tgt.outputs[0]:"";
 }
 
-void CGN::add_placeholder_file(const std::string &path)
-{
-    pimpl->add_obj_file_placeholder(path);
-}
 
 // ConfigurationID commit_config(const Configuration &plat_cfg);
 
@@ -56,25 +71,15 @@ void CGN::add_placeholder_file(const std::string &path)
 std::pair<Configuration, GraphNode *>
 CGN::query_config(const std::string &name) const
 {
-    return pimpl->cfg_mgr->get(name);
+    auto [cfg, anode] = pimpl->cfg_mgr->get(name);
+    if (pimpl->tls_runtime)
+        pimpl->tls_runtime->dep_anodes.insert(anode);
+    return {cfg, anode};
 }
 
 void CGN::add_adep_edge(GraphNode *early, GraphNode *late)
 {
     return pimpl->add_adep(early, late);
-}
-
-std::shared_ptr<void> CGN::bind_target_builder(
-    const std::string &factory_label, 
-    std::function<void(CGNTargetOptIn*)> loader
-) {
-    return pimpl->bind_target_builder(factory_label, loader);
-}
-
-// Commit from CGNTargetOptIn.confirm();
-CGNTargetOpt *CGN::confirm_target_opt(CGNTargetOptIn *in)
-{
-    return pimpl->confirm_target_opt(in);
 }
 
 // The init function must be called before others.
@@ -93,10 +98,10 @@ void CGN::init(const std::unordered_map<std::string, std::string> &kvargs)
     try {
         new(pimpl) CGNImpl(kvargs);
         logger = &(pimpl->logger);
-    }catch(std::exception &e) {
+    }catch(const std::exception &e) {
         ::operator delete(pimpl);
         pimpl = nullptr;
-        throw e;
+        throw ; // rethrow with the previous dynamic type.
     }
 }
 
@@ -122,9 +127,9 @@ const std::unordered_map<std::string, std::string> &CGN::get_kvargs() const
     return pimpl->cmd_kvargs;
 }
 
-const RuntimeEnv &CGN::get_runtime() const
+const TLRuntime *CGN::get_debug_runtime() const
 {
-    return pimpl->runtime_env;
+    return pimpl->tls_runtime;
 }
 
 CGN::~CGN()

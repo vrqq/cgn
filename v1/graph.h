@@ -71,7 +71,7 @@ public:
     void set_unknown_as_default_state(GraphNode *p);
     void set_stale_as_default_state(GraphNode *p);
 
-    // Add edge
+    // Add edge : 'from' happens-before 't'
     void add_edge(GraphNode *from, GraphNode *to);
     
     // Remove all inbound edges of p, usually used on 

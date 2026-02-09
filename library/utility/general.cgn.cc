@@ -9,27 +9,27 @@ static std::string two_escape(const std::string &in) {
 }
 CGN_LIBRARY_GENERAL_API void RunExecInterperter::interpret(context_type &x)
 {
-    cgn::CGNTargetOpt *opt = x.opt->confirm();
-    if (opt->cache_result_found)
+    cgn::CGNTargetMaker *mk = x.opt->confirm();
+    if (!mk)
         return ;
 
-    auto *rule = opt->ninja->append_rule();
+    auto *rule = mk->ninja->append_rule();
     rule->name = "exec";
     for (auto &ss : x.cmd_build)
         rule->command += two_escape(ss) + " ";
     
-    auto *field = opt->ninja->append_build();
-    field->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
+    auto *field = mk->ninja->append_build();
+    field->outputs = {mk->ninja->escape_path(mk->out_prefix + mk->NINJA_ENTRY_TARGET)};
 
     field->rule = "exec";
     for (auto &file : x.inputs) {
-        auto fp = api.rebase_path(file, ".", opt);
-        field->inputs+= {opt->ninja->escape_path(fp)};
+        auto fp = api.rebase_path(file, ".", mk);
+        field->inputs+= {mk->ninja->escape_path(fp)};
     }
     for (auto &file : x.outputs) {
-        auto fp = api.rebase_path(file, ".", opt);
-        field->outputs += {opt->ninja->escape_path(fp)};
-        opt->result.outputs += {fp};
+        auto fp = api.rebase_path(file, ".", mk);
+        field->outputs += {mk->ninja->escape_path(fp)};
+        mk->outputs += {fp};
     }
 } //RunExecInterperter::interpret
 
@@ -39,40 +39,38 @@ CGN_LIBRARY_GENERAL_API void RunExecInterperter::interpret(context_type &x)
 bool AliasInterpreter::AliasContext::load_named_config(const std::string &cfg_name)
 {
     auto dep = api.query_config(cfg_name);
-    if (dep.second == nullptr) {
+    if (dep.first.empty()) {
         load_config_errormsg = cfg_name;
         return false;
     }
     load_config_errormsg.clear();
     this->cfg = dep.first;
-    opt->quickdep_early_anodes.push_back(dep.second);
     return true;
 }
 
 CGN_LIBRARY_GENERAL_API void AliasInterpreter::interpret(context_type &x)
 {
-    if (x.load_config_errormsg.size()) {
-        x.opt->confirm_with_error(x.load_config_errormsg + " config not found.");
-        return ;
-    }
-    cgn::CGNTarget early = x.opt->quick_dep(
-            api.absolute_label(x.actual_label, x.opt->factory_label), x.cfg);
-    if (early.errmsg.size()) {
-        x.opt->confirm_with_error(early.errmsg);
-        return ;
-    }
+    if (x.load_config_errormsg.size())
+        return x.opt->set_fail(x.load_config_errormsg + " config not found.");
+    cgn::QuickDepContext qdep{x.opt};
+    cgn::CGNTarget early = qdep.quick_dep(x.actual_label, x.cfg);
+    if (early.errmsg.size())
+        return x.opt->set_fail(early.errmsg);
     x.cfg.visit_keys(early.trimmed_cfg);
 
-    cgn::CGNTargetOpt *opt = x.opt->confirm();
-    if (opt->cache_result_found)
+    // Generate CGNTarget if no cache found
+    cgn::CGNTargetMaker *mk = x.opt->confirm();
+    if (!mk)
         return ;
-    opt->result.ninja_dep_level = early.ninja_dep_level;
-    opt->result.outputs = early.outputs;
+    mk->outputs = early.outputs;
     
-    auto *field = opt->ninja->append_build();
-    field->rule = "phony";
-    field->inputs = {opt->ninja->escape_path(early.ninja_entry)};
-    field->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
+    // Generate ninja file if file changed.
+    if (mk->ninja) {
+        auto *field = mk->ninja->append_build();
+        field->rule = "phony";
+        field->inputs = {mk->ninja->escape_path(early.ninja_entry)};
+        field->outputs = {mk->ninja->escape_path(mk->ninja_entry)};
+    }
 } //AliasInterpreter::interpret
 
 
@@ -82,26 +80,22 @@ CGN_LIBRARY_GENERAL_API std::vector<cgn::CGNTarget> GroupInterpreter::GroupConte
     std::initializer_list<std::string> labels, const cgn::Configuration &cfg
 ) {
     std::vector<cgn::CGNTarget> rv;
-    for (auto it :labels){
-        auto tgt = opt->quick_dep(it, cfg);
-        if (tgt.errmsg.empty()) {
-            deps_ninja_entry.push_back(tgt.ninja_entry);
-        }
-        rv.push_back(std::move(tgt));
-    }
+    for (auto it : labels)
+        rv.push_back(quick_dep(it, cfg, true));
     return rv;
 }
 
 CGN_LIBRARY_GENERAL_API void GroupInterpreter::interpret(context_type &x)
 {
-    cgn::CGNTargetOpt *opt = x.opt->confirm();
-    if (opt->cache_result_found)
+    cgn::CGNTargetMaker *mk = x.opt->confirm();
+    if (!mk)
         return ;
 
-    auto *field = opt->ninja->append_build();
-    field->rule = "phony";
-    field->inputs = opt->ninja->escape_path(x.deps_ninja_entry);
-    field->implicit_inputs = opt->ninja->escape_path(opt->quickdep_ninja_full);
-    field->order_only      = opt->ninja->escape_path(opt->quickdep_ninja_dynhdr);
-    field->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
+    if (mk->ninja) {
+        auto *field = mk->ninja->append_build();
+        field->rule = "phony";
+        field->inputs = mk->ninja->escape_path(x.quickdep_ninja_target);
+        field->outputs = {mk->ninja->escape_path(mk->ninja_entry)};
+    }
+
 } //GroupInterpreter::interpret

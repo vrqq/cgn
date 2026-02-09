@@ -22,9 +22,10 @@ CGN Analysis Graph 中的点, 内部为 “一些文件路径(如下)” 以及 
  
 **代表 factory + config 组合**
 代表某个target输出的 build.ninja
-GraphNode名称为 `T` + factory_label + `#` + ConfigurationID
-内部文件列表(仅一条)
+GraphNode名称为 `T` + factory_out_dir
+内部文件列表
 * `cgn-out/obj/xxx_AABBCCDD/build.ninja` (1st, output)
+* `cgn-out/obj/xxx_AABBCCDD/configure.sh` (script which mention in build.ninja)
 
 **代表 named-config**
 GraphNode名称为 `C-` + config_name + `-` + ConfigurationID  

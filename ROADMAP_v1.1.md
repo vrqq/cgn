@@ -41,13 +41,15 @@
 // Make 2 anode deps: this_target->script_file and calling_from->this_target
 CGNTarget api.create_target(factory_label, cfg) {
     infinite_loop_check(opt.out_parent_prefix, opt.name, opt.cfg.id, TLS.TLRuntime);
-    CGNFactoryOpt opt{cfg, [name,src_prefix,out_parent_prefix]=factory_entry[factory_label]};
+    CGNTargetOpt opt{cfg, [name,src_prefix,out_parent_prefix]=factory_entry[factory_label]};
     TLRuntime now_rt;
     now_rt.call_from = TLS.TLRuntime;
     now_rt.deps_anode += factory_entry[factory_label].script_anode;
     now_rt.hint_label = factory_label;
     TLS.TLRuntime = now_rt;
     factory_entry[factory_label](opt) {
+        // script preload
+        active_script(Interperter::preload());
         // user factory and interpreter code
         opt.confirm();
     }
@@ -59,6 +61,7 @@ CGNTarget api.create_target(factory_label, cfg) {
 
 // Make one anode dep: calling_from->this_target
 CGNTarget api.create_target(opt, fn_entry) {
+    api.active_script(...)
     infinite_loop_check(opt.out_parent_prefix, opt.name, opt.cfg.id, TLS.TLRuntime);
     TLRuntime now_rt;
     now_rt.call_from = TLS.TLRuntime;
@@ -74,7 +77,7 @@ CGNTarget api.create_target(opt, fn_entry) {
             return now_rt.rv = api.target_cache[cache_label] = new TargetMaker;
         }
         if (maker)
-            maker.result[XXInfo] = "string_data";
+            maker[XXInfo] = "string_data";
             if (maker.ninja)
                 maker.ninja.add_build();
     }
@@ -91,15 +94,40 @@ api.async_create_target(args...) -> promise<CGNTarget> {
     };
 };
 
-ThreadLocal struct TLRuntime {
-    active_opt,
-    call_from : StackItem*,
-    deps_anode[],
-    rv : Target
-    hint_label,
+api.active_script() {
+
 }
 
-struct CGNFactoryOpt {
+// hint_label = "@cell//src" in active_script("@cell//src/BUILD.cgn.cc")
+// hint_label = "@cgn.d//library/cxx.cgn.cc" in active_script("@cgn.d//library/cxx.cgn.cc")
+// hint_label = "@cell//src:tgt1" in add_factory("name")
+//
+// hint_label = "@cgn.d//library/cxx.cgn.cc:name1" in create_target("name1") inside active_script("@cgn.d//library/cxx.cgn.cc") dlopen process
+// hint_label = "@cell//src:hello" in create_target("hello") inside active_script("@cell//src/BUILD.cgn.cc") dlopen process
+// hint_label = "./cgn-out/obj/dir1_00000000/name2_AAAABBBB" for create_target(anonymous) calling from anywhere regardless of TLRuntime
+//
+// active_script()
+//   .tag3 = "@cell//src", "@cgn.d//library/cxx.cgn.cc"
+//   ._loop_detect_key = ""
+// reg_factory(full_factory_label = rt._label + arg.name)
+//   .tag3 = $full_factory_label
+//   ._loop_detect_key = ""
+// create_target(factory_label)
+//   .tag3 = $factory_label, "@cell//src:hello", "@cgn.d//library/cxx.cgn.cc:name1"
+//   ._loop_detect_key = $out_parent + $input_cfg_id
+// create_target(anonymous)
+//   .tag3 = $out_parent + $name
+//   ._loop_detect_key = $out_parent + $name + $input_cfg_id
+ThreadLocal struct TLRuntime {
+    active_opt,
+    call_from : TLRuntime*,
+    deps_anode[],
+    rv : Target
+    label,
+    loop_detect_key
+}
+
+struct CGNTargetOpt {
     name,
     cfg,
     src_prefix,
@@ -110,19 +138,47 @@ struct CGNFactoryOpt {
 };
 
 struct CGNTarget : InfoTable {
-    desc,
+    label,  //tag3 in current version
     trimmed_cfg,
     anode,
+    errmsg,
     ninja_entry,
+    outputs[],
 };
 
-struct CGNTargetMaker : CGNTarget, CGNFactoryOpt {
+struct CGNTargetMaker : CGNTarget, CGNTargetOpt {
     ninja,
     out_prefix,
-    out_prefix_unix,
-    is_file_unchanged(),
+    out_prefix_unixsep,
+    file_unchanged,
 };
 ```
+
+## Automatic Call Stack Recording via `TLRuntime`
+**GraphNode within create_target()**
+* after enter create_target(label / anonymous), if label or arguments invalid, return anode=nullptr
+* then the GraphNode before confirm: get_node('U' + output_parent_prefix + name + config_in_id)
+    * the deps in this period should be recorded.
+* after fn_entry return without error: get_node('T' + out_parent_prefix + name + trimmed_config_id)
+    * this node will replace the previous one, and the deps will link to this node
+* return : the latest active GraphNode
+
+**Handling cycle dependencies**
+Consider a cycle where target A depends on B, B depends on C, and C depends on A.
+Starting from `create_target(A)`, when the target maker code for C calls `api.create_target(A)`, it returns a 'cycle-dependency' error message.
+(GraphNode_C should be influenced by GraphNode_A, but GraphNode_A has not yet been determined.)
+
+Here is an example for C:
+```
+create_factory_C() {
+    if (api.create_target(A).errmsg == "cycle-dependency")
+        api.create_target(another_X);
+}
+```
+In reality, `create_target(A)` should create a virtual GraphNode_A2 with no trimmed config, and C would depend on it.
+A valid file list for GraphNode_A2 could be 'A/build.cgn.cc'; for simplicity, we represent such nodes using script GraphNodes.
+
+## API
 
 **CGN public API**
 - `api.debug_tlruntime()`: returns the current thread-local-storage with runtime context of `api.create_target()`.
@@ -230,4 +286,8 @@ interpreter(ctx) {
 
 To avoid unnecessary cross-platform regeneration, validate a platform-independent mtime stamp file before running `protoc`. (The same applies when `.pb.cc` is generated directly into the source directory.)
 
-````
+
+## About Parallelism
+To keep our program as simple as possible, only `parallel_active_script([label1, label2, ...], N_cores);` is allowed to run in parallel; other functions are simply thread-unsafe.
+
+For simplicity, if we adopted a lifetime management rule where 'scripts', 'registered factories', and related objects were shared_ptr<> to remain valid during calls, (it require keeping dynamic libraries dlopen-ed). Converting most pointers to shared_ptr would significantly slow the program, especially on older machines.

@@ -1,4 +1,5 @@
 #include <filesystem>
+#include "cgn_impl.h"
 #include "cgn_type.h"
 #include "cgn_api.h"
 
@@ -18,7 +19,6 @@ void InfoTable::merge_from(const InfoTable &rhs)
         }
 }
 
-
 void InfoTable::merge_entry(
     const std::string &name, const BaseInfo *rhs
 ) {
@@ -36,8 +36,8 @@ std::string CGNTarget::to_string(char type) const
 {
     std::string rv;
     if (type == 'h' || type == 'H') {
-        rv = "factory: " + this->factory_label
-           + "#" + trimmed_cfg.get_id() + "\n";
+        rv = "label: " + this->label
+           + " #" + trimmed_cfg.get_id() + "\n";
         if (this->errmsg.size())
             rv += "error: " + this->errmsg;
         else {
@@ -66,54 +66,47 @@ std::string CGNTarget::to_string(char type) const
 // === CGNTargetOpt implement ===
 
 //static variable
-std::string CGNTargetOpt::path_separator = {std::filesystem::path::preferred_separator};
+const std::string CGNTargetMaker::PATH_SEPARATOR = {std::filesystem::path::preferred_separator};
+const std::string CGNTargetMaker::NINJA_ENTRY_TARGET = {".entry"};
+const std::string CGNTargetMaker::NINJA_ENTRY_FILENAME = {"build.ninja"};
 
-CGNTarget CGNTargetOptIn::quick_dep(const std::string &label, const Configuration &cfg1, bool merge_infos)
+CGNTarget QuickDepContext::quick_dep(const std::string &label, const Configuration &cfg1, bool merge_infos)
 {
-    CGNTargetOpt *opt = dynamic_cast<CGNTargetOpt*>(this);
-    CGNTarget early = api.analyse_target(
-                        api.absolute_label(label, this->factory_label), cfg1);
+    CGNTarget early = api.create_target(
+                        api.absolute_label(label, opt->get_label()), cfg1);
     if (early.errmsg.size())
         return early;
-    if (early.ninja_dep_level == CGNTarget::NINJA_LEVEL_FULL)
-        opt->quickdep_ninja_full.push_back(early.ninja_entry);
-    if (early.ninja_dep_level == CGNTarget::NINJA_LEVEL_DYNDEP)
-        opt->quickdep_ninja_dynhdr.push_back(early.ninja_entry);
-    opt->quickdep_early_anodes.push_back(early.anode);
+    quickdep_ninja_target.push_back(early.ninja_entry);
     cfg1.visit_keys(early.trimmed_cfg);
     if (merge_infos)
-        opt->result.merge_from(early);
+        quickdep_result.merge_from(early);
     return early;
 }
 
-CGNTarget CGNTargetOptIn::quick_dep_namedcfg(const std::string &label, const std::string &cfgname, bool merge_cfg_visit) {
-    CGNTargetOpt *opt = dynamic_cast<CGNTargetOpt*>(this);
+CGNTarget QuickDepContext::quick_dep_namedcfg(const std::string &label, const std::string &cfgname, bool merge_infos) {
     auto early_cfg = api.query_config(cfgname);
-    if (!early_cfg.second) {
+    if (!early_cfg.first.empty()) {
         CGNTarget rv;
-        rv.errmsg = "config '" + cfgname + "' not found";
+        rv.errmsg = "empty config '" + cfgname + "'";
+        rv.anode  = early_cfg.second;
         return rv;
     }
-    CGNTarget rv = quick_dep(label, early_cfg.first, false);
-    if (rv.errmsg.size())
-        return rv;
-    
-    opt->quickdep_early_anodes.push_back(early_cfg.second);
-    if (merge_cfg_visit)
-        opt->cfg.visit_keys(rv.trimmed_cfg);
-    return rv;
+    return quick_dep(label, early_cfg.first, merge_infos);
 }
 
-CGNTargetOpt *CGNTargetOptIn::confirm()
+const std::string &CGNTargetOpt::get_label() const
 {
-    return api.confirm_target_opt(this);
+    return _api_pimpl->tls_runtime->label;
 }
 
-
-void CGNTargetOptIn::confirm_with_error(const std::string &errmsg)
+CGNTargetMaker *CGNTargetOpt::confirm()
 {
-    auto *opt = confirm();
-    opt->result.errmsg = errmsg;
+    return _api_pimpl->confirm_target_opt(this, "");
+}
+
+void CGNTargetOpt::set_fail(const std::string &errmsg)
+{
+    _api_pimpl->confirm_target_opt(this, errmsg);
 }
 
 // These functions are defined in cgn_impl.cpp

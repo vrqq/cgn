@@ -18,17 +18,16 @@ struct RunExecInterperter
 {
     struct context_type {
         const std::string &name;
-        std::string actual_label;
         cgn::Configuration &cfg;
         
         std::vector<std::string>  cmd_build;
         std::vector<cgn::CGNPath> inputs, outputs;
 
-        context_type(cgn::CGNTargetOptIn *opt)
-        : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
+        context_type(cgn::CGNTargetOpt *opt)
+        : name(opt->name), cfg(opt->cfg), opt(opt) {}
 
     private: friend struct RunExecInterperter;
-        cgn::CGNTargetOptIn *opt;
+        cgn::CGNTargetOpt *opt;
     };
 
     constexpr static cgn::ConstLabelGroup<1> preload_labels() {
@@ -47,12 +46,12 @@ struct AliasInterpreter
 
         bool load_named_config(const std::string &cfg_name);
 
-        AliasContext(cgn::CGNTargetOptIn *opt)
-        : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
+        AliasContext(cgn::CGNTargetOpt *opt)
+        : name(opt->name), cfg(opt->cfg), opt(opt) {}
         
     private: friend struct AliasInterpreter;
         std::string load_config_errormsg;
-        cgn::CGNTargetOptIn *opt;
+        cgn::CGNTargetOpt *opt;
     };
     using context_type = AliasContext;
     
@@ -65,7 +64,7 @@ struct AliasInterpreter
 
 struct GroupInterpreter
 {
-    struct GroupContext {
+    struct GroupContext : protected cgn::QuickDepContext {
         const std::string &name;
         const cgn::Configuration &cfg;
 
@@ -78,12 +77,10 @@ struct GroupInterpreter
             const cgn::Configuration &cfg
         );
 
-        GroupContext(cgn::CGNTargetOptIn *_opt)
-        : name(_opt->factory_label), cfg(_opt->cfg), opt(_opt) {}
+        GroupContext(cgn::CGNTargetOpt *_opt)
+        : cgn::QuickDepContext{_opt}, name(_opt->name), cfg(_opt->cfg) {}
 
-    private: friend struct GroupInterpreter;
-        cgn::CGNTargetOptIn *opt;
-        std::vector<std::string> deps_ninja_entry;
+    friend struct GroupInterpreter;
     };
     using context_type = GroupContext;
     

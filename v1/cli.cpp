@@ -204,7 +204,7 @@ try{do{
 
     // [CMD] cgn analyse @cell//target [cfgname]
     if ((args[0] == "analyze" || args[0] == "analyse") && args.size() >= 2) {
-        auto rv = api.analyse_target(args[1], load_cfg(args.size()>=3?args[2]:""));
+        auto rv = api.create_target(args[1], load_cfg(args.size()>=3?args[2]:""));
         if (rv.errmsg.size())
             api.logger->paragraph(rv.errmsg);
         return 0;
@@ -221,9 +221,9 @@ try{do{
         std::string cmd;
         auto exe = api.build(args[1], load_cfg(args.size()>=3?args[2]:""));
         if (exe.size()) {
-            cmd = api.shell_escape(exe);
+            cmd = api.shell_escape(exe, api.get_host_info().shell);
             for (std::size_t i=2; i<args.size(); i++)
-                cmd += " " + api.shell_escape(args[i]);
+                cmd += " " + api.shell_escape(args[i], api.get_host_info().shell);
         }
 
         if (cmd.size())
@@ -236,11 +236,11 @@ try{do{
     // [CMD] cgn query @cell//target [cfgname]
     if (args[0] == "query" && args.size() >= 2) {
         auto cfg = load_cfg(args.size()>=3?args[2]:"");
-        auto rv = api.analyse_target(args[1], cfg);
+        auto rv = api.create_target(args[1], cfg);
 
         char type = api.get_kvargs().count("verbose")?'H':'h';
         std::cout<<"\n--- Target ---\n"
-                 <<args[1]<<" #"<<cfg.get_id()<<std::endl;
+                 <<args[1]<<" #"<<cfg.get_id()<<" (input config id)"<<std::endl;
         std::cout<<"\n--- Input Configuration ---\n"
                  <<cgnv1::Logger::fmt_list(cfg, "", 999) <<std::endl;
 
@@ -268,7 +268,7 @@ try{do{
         return 0;
     }
 
-}while(0);}catch(std::exception &e) { //windows CRT won't show anything for unhandled exception.
+}while(0);}catch(const std::exception &e) { //windows CRT won't show anything for unhandled exception.
     std::cerr<<"\n---EXCEPTION---\n"
              <<e.what()
              <<"\n==============="<<std::endl;

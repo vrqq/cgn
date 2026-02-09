@@ -1,5 +1,6 @@
 #include <fstream>
 #include <sstream>
+#include <thread>
 #include <optional>
 #include <filesystem>
 #include <algorithm>
@@ -42,6 +43,10 @@ std::string self_realpath()
 // void cgn_setup(CGNInitSetup &x) {}
 
 namespace cgnv1 {
+
+// dirty patch: popen run /bin/sh with POSIX
+// https://man.uex.se/3/popen
+static std::string HOST_SHELL = Tools::get_host_info().os == "win"? "cmd" : "bash";
 
 static void loop_dir(std::vector<std::string> *out, std::filesystem::path p)
 {
@@ -112,19 +117,23 @@ std::string CGNImpl::expand_filelabel_to_filepath(const std::string &in) const
     return result;
 }
 
-// NodeName == unique_label (like @cgn.d//library/cxx.cgn.bundle)
+// NodeName == unique_label (like @cgn.d//library/cxx/cxx.cgn.cc)
+// start: (lock)
 // case1: script loaded && stat(files[]) == Latest
 //        return ;
 // case2: script loaded && stat(files[]) == Stale
 //        unload script => goto case 3
 // case3: script not-load && stat(files[]) == Stale
-//        rebuild => goto case 4
+//        (unlock)-rebuild-(lock) => goto case 4
 // case4: script not-load && stat(files[]) == Latest
 //        load and return;
+// finally: (unlock)
+// TODO: (bug to be fixed) return anode even if file not found.
 std::pair<GraphNode*, std::string> 
-CGNImpl::active_script(const std::string &label)
+CGNImpl::active_script(const std::string &label, bool parallel_build_mode)
 {
     logger.println("ActiveScript ", label);
+
     auto [labe2, _expand_err] = _expand_cell(label);
     if (_expand_err.size()) {
         if (halt_on_error)
@@ -136,10 +145,27 @@ CGNImpl::active_script(const std::string &label)
     
     CGNScript s; //the next value of scripts[label]
 
+    std::unique_lock parallel_lock(parallel_active_script_mutex, std::defer_lock);
+    if (parallel_build_mode)
+        parallel_lock.lock();
+
+    // compiling in other thread (case3), wait until loaded
+    // for(auto fd = scripts.find(label); fd != scripts.end() && !fd->second.sohandle; ) {
+    //     lk.unlock();
+    //     std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    //     lk.lock();
+    //     fd = scripts.find(label);
+    // }
+
+    // enter case check
     if (auto fd = scripts.find(label); fd != scripts.end()) {
         graph.test_status(fd->second.anode);
-        if (fd->second.anode->status == GraphNode::Latest)
+        if (fd->second.anode->status == GraphNode::Latest) {
+            // Record API calling-dependency
+            if (parallel_build_mode == false && tls_runtime)
+                tls_runtime->dep_anodes.insert(fd->second.anode);
             return {fd->second.anode, ""}; // case1: scripts existed, graph Latest
+        }
         
         // case2: script existed, graph Stale. 
         //        erase script and goto case 3
@@ -150,6 +176,10 @@ CGNImpl::active_script(const std::string &label)
     }
     else
         graph.test_status(s.anode = graph.get_node("S" + label));
+
+    // Record API calling-dependency
+    if (parallel_build_mode == false && tls_runtime)
+        tls_runtime->dep_anodes.insert(s.anode);
 
     if (s.sofile.empty()) {
         auto fpath = std::filesystem::path{labe2}.make_preferred();
@@ -173,40 +203,25 @@ CGNImpl::active_script(const std::string &label)
             return {nullptr, fpath.string() + " not found."};
         }
 
+        if (parallel_build_mode)
+            parallel_lock.unlock();
+
         //(re)generate GraphNode.files[]
         // script_srcs: file in fetched bundle or .rsp
         // script_all : script_srcs + header info hint by compiler
         std::vector<std::string> script_srcs = expand_scripts(fpath);
-        std::unordered_set<std::string> script_all;
-        script_all.insert(script_srcs.begin(), script_srcs.end());
-
-        //start build, cases of "label => factory_prefix (string format)"
-        //                //BUILD.cgn.cc  =>  "//:"
-        //          //hello/BUILD.cgn.cc  =>  "//hello:"
-        //        //my_script.cgn.bundle  =>  "//my_script.cgn.bundle:"
-        //  @cgn.d//library/cmake.cgn.cc  =>  "@cgn.d//library/cmake.cgn.cc:"
-        std::string def_var_prefix = mangle_var_prefix(labe2);
-        std::string def_ulabel_prefix = "\"//:\"";
-        if (auto fd = label.rfind('/'); fd != label.npos) {
-            std::string_view file_name{label.c_str() + fd + 1};
-            if (file_name == "BUILD.cgn.cc")
-                def_ulabel_prefix = "\"" + label.substr(0, fd) + ":\"";
-            else
-                def_ulabel_prefix = "\"" + label + ":\"";
-        }
-        // if (auto fd = labe2.rfind('/'); fd != labe2.npos) 
-        //     def_ulabel_prefix = "\"//" + labe2.substr(0, fd) + ":\"";
+        std::unordered_set<std::string> script_all{script_srcs.begin(), script_srcs.end()};
 
         auto cc_end_with = [&](const std::string &want) {
             if (script_cc.size() >= want.size())
                 return script_cc.substr(script_cc.size() - want.size()) == want;
             return false;
         };
-
-        bool is_win  = (Tools::get_host_info().os == "win");
-        bool is_unix = !is_win;
+        bool is_win   = (Tools::get_host_info().os == "win");
+        bool is_unix  = !is_win;
         bool is_msvc  = cc_end_with("cl.exe");
-        bool is_clang = cc_end_with("clang") || cc_end_with("clang++");
+        bool is_clang = cc_end_with("clang") || cc_end_with("clang++") 
+                     || cc_end_with("clang.exe") || cc_end_with("clang++.exe");
 
         // .rsp file is temporary and not included in adep->files[]
         // .so / .dll is in adep->files[] when first created.
@@ -226,7 +241,7 @@ CGNImpl::active_script(const std::string &label)
             std::string rspname = s.sofile + "-" + pt.stem().string() + ".rsp";
             std::string outname = s.sofile + "-" + pt.stem().string() + ".o" + (is_win?"bj":"");
             std::string depname = s.sofile + "-" + pt.stem().string() + ".d";
-            linker_in += Tools::shell_escape(outname) + " ";
+            linker_in += Tools::shell_escape(outname, HOST_SHELL) + " ";
             std::ofstream frsp(rspname); 
 
             if (is_msvc && is_win) {
@@ -237,16 +252,16 @@ CGNImpl::active_script(const std::string &label)
                 //
                 frsp<< "/c " << ("." / pt).string() <<" /nologo /showIncludes /Gy "
                     "/DWINVER=0x0603 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
-                    " /DCGN_VAR_PREFIX=" + def_var_prefix +
-                    " /D\"CGN_ULABEL_PREFIX=\"" + def_ulabel_prefix + "\"\"" + 
-                    " /I. /utf-8 /EHa /MP /fp:fast /Fo: " + Tools::shell_escape(outname);
+                    // " /DCGN_VAR_PREFIX=" + def_var_prefix +
+                    // " /D\"CGN_ULABEL_PREFIX=\"" + def_ulabel_prefix + "\"\"" + 
+                    " /I. /utf-8 /EHa /MP /fp:fast /Fo: " + Tools::shell_escape(outname, HOST_SHELL);
                 #ifdef _DEBUG
                     frsp<<" /D_DEBUG /MDd";
                 #else
                     frsp<<" /MD";
                 #endif
                 if (scriptcc_debug_mode)
-                    frsp<<" /Od /Z7 /Fd: " + Tools::shell_escape(outname) + ".pdb";
+                    frsp<<" /Od /Z7 /Fd: " + Tools::shell_escape(outname, HOST_SHELL) + ".pdb";
             }
             else if (is_unix) {
                 if (is_clang && scriptcc_debug_mode) //llvm debug (lldb)
@@ -254,11 +269,11 @@ CGNImpl::active_script(const std::string &label)
                           "-fsanitize=address -fsanitize=undefined ";
                 if (!is_clang && scriptcc_debug_mode) //gcc debug
                     frsp<<"-g ";
-                frsp<<"-c " << it << " -MMD -MF " + Tools::shell_escape(depname) +
+                frsp<<"-c " << it << " -MMD -MF " + Tools::shell_escape(depname, HOST_SHELL) +
                         " -fPIC -fdiagnostics-color=always -std=c++11 -I. " + 
-                        " -DCGN_VAR_PREFIX=" + Tools::shell_escape(def_var_prefix) +
-                        " -DCGN_ULABEL_PREFIX=" + Tools::shell_escape(def_ulabel_prefix) + 
-                        " -o " + Tools::shell_escape(outname);
+                        // " -DCGN_VAR_PREFIX=" + Tools::shell_escape(def_var_prefix) +
+                        // " -DCGN_ULABEL_PREFIX=" + Tools::shell_escape(def_ulabel_prefix) + 
+                        " -o " + Tools::shell_escape(outname, HOST_SHELL);
             }
             frsp.close();
 
@@ -407,438 +422,353 @@ CGNImpl::active_script(const std::string &label)
             logger.verbose_paragraph("CGNScript "
                 + label +" rebuilt with files[]: " + content + "\n");
         }
+
+        if (parallel_build_mode)
+            parallel_lock.lock();
+
         // graph.forward_status(s.anode);
         graph.set_node_files(s.anode, node_vals);
         graph.clear_file0_mtime_cache(s.anode);
         graph.set_node_status_to_latest(s.anode);
     }
 
+    // for compile only mode, no anode return evenif anode is latest.
+    if (parallel_build_mode)
+        return {nullptr, ""};
+
     // case4: script not loaded, graph Latest
     //        load into scripts[]
+    // Create TLRuntime and load script
+    TLRuntime now_rt;
+    if (label.rfind("/BUILD.cgn.cc") == label.size() - strlen("/BUILD.cgn.cc"))
+        now_rt.label = label.substr(0, label.size() - strlen("/BUILD.cgn.cc"));
+    else
+        now_rt.label = label;
+    
+    tls_push(&now_rt);
     s.sohandle = std::make_unique<DLHelper>(s.sofile);
+    tls_pop(&now_rt);
+
     if (!s.sohandle->valid())
         throw std::runtime_error{"cannot load cgn script " + s.sofile};
+    graph.remove_inbound_edges(s.anode);
+    for (GraphNode *p : now_rt.dep_anodes)
+        graph.add_edge(p, s.anode);
     return {(scripts[label] = std::move(s)).anode, ""};
 } //CGNImpl::active_script()
 
-void CGNImpl::offline_script(const std::string &label)
+std::string CGNImpl::offline_script(const std::string &label)
 {
+    // std::unique_lock lk(scripts_mtx);
     // see also DEVNOTE in doc.       
-    if (auto fd = scripts.find(label); fd != scripts.end()){
+    for (auto fd = scripts.find(label); fd != scripts.end(); ){
+        // current script is building in another thread, wait for done
+        // if (fd->second.sohandle == nullptr){
+        //     lk.unlock();
+        //     std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        //     lk.lock();
+        //     fd = scripts.find(label);
+        //     continue;
+        // }
+        
+        // current script could be removed.
         graph.set_node_status_to_unknown(fd->second.anode);
         scripts.erase(fd);
+        return "";
     }
+    return "script " + label + " not found.";
 }
 
-// Internal CGNTargetOpt struct to save variable inside;
-struct CGNTargetOptIntl : CGNTargetOpt {
-    std::string script_label;
-    GraphNode *script_anode;
-
-    std::string _facty_name;
-    std::string current_unit_name;
-
-    Configuration cfg_before_trim;
-
-    std::string out_prefix_unixsep;
-
-    // recursivable sub target
-    std::vector<CGNTargetOptIntl> sub_units;
-
-    CGNTargetOptIntl *result_opt = nullptr;
-
-    // filled in confirm_target_opt()
-    // for normal target
-    //   @cell//folder:target#AABBCCDD
-    // for unit target
-    //   @cell//folder:target#AABBCCDD-sub1#AA11BB22.4-subsub#BB22CC33.6
-    // GraphNode name: "T" + <cache_label>
-    std::string cache_label;
-
-    bool target_confirmed = false;
-
-    CGNTargetOptIntl() : CGNTargetOpt(_facty_name) {}
-};
-
-CGNTargetOptIn *CGNTargetOpt::create_sub_target(const std::string &name, bool as_result)
-{
-    CGNTargetOptIntl *self = dynamic_cast<CGNTargetOptIntl*>(this);
-    auto &rv = self->sub_units.emplace_back();
-
-    if (as_result)
-        self->result_opt = &rv;
-    
-    // CGNTargetOptIn
-    rv._facty_name = self->_facty_name;
-    rv.src_prefix  = self->src_prefix;
-    rv.out_prefix  = self->out_prefix;
-    rv.cache_result_found = false;
-
-    // CGNTarget
-    rv.anode = nullptr;
-    rv.ninja = nullptr;
-    rv.result.factory_label = self->factory_label;
-    rv.result.trimmed_cfg   = self->cfg_before_trim;
-
-    // CGNTargetOptIntl
-    rv.script_label = self->script_label;
-    rv.script_anode = self->script_anode;
-    rv.current_unit_name = name;
-    rv.out_prefix_unixsep = self->out_prefix_unixsep;
-    rv.cache_label = self->cache_label;
-
-    return &rv;
+std::string CGNImpl::add_factory(
+    const std::string &factory_label,   
+    std::function<void(CGNTargetOpt*)> loader
+) {
+    if (named_factories.insert({factory_label, loader}).second == false)
+        return "factory " + factory_label + " existed";
+    return "";
 }
 
-CGNTarget *CGNTargetOpt::get_real_result()
-{
-    for (auto i = dynamic_cast<CGNTargetOptIntl*>(this); ; i=i->result_opt)
-        if (i->result_opt == nullptr){
-            if (i->target_confirmed)
-                return &(i->result);
-            return nullptr;
-        }
+std::string CGNImpl::remove_factory(
+    const std::string &factory_label
+) {
+    if (named_factories.erase(factory_label) == 1)
+        return "";
+    return "factory " + factory_label + " not found";
 }
+
+// bool CGNImpl::_check_infinite_loop(const std::string &current_key) {
+//     for (auto it = tls_runtime; it; it = it->call_from)
+//         if (it->loop_detect_key == current_key)
+//             return true;
+//     return false;
+// }
 
 // cache supported (cache detection in API::confirm_target_opt())
 // Prepare variable and call
 // @param label: //hello:world
-CGNTarget CGNImpl::analyse_target(
-    const std::string &label, 
+CGNTarget CGNImpl::create_target(
+    const std::string &factory_label_in, 
     const Configuration &cfg
 ) {
-    CGNTargetOptIntl opt;
+    return _create_target_impl<true>(factory_label_in, cfg, nullptr, nullptr);
+} //CGNImpl::create_target()
 
-    CGNTarget &rv = opt.result;
-    rv.factory_label = label;
-    rv.trimmed_cfg   = cfg;
+CGNTarget CGNImpl::create_target(
+    CGNTargetOpt *in,
+    std::function<void(CGNTargetOpt *in)> loader
+) {
+    return _create_target_impl<false>("", {}, in, loader);
+} //CGNImpl::create_target()
 
-    ConfigurationID cfg_id_in = cfg.get_id();
-    if (cfg_id_in.empty()) {
-        Configuration tmp = cfg;
-        tmp.visit_all_keys();
-        tmp.trim_lock();
-        cfg_id_in = cfg_mgr->commit(tmp);
+
+template<bool ByNamedFactory> CGNTarget 
+CGNImpl::_create_target_impl(
+    const std::string &a_label_in, 
+    const Configuration &a_cfg_in,
+    CGNTargetOpt *b_opt_in,
+    std::function<void(CGNTargetOpt *in)> b_fn_loader
+) {
+    ConfigurationID cfgid_before_trim;
+    std::string suggest_label;
+
+    if constexpr (ByNamedFactory) {
+        Configuration tmp = a_cfg_in;
+        tmp.visit_all_keys(); tmp.trim_lock();
+        cfgid_before_trim = cfg_mgr->commit(tmp);
+        suggest_label = a_label_in;
     }
-    opt.cfg_before_trim = cfg;
-    logger.println("Analyse ", label + " #" + cfg_id_in);
-
-    //expand short label and generate src_prefix and out_prefix
-    //    [IN] label: @cell//project:nameA
-    //          cell: @cell or <NULLSTR>
-    //          stem: project
-    // factory_label: @cell//project:nameA
-    //    facty_name: nameA
-    // std::string &factory_label = opt.factory_label;
-    // std::string &facty_name    = opt.factory_name;
-    // std::string script_label;
-    auto [dir_in, _expand_err] = _expand_cell(label);  //unix_sep
-    if (_expand_err.size()) {
-        rv.errmsg = _expand_err;
-        return rv;
+    else {
+        Configuration tmp = b_opt_in->cfg;
+        tmp.visit_all_keys(); tmp.trim_lock();
+        cfgid_before_trim = cfg_mgr->commit(tmp);
+        suggest_label = b_opt_in->out_parent_prefix + b_opt_in->name;
     }
-    if (auto fdname = label.rfind(':'); fdname != label.npos) {
-        opt._facty_name = label.substr(fdname+1);
-        dir_in.resize(dir_in.size() - opt.factory_name.size() - 1);  //remove ":xxx" suffix
-        opt.script_label = label.substr(0, fdname) + "/BUILD.cgn.cc";
-    }else
-        opt.script_label = label + "/BUILD.cgn.cc";
 
-    opt.out_prefix = (cgn_out / "obj").string();
-    opt.out_prefix_unixsep = cgn_out_unixsep + "/obj";
-    std::string last_dir;
-    for (std::size_t i=0, fd=0; fd<dir_in.size(); i=fd+1) {
-        if (fd = dir_in.find('/', i); fd == dir_in.npos)
-            fd = dir_in.size();
-        last_dir = dir_in.substr(i, fd-i);
-        opt.out_prefix += opt.path_separator + last_dir + "_";
-        opt.out_prefix_unixsep += "/" + last_dir + "_";
-    }
-    opt.out_prefix += opt.path_separator;
-    opt.out_prefix_unixsep += "/";
+    logger.println("CreateTarget ", suggest_label + " #" + cfgid_before_trim);
 
-    if (opt._facty_name.empty()) {
-        if (last_dir.empty()) {
-            rv.errmsg = "analyse: target factory name must be assgined.";
-            if (halt_on_error)
-                throw std::runtime_error{rv.errmsg};
-            return rv;
+    CGNTargetOpt a_opt;
+    
+    std::function<void(CGNTargetOpt *in)> fn_loader;
+    TLRuntime now_rt;
+    now_rt.label = suggest_label;
+    now_rt.call_from = tls_runtime;
+    now_rt.cfgid_before_trim = cfgid_before_trim;
+    tls_push(&now_rt);
+
+    std::string override_anode_name;
+    auto make_ret = [&](const std::string &errmsg) {
+        if (halt_on_error && errmsg.size())
+            throw std::runtime_error{errmsg};
+        
+        CGNTarget rv;
+        if (now_rt.target_now)
+            rv = *now_rt.target_now;
+        else{
+            rv.label = suggest_label;
+            rv.anode = nullptr;
         }
-        opt._facty_name   = last_dir;
-        rv.factory_label += ":" + opt._facty_name;
-    }
+        rv.errmsg = errmsg;
+        
+        if (override_anode_name.size()) {
+            // always empty file[] for phase 1 GraphNode
+            rv.anode = graph.get_node(override_anode_name);
+            graph.set_node_files(rv.anode, {});
+            graph.remove_inbound_edges(rv.anode);
+            for (auto it : now_rt.dep_anodes)
+                graph.add_edge(it, rv.anode);
+            now_rt.call_from->dep_anodes.insert(rv.anode);
+        }
+
+        if (rv.anode && now_rt.call_from)
+            now_rt.call_from->dep_anodes.insert(rv.anode);
+        tls_pop(&now_rt);
+        return rv;
+    };
+
+    //case by factory_label
+    if constexpr(ByNamedFactory) {
+        //expand short label and generate src_prefix and out_prefix
+        //    [IN] label: @cell//project:nameA
+        //          cell: @cell or <NULLSTR>
+        //          stem: project
+        // factory_label: @cell//project:nameA
+        //    facty_name: nameA
+        // std::string &factory_label = opt.factory_label;
+        // std::string &facty_name    = opt.factory_name;
+        std::string script_label;
+        auto [dir_in, _expand_err] = _expand_cell(a_label_in);  //unix_sep
+        if (_expand_err.size())
+            return make_ret(_expand_err);
+        
+        if (auto fdname = a_label_in.rfind(':'); fdname != a_label_in.npos) {
+            a_opt.name = a_label_in.substr(fdname+1);
+            dir_in.resize(dir_in.size() - a_opt.name.size() - 1);  //remove ":xxx" suffix
+            script_label = a_label_in.substr(0, fdname) + "/BUILD.cgn.cc";
+        }else
+            script_label = a_label_in + "/BUILD.cgn.cc";
+        a_opt.out_parent_prefix = (cgn_out / "obj").string();
+        a_opt.out_parent_prefix_unixsep = cgn_out_unixsep + "/obj";
+        std::string last_dir;
+        for (std::size_t i=0, fd=0; fd<dir_in.size(); i=fd+1) {
+            if (fd = dir_in.find('/', i); fd == dir_in.npos)
+                fd = dir_in.size();
+            last_dir = dir_in.substr(i, fd-i);
+            a_opt.out_parent_prefix += CGNTargetMaker::PATH_SEPARATOR + last_dir + "_";
+            a_opt.out_parent_prefix_unixsep += "/" + last_dir + "_";
+        }
+        a_opt.out_parent_prefix += CGNTargetMaker::PATH_SEPARATOR;
+        a_opt.out_parent_prefix_unixsep += "/";
+        a_opt.src_prefix = dir_in + "/";
+        a_opt.cfg = a_cfg_in;
+
+        if (a_opt.name.empty()) { 
+            if (last_dir.empty()) // for label="@cell//"
+                return make_ret("CreateTarget: target factory name must be assgined.");
+            a_opt.name = last_dir;
+            suggest_label += ":" + last_dir;
+        }
+
+        // GraphNode with Untrimmed config
+        override_anode_name = "U" + a_opt.out_parent_prefix_unixsep + a_opt.name + "_" + cfgid_before_trim;
+
+        // CGNTargeta_opt ready, load pimpl.named_factories[] by active_script()
+        //   now_rt.anode <-- script_label(BUILD.cgn.cc) added with make_ret() later
+        auto [script_anode, script_err] = active_script(script_label);
+        if (script_err.size())
+            return make_ret(script_err);
+        
+        // Find by factory_label, 
+        // Note: the adep of Interpreter::preload_labels() would be added inside fn_loader
+        if (auto fd = named_factories.find(suggest_label); fd != named_factories.end())
+            fn_loader = fd->second;
+        else
+            return make_ret("CreateTarget: target factory " + suggest_label + " not found.");
+        
+        now_rt.active_opt = &a_opt;
+    } //endif ByNamedFactory
+
+    if (!ByNamedFactory) {
+        std::string _parent_dir = b_opt_in->out_parent_prefix_unixsep;
+        if (b_opt_in->out_parent_prefix.size())
+            _parent_dir = b_opt_in->out_parent_prefix;
+        
+        if (b_opt_in->name.empty() || b_opt_in->src_prefix.empty() || _parent_dir.empty())
+            return make_ret("CreateTarget: CGNTargetOpt misssing fields");
+        
+        if (!b_fn_loader)
+            return make_ret("CreateTarget: argument fn_loader required.");
+
+        if (Tools::is_absolute_path(_parent_dir) 
+        && !Tools::is_file_inside(_parent_dir, cgn_out.string()))
+            return make_ret("CreateTarget: out_parent_prefix should inside " + cgn_out.string());
+        
+        std::filesystem::path parent_dir = cgn_out / std::filesystem::path{_parent_dir};
+        b_opt_in->out_parent_prefix_unixsep = b_opt_in->out_parent_prefix 
+            = Tools::locale_path(parent_dir.string() + "/");
+        #ifdef _WIN32
+            std::replace(b_opt_in->out_parent_prefix_unixsep.begin(),
+                         b_opt_in->out_parent_prefix_unixsep.end(),
+                         '\\', '/');
+        #endif
+
+        now_rt.active_opt = b_opt_in;
+        fn_loader = std::move(b_fn_loader);
+
+        override_anode_name = "U" + b_opt_in->out_parent_prefix_unixsep + b_opt_in->name + "_" + cfgid_before_trim;
+    } //endif not ByNamedFactory
 
     //Cycle dep detection
     // Since the real "factory + cfgid" would determinate in cfg lock
     // (usually in interpreter). This string only use to check cycle
     // dependency.
-    std::string cycle_check_ss = opt.factory_label + "#" + cfg_id_in;
-    
-    auto adep_pop = [&](std::string errmsg = ""){ 
-        adep_cycle_detection.erase(cycle_check_ss); 
-        rv.errmsg = errmsg;
-        if (halt_on_error)
-            throw std::runtime_error{errmsg};
-        return rv;
-    };
-    if (adep_cycle_detection.insert(cycle_check_ss).second == false)
-        return adep_pop("analyse: cycle-dependency");
+    now_rt.loop_detect_key = now_rt.active_opt->out_parent_prefix_unixsep 
+                           + now_rt.active_opt->name 
+                           + "/" + (std::string)now_rt.cfgid_before_trim;
+    for (auto it = tls_runtime->call_from; it; it = it->call_from)
+        if (it->loop_detect_key == now_rt.loop_detect_key)
+            return make_ret("CreateTarget: cycle-dependency");
 
-    //Prepare CGNTargetOpt to call target builder fn
-    // opt.api = this->host_api;
-    opt.src_prefix = dir_in + "/";
-    
-    //Call target builder
-    // active_script and find factories 
-    auto [script_anode, script_err] = active_script(opt.script_label);
-    if (script_err.size())
-        return adep_pop(script_err);
-    opt.script_anode = script_anode;
-    std::function<void(CGNTargetOpt*)> fn_loader;
-    if (auto fd = factories.find(opt.factory_label); fd != factories.end())
-        fn_loader = fd->second;
-    else
-        return adep_pop("analyse: target factory " + opt.factory_label  + " not found.");
-    
     // call target builder (user lambda fn and interpreter inside)
-    //  the API.confirm_target_opt() would process into next phase.
-    this->runtime_env.src_prefix = opt.src_prefix;
-    fn_loader(&opt);
-    this->runtime_env.src_prefix = "";
+    //  the API.confirm_target_opt() would be called inside fn_loader.
+    now_rt.active_opt->_api_pimpl = this;
+    fn_loader(now_rt.active_opt);
 
-    // pop up adep_cycle_detection
-    adep_cycle_detection.erase(cycle_check_ss); 
+    // if there's no opt.confirm() or opt.set_fail() called.
+    if (now_rt.target_now == nullptr)
+        return make_ret("CreateTarget: " + now_rt.label  + " unconfirmed.");
 
-    // write down the current target and its sub-unit-targets
-    std::ofstream fout(obj_main_ninja, std::ios::app);
+    // Case of enter confirm_target_opt()
+    //  1. target_cache found and anode.files[] latest
+    //     -> return directly
+    //  2. target_cache found but anode.files[] stale
+    //     -> target_cache has been removed in confirm() and goto case 4
+    //  3. target_cache not exist, anode.files[] latest
+    //     -> target_maker.file_unchanged == true, assign target_cache here
+    //  4. target_cache not exist, anode.files stale
+    //     -> target_maker.file_unchanged == false, assign target_cache here
 
-    // DFS opt.sub_units[]
-    // submit all sub target units in recursive.
-    std::vector<std::pair<CGNTargetOptIntl*, std::size_t>> opt_dfs = {{&opt, 0}};
-    while (!opt_dfs.empty()) {
-        CGNTargetOptIntl *ptr = opt_dfs.back().first;
-        std::size_t &child_id = opt_dfs.back().second;
-        if (child_id == 0) {
-            if (ptr->target_confirmed == false)
-                throw std::runtime_error{"target not confirmed."};
-            
-            // deliver errmsg to all child-unit-targets
-            if (ptr->result.errmsg.size()) {
-                for (auto &child_ptr : ptr->sub_units)
-                    if (child_ptr.result.errmsg.empty())
-                        child_ptr.result.errmsg = ptr->result.errmsg;
-            }
-
-            // write cache if new generation
-            // opt->cache_label was filled by CGNImpl::confirm_target_opt();
-            if (!ptr->cache_result_found && ptr->result.errmsg.empty())
-                targets[ptr->cache_label] = ptr->result;
-
-            // 'ptr->ninja' created in confirm_target_opt() if file modified.
-            // release ninja file handle to write build.ninja down to disk
-            // then fstat() could get the right mtime to written down to fileDB
-            if (ptr->ninja) {
-                delete ptr->ninja;
-                ptr->ninja = nullptr;
-            }
-
-            if (ptr->result.errmsg.empty()) {
-                // insert into main_subninja if interpreter successed.
-                // subninja command enforce '/' path-sep
-                std::string ninja_file_unixsep = ptr->out_prefix_unixsep + CGNTargetOpt::BUILD_NINJA;
-                if (main_subninja.insert(ninja_file_unixsep).second)
-                    fout<<"subninja "<<NinjaFile::escape_path(ninja_file_unixsep)<<"\n";
-            }
-
-            // if ninja file and it's inner dependency changed, 
-            // update GraphNode and write down ninja file.
-            if (!ptr->file_unchanged && ptr->result.errmsg.empty()) {
-                // TODO: we want all sub-target have its own factory_label
-                //       then they could call ctx.add_dep() by its own way.
-                //       USER should add adep relations manually
-                for (auto &child_ptr : ptr->sub_units)
-                    graph.add_edge(ptr->anode, child_ptr.anode);
-
-                //update mtime in fileDB after interpreter returned successful.
-                // file[0] : usually 'libSCRIPT.cgn.so' or 'build.ninja of target'
-                graph.clear_file0_mtime_cache(ptr->anode);
-                // graph.forward_status(ptr->anode);
-                graph.set_node_status_to_latest(ptr->anode);
-            }
-        }
-        if (child_id < ptr->sub_units.size())
-            opt_dfs.push_back({&ptr->sub_units[child_id++], 0});
-        else
-            opt_dfs.pop_back();
-    } //end while(DFS stack not empty)
-
-    for (auto i = &opt; ; i=i->result_opt)
-        if (i->result_opt == nullptr) {
-            if (halt_on_error && i->result.errmsg.size())
-                throw std::runtime_error{i->result.errmsg};
-            return i->result;
-        }
-} //CGNImpl::analyse()
-
-void CGNImpl::add_obj_file_placeholder(std::string file_path)
-{
-    #ifdef _WIN32
-        for (auto &ch : file_path)
-            if (ch == '\\')
-                ch = '/';
-    #endif
-    if (placeholder_ninja.insert(file_path).second) {
-        std::ofstream fout(obj_placeholder_ninja);
-        fout<<"build " + NinjaFile::escape_path(file_path) + " : phony\n";
-    }
-} //CGNImpl::add_obj_file_placeholder()
-
-// case1: target_cache[] existed, graph(target) Latest
-//        return cache
-// case2: target_cache[] existed, graph(target) Stale
-//        delete last cache and goto case 3
-// case3: target_cache[] not existed
-//        return normal struct, then graph(target) would be assigned in CGNImpl::analyse()
-//
-CGNTargetOpt *CGNImpl::confirm_target_opt(CGNTargetOptIn *in)
-{
-    CGNTargetOptIntl *opt = dynamic_cast<CGNTargetOptIntl*>(in);
-
-    if (opt->target_confirmed)
-        return opt;
-    opt->target_confirmed = true;
+    // case 1
+    if (now_rt.target_maker == nullptr)
+        return override_anode_name="", make_ret("");
     
-    // lock config and get cfg_id
-    opt->cfg.trim_lock();
-    ConfigurationID cfg_id = cfg_mgr->commit(opt->cfg);
-    logger.println("Analysing ", opt->factory_label 
-                + (opt->current_unit_name.size()? (" [" + opt->current_unit_name + "] "): "")
-                + " #" + opt->cfg_before_trim.get_id() + " -(trim)-> #" + cfg_id);
-
-    // convert dir_in to dir_out (add '_' suffix for each folder in path)
-    // complete variable in opt when out_dir confirmed.
-    {
-        std::string mid_name = (opt->current_unit_name.size()?
-                                opt->current_unit_name : opt->factory_name);
-        opt->out_prefix += mid_name + "_" + cfg_id + opt->path_separator;
-        opt->out_prefix_unixsep += mid_name + "_" + cfg_id + "/";
+    // if no cache found and the error msg has been set
+    if (now_rt.target_maker->errmsg.size()) {
+        // if errmsg set after confirm, the anode has been assigned,
+        // here we ignore it, because of all nodes which depend on this anode
+        // would get result from current function, and the return value and
+        // now_rt.call_from.deps[] of current function are not mention to anode.
+        //
+        // rollback to phase 1, make_ret() to get phase 1 anode
+        return make_ret(now_rt.target_maker->errmsg);
     }
+    
+    // case 2 and 4: Regenerate current Node if file changed
+    if (now_rt.target_maker->file_unchanged == false) {
+        override_anode_name="";
 
-    // string to find cache
-    if (opt->current_unit_name.size())
-        opt->cache_label += "||" + opt->current_unit_name + "#" + opt->cfg.get_id() 
-                          + "." + std::to_string(opt->current_unit_name.size());
-    else
-        opt->cache_label = opt->factory_label + "#" + opt->cfg.get_id();
-    if (auto fd = targets.find(opt->cache_label); fd != targets.end()) {
-        // case 1: cache found and Latest, return directly
-        if (fd->second.anode->status == GraphNode::Latest){
-            opt->cache_result_found = opt->file_unchanged = true;
-            opt->result = fd->second;
-            logger.verbose_paragraph("confirm_target_opt(" 
-                + opt->cache_label + ") in_memory cache found");
-            return opt;
-        }
+        // remove all deps from current node 
+        graph.remove_inbound_edges(now_rt.target_maker->anode);
+
+        // watch {build.ninja + maker.ninja_file_appendix[]}
+        now_rt.target_maker->ninja_file_appendix.insert(
+            now_rt.target_maker->ninja_file_appendix.begin(),
+            now_rt.target_maker->out_prefix + CGNTargetMaker::NINJA_ENTRY_FILENAME
+        );
+        graph.set_node_files(now_rt.target_maker->anode, 
+            now_rt.target_maker->ninja_file_appendix);
         
-        // case 2: delete current and goto case 3
-        targets.erase(fd);
-    }
+        // set anode dep from current
+        // Script GraphNode has been added by active_script() below
+        for (GraphNode *p : now_rt.dep_anodes)
+            graph.add_edge(p, now_rt.target_maker->anode);
+        
+        //update mtime in fileDB after interpreter returned successful.
+        // file[0] : usually 'libSCRIPT.cgn.so' or 'build.ninja of target'
+        graph.clear_file0_mtime_cache(now_rt.target_maker->anode);
+        // graph.forward_status(ptr->anode);
+        graph.set_node_status_to_latest(now_rt.target_maker->anode);
+    } // otherwise case 3: do not change anode
 
-    // case 3 below: normal case, (re)generate ninja file.
-    opt->anode = opt->result.anode = graph.get_node("T" + opt->cache_label);
-    opt->result.ninja_entry = opt->out_prefix + opt->BUILD_ENTRY;
+    // write target cache
+    targets[now_rt.target_maker->get_cache_name()] = *now_rt.target_maker.get();
 
-    // create dir opt->out_prefix
-    api.mkdir(opt->out_prefix);
+    // put current target into main_ninja
+    std::ofstream fout(obj_main_ninja, std::ios::app);
+    std::string ninja_file_unixsep = now_rt.target_maker->out_prefix_unixsep 
+                                   + CGNTargetMaker::NINJA_ENTRY_FILENAME;
+    if (main_subninja.insert(ninja_file_unixsep).second)
+        fout<<"subninja "<<NinjaFile::escape_path(ninja_file_unixsep)<<"\n";
 
-    // anode file[] (build.ninja) to GraphNode
-    // if current target GraphNode is latest, build.ninja would not need to update.
-    std::string ninja_file_ossep = opt->out_prefix + CGNTargetOpt::BUILD_NINJA;
-    if (opt->anode->files.size()) {
-        if (graph.test_status(opt->anode); opt->anode->status == GraphNode::Latest) {
-            opt->ninja = new NinjaFile("");
-            opt->file_unchanged = true;
-            logger.verbose_paragraph("confirm_target_opt(" 
-                + opt->cache_label + ") ninja file unchanged.");
-        }
-    }
-    if (opt->ninja == nullptr)
-        opt->ninja = new NinjaFile(ninja_file_ossep);
+    return make_ret("");
+} //CGNImpl::_create_target_impl()
 
-    // special case: build_check mode, only opt->result.ninja_entry utilized 
-    //               by caller.
-    // the anode->files[] is empty for create by get_node() above right now.
-    // if (current_analysis_level == 'b' && opt->anode->files.size()) {
-    //     graph.test_status(opt->anode);
-    //     if (opt->anode->status == GraphNode::Latest) {
-    //         opt->cache_result_found = true;
-    //         logger.verbose_paragraph("[build_check_mode] confirm_target_opt(" + opt->cache_label 
-    //             + ") quick-return: " + opt->result.ninja_entry);
-    //         return opt;
-    //     }
-    //     else
-    //         logger.verbose_paragraph("[build_check_mode] confirm_target_opt(" + opt->cache_label 
-    //             + ") but target stale, continue analysing...");
-    // }
-    // if (current_analysis_level == 'a') {  //TODO
-    //     graph.test_status(opt->anode);
-    //     if (opt->anode->status != GraphNode::Latest) {
-    //         opt->ninja = new NinjaFile(ninja_file_ossep);
-    //         logger.verbose_paragraph("confirm_target_opt(" + cache_label 
-    //             + ") analysis_only but target stale, regenerate ninja file.");
-    //     }
-    // }
-
-    // forward GraphNode::Stale
-    // graph.forward_status(opt->anode);
-
-    // register GraphNode* and remove the previous adep information.
-    if (!opt->file_unchanged) {
-        graph.remove_inbound_edges(opt->anode);
-        graph.set_node_files(opt->anode, {ninja_file_ossep});
-        graph.add_edge(opt->script_anode, opt->anode);
-        for (auto *early : opt->quickdep_early_anodes)
-            graph.add_edge(early, opt->anode);
-    }
-    opt->quickdep_early_anodes.clear();
-
-    return opt;
-}
-
-
-void CGNImpl::add_adep(GraphNode *early, GraphNode *late)
-{
-    graph.add_edge(early, late);
-}
-
-
-void CGNImpl::start_new_round()
-{
-    graph.clear_mtime_cache();
-    adep_cycle_detection.clear();
-    // current_analysis_level = 0;
-}
-
-
-std::shared_ptr<void> CGNImpl::bind_target_builder(
-    const std::string &ulabel, std::function<void(CGNTargetOptIn*)> loader
+std::pair<CGNTarget, int> CGNImpl::create_and_build_target(
+    const std::string &label, 
+    const Configuration &cfg
 ) {
-    if (factories.insert({ulabel, loader}).second == false)
-        throw std::runtime_error{"Factory exist: " + ulabel};
-
-    //fn remove_target
-    return std::shared_ptr<void>(nullptr, 
-        [this, ulabel](void*) mutable{ factories.erase(ulabel); }
-    );
-}
-
-std::pair<std::string, int> CGNImpl::build_target(
-    const std::string &label, const Configuration &cfg
-) {
-    // current_analysis_level = 'b';
-    auto rv = analyse_target(label, cfg);
+    auto rv = create_target(label, cfg);
     if (rv.errmsg.size())
-        throw std::runtime_error{rv.errmsg};
+        return {rv, -1};
     
     logger.verbose_paragraph("=================================================================\n");
 
@@ -852,7 +782,7 @@ std::pair<std::string, int> CGNImpl::build_target(
     
     std::string cmd = (scriptcc_debug_mode?"ninja -f ":"ninja -d keepdepfile -d keeprsp -f ")
                     + obj_main_ninja.string() 
-                    + " " + Tools::shell_escape(rv.ninja_entry);
+                    + " " + Tools::shell_escape(rv.ninja_entry, HOST_SHELL);
     if (logger.is_verbose())
         cmd += " --verbose";
     logger.paragraph(cmd + "\n");
@@ -861,8 +791,107 @@ std::pair<std::string, int> CGNImpl::build_target(
     
     if (exitcode == 0 && rv.outputs.size())
         logger.println("Build success: ", rv.outputs[0] + "\n");
-    return {(rv.outputs.size()?rv.outputs[0]:""), exitcode};
+    return {rv, exitcode};
 }
+
+// case1: target_cache[] existed, graph(target) Latest
+//        return cache
+// case2: target_cache[] existed, graph(target) Stale
+//        delete last cache and goto case 3
+// case3: target_cache[] not existed
+//        test anode inside TargetMaker and return TargetMaker to let user to fill them.
+//        return normal struct, then graph(target) would be assigned in CGNImpl::analyse()
+//
+CGNTargetMaker *CGNImpl::confirm_target_opt(CGNTargetOpt *in, const std::string &with_errmsg)
+{
+    assert(tls_runtime->active_opt == in);
+
+    // Set failed before config lock
+    //  No adep to rt.call_from
+    //  No ninja*, anode*, ...
+    if (with_errmsg.size()) {
+        tls_runtime->target_maker = std::make_unique<CGNTargetMaker>(*in);
+        tls_runtime->target_maker->errmsg = with_errmsg;
+        tls_runtime->target_now = tls_runtime->target_maker.get();
+        return nullptr;
+    }
+
+    // lock config and get cfg_id
+    in->cfg.trim_lock();
+
+    ConfigurationID cfg_id = cfg_mgr->commit(in->cfg);
+    logger.println("CreateTarget ", tls_runtime->label
+                + " #" + tls_runtime->cfgid_before_trim + " -(trim)-> #" + cfg_id);
+
+    // std::string cache_name = in->out_parent_prefix_unixsep + in->name + "_" + cfg_id;
+    // auto [tgt_iter, tgt_nx] = targets.emplace(cache_name, CGNTarget{});
+    // tls_runtime->maker = std::make_unique<CGNTargetMaker>(*in, tgt_iter->second, false);
+    std::unique_ptr<CGNTargetMaker> maker = std::make_unique<CGNTargetMaker>(*in);
+    ((CGNTarget*)maker.get())->label = in->get_label();
+    std::string cache_name = maker->get_cache_name();
+
+    if (auto fd = targets.find(cache_name); fd != targets.end()) {
+        // case 1: cache found and Latest, return directly
+        if (fd->second.anode->status == GraphNode::Latest){
+            logger.verbose_paragraph("CreateTarget: confirm_target_opt(" 
+                + tls_runtime->label + ") in_memory cache found");
+            tls_runtime->target_now = &(fd->second);
+            return nullptr;
+        }
+        
+        // case 2: delete current and goto case 3
+        targets.erase(fd);
+    }
+
+    // case 3 below: target cache not exist or removed, (re)generate ninja file.
+    GraphNode *anode = graph.get_node("T" + cache_name);
+    maker->_m_file_unchanged = false;
+    if (anode->files.size()) {
+        if (graph.test_status(anode); anode->status == GraphNode::Latest) {
+            maker->_m_file_unchanged = true;
+            logger.verbose_paragraph("CreateTarget: confirm_target_opt(" 
+                + cache_name + ") ninja file unchanged.");
+        }
+        else {
+            logger.verbose_paragraph("CreateTarget: confirm_target_opt(" 
+                + cache_name + ") anode.files[] changed, regen anode.");
+            graph.remove_inbound_edges(anode);
+        }
+    }
+    
+    ((CGNTarget*)maker.get())->anode = anode;
+    maker->ninja_entry = maker->out_prefix + maker->NINJA_ENTRY_TARGET;
+
+    // create dir opt->out_prefix
+    api.mkdir(maker->out_prefix);
+
+    // anode file[] (build.ninja) to GraphNode
+    // if current target GraphNode is latest, build.ninja would not need to update.
+    std::string ninja_file_ossep = maker->out_prefix + CGNTargetMaker::NINJA_ENTRY_FILENAME;
+    if (maker->file_unchanged == false)
+        maker->ninja = std::make_unique<NinjaFile>(ninja_file_ossep);
+    
+    // forward GraphNode::Stale
+    // graph.forward_status(opt->anode);
+
+    tls_runtime->target_maker = std::move(maker);
+    tls_runtime->target_now = tls_runtime->target_maker.get();
+    return tls_runtime->target_maker.get();
+}
+
+
+void CGNImpl::add_adep(GraphNode *early, GraphNode *late)
+{
+    graph.add_edge(early, late);
+}
+
+
+// void CGNImpl::start_new_round()
+// {
+//     graph.clear_mtime_cache();
+//     adep_cycle_detection.clear();
+//     // current_analysis_level = 0;
+// }
 
 std::pair<std::string, std::string> CGNImpl::_expand_cell(const std::string &ss) const
 {
@@ -918,7 +947,7 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     #endif
     analysis_path = cgn_out / ("analysis_" + Tools::get_host_info().os + dsuffix);
     obj_main_ninja = cgn_out / "obj" / "main.ninja";
-    obj_placeholder_ninja = cgn_out / "obj" / "placeholder.ninja";
+    // obj_placeholder_ninja = cgn_out / "obj" / "placeholder.ninja";
 
 
     // replace path\to\cgn.exe => path\to\cgn.lib (win only)
@@ -1047,34 +1076,6 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
             fout.close();
         }
     }
-
-    //prepare file-placeholder (file which may not exist at building)
-    std::ifstream fdummy(obj_placeholder_ninja, std::ios::in);
-    if (!fdummy)
-        std::ofstream{obj_placeholder_ninja};
-    else {
-        bool need_rebuild = false;
-        constexpr std::string_view BUILDstr{"build "};
-        constexpr std::string_view PHONYstr{" : phony"};
-
-        for (std::string ln; !fdummy.eof() && std::getline(fdummy, ln);)
-            if (ln.size() > BUILDstr.size()) {
-                
-                auto subfile = NinjaFile::parse_ninja_str(ln.substr(
-                    BUILDstr.size(), ln.size() - BUILDstr.size() - PHONYstr.size()
-                ));
-                if (std::filesystem::is_regular_file(subfile))
-                    placeholder_ninja.insert(subfile);
-                else //some files missing
-                    need_rebuild = true;
-            }
-        if (fdummy.close(); need_rebuild) {
-            std::ofstream fout{obj_placeholder_ninja};
-            for (auto ln : placeholder_ninja)
-                fout << BUILDstr << NinjaFile::escape_path(ln) << PHONYstr << "\n";
-            fout.close();
-        }
-    }
         
     // graph init (load previous one)
     logger.println("Loading fileDB");
@@ -1117,14 +1118,18 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     //     graph.set_node_status_to_latest(init_node);
     // }
 
-    //call cgn_setup()
-    const std::string cgn_setup_filename = "cgn_setup.cgn.cc";
-    if (!std::filesystem::exists(cgn_setup_filename))
-        throw std::runtime_error{cgn_setup_filename + " not found"};
-
-    auto setup_so_resp = active_script("//" + cgn_setup_filename);
+    std::pair<cgnv1::GraphNode *, std::string> setup_so_resp;
+    if (cmd_kvargs.count("use_default_cgn_setup"))
+        setup_so_resp = active_script("@cgn.d//library/cgn_default_setup.cgn.hxx");
+    else { //call cgn_setup()
+        const std::string cgn_setup_filename = "cgn_setup.cgn.cc";
+        if (!std::filesystem::exists(cgn_setup_filename))
+            throw std::runtime_error{cgn_setup_filename + " not found"};
+        setup_so_resp = active_script("//" + cgn_setup_filename);
+    }
     if (setup_so_resp.first == nullptr)
-        throw std::runtime_error{"cannot load cgn_setup :" + setup_so_resp.second};
+        throw std::runtime_error{"Cannot load cgn_setup :" + setup_so_resp.second};
+    
     CGNInitSetup x;
     #ifndef _WIN32
         cgn_setup(x);
@@ -1145,26 +1150,18 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
         cfg_mgr->set_name(name, uid);
     }
 
-    // if (auto fd = cells.find("CELL_SETUP"); fd != cells.end()) {
-    //     active_script(fd->second);
-    //     cells.erase(fd);
-
-    //     CGNInitSetup x;
-    //     cgn_setup(x);
-    // }else{
-    //     throw std::runtime_error{"CELL-SETUP UNASSIGNED!"};
-    //     // active_script("@cgn.d//library/cgn_default_setup.cgn.cc");
-    // }
 } //CGNImpl::init()
 
 CGNImpl::~CGNImpl()
 {
     targets.clear();
-    factories.clear();
+    named_factories.clear();
     cfg_mgr.reset();
 
     // some deconstructor may exist in side-load dll, so we dlclose() in finally
     scripts.clear();
 } //CGNImpl::release()
+
+thread_local TLRuntime *CGNImpl::tls_runtime = nullptr;
 
 } //namespace

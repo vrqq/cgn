@@ -19,7 +19,7 @@ public:
     void set_name(const std::string &name, const ConfigurationID &hash);
 
     // Get configuration by name
-    // @return <Configuration*, adep> if found, otherwise <nullptr, nullptr>.
+    // @return <Configuration, GraphNode*> : Configuration.empty() if not found.
     std::pair<Configuration, GraphNode *>
     get(const std::string name) const;
 

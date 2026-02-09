@@ -65,7 +65,7 @@ inline cgn::Configuration config_guessor(std::unordered_set<std::string> &argls)
     if ((cfg["cpu"] = extract(argls, {"x86", "x86_64", "arm64", "ia64", "mips64"})) == "")
         cfg["cpu"] = host.cpu;
     
-    if ((cfg["host_shell"] = extract(argls, {"cmd", "powershel", "bash"})) == "") {
+    if ((cfg["host_shell"] = extract(argls, {"cmd", "powershell", "bash"})) == "") {
         std::string parent_proc = cgn::Tools::get_parent_process_name();
         for (auto &ch : parent_proc)
             if ('A' <= ch && ch <= 'Z')

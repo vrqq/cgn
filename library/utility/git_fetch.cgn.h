@@ -14,7 +14,7 @@
 
 // Git DEPOT
 // ---------
-struct GitContext
+struct GitContext : protected cgn::QuickDepContext
 {
     const std::string name;
     
@@ -23,7 +23,7 @@ struct GitContext
     std::string using_depot_tool;
 
     // the source where git to
-    std::string dest_dir = "repo";
+    cgn::CGNPath dest_dir = "repo";
     
     std::string repo;
     std::string commit_id;
@@ -32,14 +32,12 @@ struct GitContext
 
     struct {
         std::vector<std::string> command;
-        std::string cwd = ".";
+        cgn::CGNPath cwd = ".";
     }post_script;
 
-    GitContext(cgn::CGNTargetOptIn *opt)
-    : name(opt->factory_name), opt(opt) {}
-
-private: friend struct GitFetcher;
-    cgn::CGNTargetOptIn *opt;
+    friend struct GitFetcher;
+    GitContext(cgn::CGNTargetOpt *opt)
+    : cgn::QuickDepContext(opt) {}
 };
 
 struct GitFetcher
