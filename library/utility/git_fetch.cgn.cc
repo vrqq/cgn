@@ -39,8 +39,9 @@ CGN_LIBRARY_GIT_API void GitFetcher::interpret(context_type &x)
             return ;
         auto *field = mk->ninja->append_build();
         field->rule = "phony";
-        field->inputs = {cgn::NinjaFile::escape_path(dest_dir)};
-        field->outputs = {cgn::NinjaFile::escape_path(mk->ninja_entry)};
+        // field->implicit_inputs = {cgn::NinjaFile::escape_path(dest_dir)};
+        // field->outputs = {cgn::NinjaFile::escape_path(mk->ninja_entry)};
+        field->outputs = {cgn::NinjaFile::escape_path(mk->ninja_entry = dest_dir)};
     });
 
     if (mk->ninja == nullptr)

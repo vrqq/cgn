@@ -28,14 +28,14 @@
 struct CopyWorker
 {
     CGN_LIBRARY_COPY_API std::string 
-    preconfig(cgn::CGNTargetOptIn *opt, const std::string &argfile_prefix = "copy_");
+    preconfig(cgn::CGNTargetOpt *opt, const std::string &argfile_prefix = "copy_");
 
     // @confirmed_opt : variable by opt->confirm();
     // @param from, to: absolute or relpath of CWD
     // @return Ninja build section, errmsg
     CGN_LIBRARY_COPY_API cgn::NinjaFile::BuildSection*
     postgen_copy_rename(
-        cgn::CGNTargetOpt *confirmed_opt,
+        cgn::CGNTargetMaker *confirmed_opt,
         const std::string &src_file, const std::string &dst_file,
         const std::vector<std::string> &njtargets_orderdep = {}
     );
@@ -46,7 +46,7 @@ struct CopyWorker
     // @return Ninja build section, errmsg
     CGN_LIBRARY_COPY_API cgn::NinjaFile::BuildSection*
     postgen_copy(
-        cgn::CGNTargetOpt *confirmed_opt, 
+        cgn::CGNTargetMaker *confirmed_opt, 
         const std::vector<std::string> &src_rel_patterns, 
         const std::vector<std::string> &src_rel_exclude_patterns, 
         const std::string &src_base,
@@ -60,7 +60,7 @@ struct CopyWorker
     // @return Ninja build section, errmsg
     CGN_LIBRARY_COPY_API cgn::NinjaFile::BuildSection*
     postgen_flat_copy(
-        cgn::CGNTargetOpt *confirmed_opt,
+        cgn::CGNTargetMaker *confirmed_opt,
         const std::vector<std::string> &src_patterns, 
         const std::vector<std::string> &src_exclude_patterns, 
         const std::string &dst_dir,
@@ -75,7 +75,7 @@ private:
     size_t target_n = 0;
 
     cgn::NinjaFile::BuildSection* mkninja(
-        cgn::CGNTargetOpt *opt, const std::string &command,
+        cgn::CGNTargetMaker *mk, const std::string &command,
         const std::vector<std::string> &arg_content,
         const std::vector<std::string> &njtargets_orderdep
     );
@@ -114,8 +114,8 @@ struct CopyInterpreter
             const cgn::CGNPath &dst_file
         );
 
-        context_type(cgn::CGNTargetOptIn *opt) 
-        : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
+        context_type(cgn::CGNTargetOpt *opt) 
+        : name(opt->name), cfg(opt->cfg), opt(opt) {}
         
         // the ninja target output where can trigger this build section run
         std::vector<cgn::CGNPath> ninja_build_trigger;
@@ -124,8 +124,8 @@ struct CopyInterpreter
         std::vector<cgn::CGNPath> analysis_outputs;
 
         private: friend struct CopyInterpreter;
-            cgn::CGNTargetOptIn *opt;
-            using FnCopyWork = std::function<std::string(cgn::CGNTargetOpt *opt, CopyWorker *w)>;
+            cgn::CGNTargetOpt *opt;
+            using FnCopyWork = std::function<std::string(cgn::CGNTargetMaker *mk, CopyWorker *w)>;
             std::vector<FnCopyWork> copy_records;
     };
 

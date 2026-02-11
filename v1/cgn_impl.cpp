@@ -662,7 +662,7 @@ CGNImpl::_create_target_impl(
         && !Tools::is_file_inside(_parent_dir, cgn_out.string()))
             return make_ret("CreateTarget: out_parent_prefix should inside " + cgn_out.string());
         
-        std::filesystem::path parent_dir = cgn_out / std::filesystem::path{_parent_dir};
+        std::filesystem::path parent_dir{_parent_dir};
         b_opt_in->out_parent_prefix_unixsep = b_opt_in->out_parent_prefix 
             = Tools::locale_path(parent_dir.string() + "/");
         #ifdef _WIN32
@@ -759,6 +759,7 @@ CGNImpl::_create_target_impl(
     if (main_subninja.insert(ninja_file_unixsep).second)
         fout<<"subninja "<<NinjaFile::escape_path(ninja_file_unixsep)<<"\n";
 
+    logger.verbose_paragraph("CreateTarget: subninja " + ninja_file_unixsep + " generated.");
     return make_ret("");
 } //CGNImpl::_create_target_impl()
 
@@ -834,7 +835,7 @@ CGNTargetMaker *CGNImpl::confirm_target_opt(CGNTargetOpt *in, const std::string 
         // case 1: cache found and Latest, return directly
         if (fd->second.anode->status == GraphNode::Latest){
             logger.verbose_paragraph("CreateTarget: confirm_target_opt(" 
-                + tls_runtime->label + ") in_memory cache found");
+                + cache_name + ") in_memory cache found");
             tls_runtime->target_now = &(fd->second);
             return nullptr;
         }
@@ -1044,29 +1045,32 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
         std::ofstream{obj_main_ninja};
     else { //Load and test previous main.ninja
         // helper fn to test some .ninja files missing in obj_main_ninja
-        auto test_ninja_file = [&](const std::string &ninja_file) {
-            if (!std::filesystem::is_regular_file(ninja_file))
-                return false;
-            std::string tgt = api.parent_path(ninja_file) + "/.stamp";
-            auto rv = raymii::Command::exec("ninja -f " + obj_main_ninja.string() + " -t query " + tgt);
-            return rv.exitstatus == 0;
-        };
+        // auto test_ninja_file = [&](const std::string &ninja_file) {
+        //     if (!std::filesystem::is_regular_file(ninja_file))
+        //         return false;
+        //     std::string tgt = api.parent_path(ninja_file) + "/.stamp";
+        //     auto rv = raymii::Command::exec("ninja -f " + obj_main_ninja.string() + " -t query " + tgt);
+        //     return rv.exitstatus == 0;
+        // };
         
-        // load all rows in main.ninja
-        constexpr std::string_view SUBNINJA{"subninja "};
-        bool entry_tested = false, need_rebuild = false;
-        for (std::string ln; !fin.eof() && std::getline(fin, ln);)
-            if (ln.size() > SUBNINJA.size()) {
-                auto subfile = NinjaFile::parse_ninja_str(
-                                ln.substr(SUBNINJA.size()));
-                if (!entry_tested && !test_ninja_file(subfile)) {
-                    need_rebuild = true;
-                    logger.verbose_paragraph("\n" + subfile + " missing or invalid content, regenerate.\n");
-                    break;
-                }
-                entry_tested = true;  //test the first one entry
-                main_subninja.insert(subfile);
-            }
+        // // load all rows in main.ninja
+        // constexpr std::string_view SUBNINJA{"subninja "};
+        // bool entry_tested = false, need_rebuild = false;
+        // for (std::string ln; !fin.eof() && std::getline(fin, ln);)
+        //     if (ln.size() > SUBNINJA.size()) {
+        //         auto subfile = NinjaFile::parse_ninja_str(
+        //                         ln.substr(SUBNINJA.size()));
+        //         if (!entry_tested && !test_ninja_file(subfile)) {
+        //             need_rebuild = true;
+        //             logger.verbose_paragraph("\n" + subfile + " missing or invalid content, regenerate.\n");
+        //             break;
+        //         }
+        //         entry_tested = true;  //test the first one entry
+        //         main_subninja.insert(subfile);
+        //     }
+
+        auto rv = raymii::Command::exec("ninja -f " + obj_main_ninja.string() + " -n");
+        bool need_rebuild = (rv.exitstatus == 0);
 
         // clear previous main.ninja if error found.
         if (fin.close(); need_rebuild) {

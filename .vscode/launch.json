@@ -29,9 +29,8 @@
             "args": [
                 "--halt_on_error", "--scriptcc_debug", "-V",
                 "--target", "llvm,debug,asan",
-                "--cgn-out", "C:\\workingdir\\cgntmp",
-                "query", "@aert//app/nodeapp:pkg_napi10"
-                // "query", "@third_party//asio:asio.git"
+                // "query", "@aert//app/nodeapp:pkg_napi10"
+                "query", "@third_party//asio:asio.git"
             ]
         },
         {

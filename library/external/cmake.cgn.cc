@@ -17,15 +17,15 @@
 
 // namespace cmake{
 
-static std::string two_escape(const std::string &in) {
-    return cgn::NinjaFile::escape_path(cgn::CGN::shell_escape(in));
+static std::string two_escape(const std::string &in, const std::string &escape_type) {
+    return cgn::NinjaFile::escape_path(cgn::CGN::shell_escape(in, escape_type));
 }
 
-CMakeContext::CMakeContext(cgn::CGNTargetOptIn *opt)
-: name(opt->factory_name), cfg(opt->cfg), opt(opt) {
+CMakeContext::CMakeContext(cgn::CGNTargetOpt *opt)
+: cgn::QuickDepContext{opt}, name(opt->name), cfg(opt->cfg) {
     cxx::CxxToolchainInfo cinfo = cxx::CxxInterpreter::test_param(opt->cfg);
     cc_env_loader      = cinfo.env_loader_script;
-    cc_env_loader_adep = cinfo.env_loader_script_anode;
+    // cc_env_loader_adep = cinfo.env_loader_script_anode;
 
     // vars["CMAKE_MESSAGE_LOG_LEVEL"] = "ERROR";
     // vars["CMAKE_INSTALL_MESSAGE"] = "NEVER";
@@ -91,23 +91,25 @@ constexpr const char *nul_suffix = " 1> /dev/null";
 
 void CMakeInterpreter::interpret(context_type &x)
 {
+    std::string cfg_host_shell = x.cfg["host_shell"];
+
     // value check
     if (x.outputs.empty()) {
-        x.opt->confirm_with_error("output field must be assigned");
+        x.opt->set_fail("output field must be assigned");
         return ;
     }
-    cgn::CGNTargetOpt *opt = x.opt->confirm();
-    if (opt->cache_result_found)
+    cgn::CGNTargetMaker *mk = x.opt->confirm();
+    if (!mk)
         return ;
 
     // add cc_env_adep from cinfo
-    if (x.cc_env_loader_adep)
-        api.add_adep_edge(x.cc_env_loader_adep, opt->anode);
+    // if (x.cc_env_loader_adep)
+    //     api.add_adep_edge(x.cc_env_loader_adep, mk->anode);
 
     // dir for cmake
-    std::string build_dir = opt->out_prefix + "build";
-    std::string install_dir = opt->out_prefix + "install";
-    std::string src_dir = opt->src_prefix + api.locale_path(x.sources_dir);
+    std::string build_dir = mk->out_prefix + "build";
+    std::string install_dir = mk->out_prefix + "install";
+    std::string src_dir = mk->src_prefix + api.locale_path(x.sources_dir);
 
     // override cmake variable
     x.vars["CMAKE_INSTALL_PREFIX"] = install_dir;
@@ -118,15 +120,15 @@ void CMakeInterpreter::interpret(context_type &x)
     std::vector<std::string> cmake_out_njesc;
 
     // The 'include file' usually not appear in output
-    opt->result.ninja_dep_level = cgn::CGNTarget::NINJA_LEVEL_DYNDEP;
+    // opt->result.ninja_dep_level = cgn::CGNTarget::NINJA_LEVEL_DYNDEP;
 
     // generate LinkAndRunInfo and BinDevelInfo in return value
     // only <output_dir>/<lib_dir> applied
-    auto *bin_devel = opt->result.get<BinDevelInfo>(true);
+    auto *bin_devel = mk->get<BinDevelInfo>(true);
     bin_devel->install_dir = install_dir;
     // bin_devel->include_dir = install_dir + opt->path_separator + "include";
 
-    auto *lrinfo = opt->result.get<cgn::LinkAndRunInfo>(true);
+    auto *lrinfo = mk->get<cgn::LinkAndRunInfo>(true);
     std::unordered_set<std::string> dllstem, alldirs;
     std::vector<std::pair<std::string,std::string>> dotlib;
     for (auto &file : x.outputs) {
@@ -154,7 +156,7 @@ void CMakeInterpreter::interpret(context_type &x)
         }
         else if (ext == "lib")
             dotlib.push_back({stem, fullp});
-        cmake_out_njesc.push_back(opt->ninja->escape_path(fullp));
+        cmake_out_njesc.push_back(cgn::NinjaFile::escape_path(fullp));
     }
     for (auto item : dotlib)
         if (dllstem.count(item.first) != 0)
@@ -164,49 +166,49 @@ void CMakeInterpreter::interpret(context_type &x)
 
     // generate CxxInfo in return value
     for (auto &dir : x.pub.include_dirs)
-        dir = cgn::make_path_base_working(api.rebase_path(dir, ".", opt));
-    x.pub.include_dirs.push_back(cgn::make_path_base_working(install_dir + opt->path_separator + "include"));
-    opt->result.set(x.pub);
+        dir = cgn::make_path_base_working(api.rebase_path(dir, ".", mk));
+    x.pub.include_dirs.push_back(cgn::make_path_base_working(install_dir + mk->PATH_SEPARATOR + "include"));
+    mk->set(x.pub);
 
     // prepare cmake gen command
-    auto prepare_cmdgen = [&](std::function<std::string(std::string)> fn_escape) {
+    auto prepare_cmdgen = [&](std::function<std::string(const std::string&, const std::string&)> fn_escape) {
         std::string cmd = "cmake";
         if (x.cfg["cmake_exe"] != "")
-            cmd = fn_escape(x.cfg["cmake_exe"]);
+            cmd = fn_escape(x.cfg["cmake_exe"], x.cfg["host_shell"]);
         if (x.cc_env_loader.size())
             cmd = x.cc_env_loader + " && " + cmd;
         
-        cmd += " -G Ninja -S " + fn_escape(src_dir)
-            + "  -B " + fn_escape(build_dir);
+        cmd += " -G Ninja -S " + fn_escape(src_dir, x.cfg["host_shell"])
+            + "  -B " + fn_escape(build_dir, x.cfg["host_shell"]);
         for (auto item : x.vars) {
-            cmd += " -D" + fn_escape(item.first);
+            cmd += " -D" + fn_escape(item.first, x.cfg["host_shell"]);
             if (item.second.size())
-                cmd += "=" + fn_escape(item.second);
+                cmd += "=" + fn_escape(item.second, x.cfg["host_shell"]);
         }
         return cmd;
     };
 
     // [NINJA FILE] cmake_havedep_mode
-    if (x.enforce_havedep_mode || opt->quickdep_early_anodes.size()) {
+    if (x.enforce_havedep_mode) {
         // rule to run custom command
-        auto *rule = opt->ninja->append_rule();
+        auto *rule = mk->ninja->append_rule();
         rule->name = "quick_run";
         rule->command = "${cmd}";
         rule->variables["description"] = "${desc}";
 
         // target cmake gen
-        auto *gen = opt->ninja->append_build();
+        auto *gen = mk->ninja->append_build();
         gen->rule    = "quick_run";
-        gen->inputs  = {opt->ninja->escape_path(api.locale_path(src_dir + "/CMakeLists.txt"))};
-        gen->implicit_inputs = opt->ninja->escape_path(opt->quickdep_ninja_full);
-        gen->order_only      = opt->ninja->escape_path(opt->quickdep_ninja_dynhdr);
-        gen->outputs = {opt->ninja->escape_path(api.locale_path(build_dir + "/CMakeCache.txt"))};
+        gen->inputs  = {cgn::NinjaFile::escape_path(api.locale_path(src_dir + "/CMakeLists.txt"))};
+        // gen->implicit_inputs = cgn::NinjaFile::escape_path(opt->quickdep_ninja_full);
+        gen->order_only      = cgn::NinjaFile::escape_path(x.quickdep_ninja_target);
+        gen->outputs = {cgn::NinjaFile::escape_path(api.locale_path(build_dir + "/CMakeCache.txt"))};
         gen->variables["cmd"] = prepare_cmdgen(&two_escape) + nul_suffix;
         gen->variables["desc"] = "CMAKE_GEN " + src_dir;
 
         // target cmake build && install
-        std::string logfile_esc = two_escape(opt->out_prefix + ".log");
-        auto *build = opt->ninja->append_build();
+        std::string logfile_esc = two_escape(mk->out_prefix + ".log");
+        auto *build = mk->ninja->append_build();
         build->rule    = "quick_run";
         build->inputs  = gen->outputs;
         build->outputs = cmake_out_njesc;
@@ -214,7 +216,7 @@ void CMakeInterpreter::interpret(context_type &x)
         build->variables["cmd"] = "cmd.exe /c \"ninja -C " + two_escape(build_dir)
                                 + " install\" 1> " + logfile_esc + " 2>&1";
         #else
-        build->variables["cmd"] = "ninja -C " + two_escape(build_dir)
+        build->variables["cmd"] = "ninja -C " + two_escape(build_dir, x.cfg["host_shell"])
                                 + " install 1> " + logfile_esc + " 2>&1";
         #endif
         
@@ -230,10 +232,10 @@ void CMakeInterpreter::interpret(context_type &x)
         build->variables["restat"] = "1";
 
         // target .entry
-        auto *efield = opt->ninja->append_build();
+        auto *efield = mk->ninja->append_build();
         efield->rule = "phony";
         efield->inputs  = build->outputs;
-        efield->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
+        efield->outputs = {cgn::NinjaFile::escape_path(mk->ninja_entry)};
     }
     else { // [NINJA FILE] cmake_nodep_mode below
         x.vars["CMAKE_NINJA_OUTPUT_PATH_PREFIX"] = build_dir;
@@ -243,16 +245,16 @@ void CMakeInterpreter::interpret(context_type &x)
 
         // Generate ninja entry.
         // the build and install phase has been combined in build.ninja
-        opt->ninja->append_include(build_dir + "/build.ninja");
+        mk->ninja->append_include(build_dir + "/build.ninja");
 
-        auto *efield = opt->ninja->append_build();
+        auto *efield = mk->ninja->append_build();
         efield->rule = "phony";
-        efield->inputs  = {opt->ninja->escape_path(build_dir + "/install")};
-        efield->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
+        efield->inputs  = {cgn::NinjaFile::escape_path(build_dir + "/install")};
+        efield->outputs = {cgn::NinjaFile::escape_path(mk->ninja_entry)};
 
         // Generate ninja result-field and return value
         // TODO: fetch by cmake script like "cmake_install.cmake"
-        auto *rfield = opt->ninja->append_build();
+        auto *rfield = mk->ninja->append_build();
         rfield->rule = "phony";
         rfield->inputs  = efield->inputs;
         rfield->outputs = cmake_out_njesc;
@@ -265,27 +267,28 @@ void CMakeConfigInterpeter::interpret(
 ) {
     // value check
     if (x.outputs.empty()) {
-        x.opt->confirm_with_error("output field must be assigned");
+        x.opt->set_fail("output field must be assigned");
         return ;
     }
 
-    auto *opt = x.opt->confirm();
-    if (opt->cache_result_found)
+    x.cfg.visit_keys({"host_shell", "cmake_exe"});
+    cgn::CGNTargetMaker *mk = x.opt->confirm();
+    if (!mk)
         return ;
 
     // dir for cmake
-    std::string build_dir = opt->out_prefix + "build";
-    std::string src_dir = api.locale_path(opt->src_prefix + x.sources_dir);
+    std::string build_dir = mk->out_prefix + "build";
+    std::string src_dir = api.locale_path(mk->src_prefix + x.sources_dir);
 
     // prepare return value
-    opt->result.ninja_dep_level = cgn::CGNTarget::NINJA_LEVEL_DYNDEP;
+    // opt->result.ninja_dep_level = cgn::CGNTarget::NINJA_LEVEL_DYNDEP;
 
     // std::vector<std::string> dot_cmake_files;
     std::vector<std::string> cmake_out_njesc;
     for (auto &file : x.outputs) {
-        std::string fullp = build_dir + opt->path_separator + file;
-        opt->result.outputs += {fullp};
-        cmake_out_njesc.push_back(opt->ninja->escape_path(fullp));
+        std::string fullp = build_dir + mk->PATH_SEPARATOR + file;
+        mk->outputs += {fullp};
+        cmake_out_njesc.push_back(cgn::NinjaFile::escape_path(fullp));
         // auto ext = cgn::Tools::get_lowercase_extension(file);
         // if (ext == "cmake")
         //     dot_cmake_files.push_back(file);
@@ -294,34 +297,34 @@ void CMakeConfigInterpeter::interpret(
     // prepare cmake gen command
     std::string cmd = "cmake";
     if (x.cfg["cmake_exe"] != "")
-        cmd = two_escape(x.cfg["cmake_exe"]);
-    cmd += " -G Ninja -S " + two_escape(src_dir)
-        + "  -B " + two_escape(build_dir);
+        cmd = two_escape(x.cfg["cmake_exe"], x.cfg["host_shell"]);
+    cmd += " -G Ninja -S " + two_escape(src_dir, x.cfg["host_shell"])
+        + "  -B " + two_escape(build_dir, x.cfg["host_shell"]);
     for (auto item : x.vars) {
-        cmd += " -D" + two_escape(item.first);
+        cmd += " -D" + two_escape(item.first, x.cfg["host_shell"]);
         if (item.second.size())
-            cmd += "=" + two_escape(item.second);
+            cmd += "=" + two_escape(item.second, x.cfg["host_shell"]);
     }
 
     // rule to run custom command (require 'quick_run' rule)
     std::string rulepath = api.get_filepath("@cgn.d//library/utility/quick_run.ninja");
-    opt->ninja->append_include(rulepath);
+    mk->ninja->append_include(rulepath);
 
     // target cmake gen
-    auto *gen = opt->ninja->append_build();
+    auto *gen = mk->ninja->append_build();
     gen->rule    = "quick_run";
-    gen->inputs  = {opt->ninja->escape_path(api.locale_path(src_dir + "/CMakeLists.txt"))};
-    gen->implicit_inputs = opt->ninja->escape_path(opt->quickdep_ninja_full);
-    gen->order_only      = opt->ninja->escape_path(opt->quickdep_ninja_dynhdr);
-    gen->outputs = {opt->ninja->escape_path(api.locale_path(build_dir + "/CMakeCache.txt"))};
+    gen->inputs  = {cgn::NinjaFile::escape_path(api.locale_path(src_dir + "/CMakeLists.txt"))};
+    // gen->implicit_inputs = cgn::NinjaFile::escape_path(opt->quickdep_ninja_full);
+    gen->order_only      = cgn::NinjaFile::escape_path(x.quickdep_ninja_target);
+    gen->outputs = {cgn::NinjaFile::escape_path(api.locale_path(build_dir + "/CMakeCache.txt"))};
     gen->variables["cmd"] = cmd + nul_suffix;
     gen->variables["desc"] = "CMAKE_GEN " + src_dir;
 
     // target .entry
-    auto *entry = opt->ninja->append_build();
+    auto *entry = mk->ninja->append_build();
     entry->rule = "phony";
     entry->inputs  = gen->outputs;
-    entry->outputs = {opt->ninja->escape_path(opt->out_prefix + opt->BUILD_ENTRY)};
+    entry->outputs = {cgn::NinjaFile::escape_path(mk->ninja_entry)};
 
     // Generate BinDevelInfo
     // BinDevelContext devel_ctx{x.cfg, opt};

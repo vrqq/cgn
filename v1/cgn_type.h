@@ -199,7 +199,7 @@ struct LinkAndRunInfo : BaseInfo {
 
     LinkAndRunInfo() : BaseInfo{&v} {}
     
-    static const char *name() { return "LinkAndRunInfo"; }
+    static const char *name() { return typeid(LinkAndRunInfo).name(); }
 
 private:
     CGN_EXPORT static const VTable v;
@@ -232,6 +232,10 @@ struct InfoTable
     CGN_EXPORT void merge_from(const InfoTable &rhs);
 
     CGN_EXPORT void merge_entry(const std::string &name, const BaseInfo *rhs);
+
+    template<typename T> CGN_EXPORT void merge_entry(const T *rhs) {
+        merge_entry(typeid(T).name(), rhs);
+    }
 
     // template<bool RRef, typename = std::enable_if<Ref>::type>
     // InfoTable(InfoTable<RRef> &in) : _data(in._data) {}
@@ -450,7 +454,7 @@ struct QuickDepContext
     // CGN_EXPORT CGNTarget quick_dep();
 
     // Add dependency with specific named config
-    CGN_EXPORT CGNTarget quick_dep_namedcfg(const std::string &label, const std::string &cfgname, bool merge_result = false);
+    CGN_EXPORT CGNTarget quick_dep_namedcfg(const std::string &label, const std::string &cfgname, bool merge_result);
 
     QuickDepContext(CGNTargetOpt *current_opt) : opt(current_opt) {}
 

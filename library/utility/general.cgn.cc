@@ -4,11 +4,9 @@
 // RunExecInterperter
 // ------------------
 
-static std::string two_escape(const std::string &in) {
-    return cgn::NinjaFile::escape_path(cgn::CGN::shell_escape(in));
-}
 CGN_LIBRARY_GENERAL_API void RunExecInterperter::interpret(context_type &x)
 {
+    std::string shell_name = x.cfg["host_shell"];
     cgn::CGNTargetMaker *mk = x.opt->confirm();
     if (!mk)
         return ;
@@ -16,7 +14,7 @@ CGN_LIBRARY_GENERAL_API void RunExecInterperter::interpret(context_type &x)
     auto *rule = mk->ninja->append_rule();
     rule->name = "exec";
     for (auto &ss : x.cmd_build)
-        rule->command += two_escape(ss) + " ";
+        rule->command += cgn::NinjaFile::escape_path(cgn::CGN::shell_escape(ss, shell_name))  + " ";
     
     auto *field = mk->ninja->append_build();
     field->outputs = {mk->ninja->escape_path(mk->out_prefix + mk->NINJA_ENTRY_TARGET)};

@@ -8,16 +8,18 @@ namespace perl {
 void ModuleTestInterpreter::interpret(ModuleTestInterpreter::context_type &x)
 {
     // find perl.exe
-    auto perl_target = x.opt->quick_dep_namedcfg("@cgn.d//library/perl:host_exe", "host_release", true);
+    cgn::QuickDepContext qdep{x.opt};
+
+    auto perl_target = qdep.quick_dep_namedcfg("@cgn.d//library/perl:host_exe", "host_release", true);
     if (perl_target.outputs.size() == 0)
-        return x.opt->confirm_with_error("Perl exe not found");
+        return x.opt->set_fail("Perl exe not found");
 
     // confirm
-    cgn::CGNTargetOpt *opt = x.opt->confirm();
-    if (opt->cache_result_found)
+    cgn::CGNTargetMaker *mk = x.opt->confirm();
+    if (!mk)
         return ;
 
-    if (!opt->file_unchanged) {
+    if (!mk->file_unchanged) {
         // generate modtest.pm
         // modtest.pm is input, when it changed, the ninja target would dirty and rebuild.
         // Here we test this case twice:
@@ -29,7 +31,7 @@ void ModuleTestInterpreter::interpret(ModuleTestInterpreter::context_type &x)
             pmout<<"use " + name + ";\n";
             hint += " " + name;
         }
-        pmout<<"\nmy $file = q(" + opt->out_prefix + opt->BUILD_ENTRY + ");\n"
+        pmout<<"\nmy $file = q(" + mk->ninja_entry + ");\n"
              <<"my $str = q(" + hint + ");\n"
              <<R"(
 # Step 1: read file if it exists
@@ -51,23 +53,23 @@ if ($old eq $str) {
     close $out;
 }
 )" "\n";
-        api.write_file_content_if_changed(api.locale_path(opt->out_prefix + "modtest.pm"), pmout.str());
+        api.write_file_content_if_changed(api.locale_path(mk->out_prefix + "modtest.pm"), pmout.str());
 
         //generate ninja entry
-        opt->ninja->append_include(api.get_filepath("@cgn.d//library/utility/quick_run.ninja"));
-        auto *phony = opt->ninja->append_build();
+        mk->ninja->append_include(api.get_filepath("@cgn.d//library/utility/quick_run.ninja"));
+        auto *phony = mk->ninja->append_build();
         phony->rule = "run";
         phony->variables["exe"] = cgn::NinjaFile::escape_path(api.shell_escape(perl_target.outputs[0]));
         phony->variables["desc"] = "Perl module test:" + hint;
         phony->variables["restat"] = "1";
-        phony->inputs  = {opt->ninja->escape_path(api.locale_path(opt->out_prefix + "modtest.pm"))};
-        phony->outputs = {opt->ninja->escape_path(api.locale_path(opt->out_prefix + opt->BUILD_ENTRY))};
-        phony->order_only = {opt->ninja->escape_path(perl_target.ninja_entry)};
+        phony->inputs  = {mk->ninja->escape_path(api.locale_path(mk->out_prefix + "modtest.pm"))};
+        phony->outputs = {mk->ninja->escape_path(api.locale_path(mk->ninja_entry))};
+        phony->order_only = {mk->ninja->escape_path(perl_target.ninja_entry)};
     } //endif(!file_unchanged)
 
     // This is a "test target" and does not affect the "compile target" that depends on it.
     // Current target take effect only if perl exec failed.
-    opt->result.ninja_dep_level = opt->result.NINJA_LEVEL_DYNDEP;
+    // mk->result.ninja_dep_level = opt->result.NINJA_LEVEL_DYNDEP;
 }
 
 } //namespace

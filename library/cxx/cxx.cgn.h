@@ -55,14 +55,17 @@ enum class DepType : char{
 
     // (aka PRIVATE)
     // the default flag, the dependents were only used in private,
+    // utilize dep[CxxInfo] and dep[LinkAndRunInfo] in private and 
+    // do not expose from current target,
     // see details in cxx language note.
     _private_dep = 1L << 2,
 
     // (aka PUBLIC)
-    // consume and inherit the CxxInfo and LinkAndRunInfo from dependents, 
+    // consume and inherit the dep[CxxInfo] and dep[LinkAndRunInfo] from dependents, 
     // like to add '/WHOLEARCHIVE' if current is exe target.
     _inherit = 1L << 3,
 
+    // consume dep[CxxInfo].object_files to current static library (ar rcs) or shared/executable (wholearchive).
     _pack_obj = 1L << 4,
 
     _bypass_obj = 1L << 5,
@@ -217,7 +220,7 @@ struct CxxToolchainInfo
     std::vector<std::string> extra_ldflags_x, extra_ldflags_so;
 };
 
-class NinjaDedup;
+// class NinjaDedup;
 struct CxxInterpreter
 {
     using context_type = CxxContext;
@@ -237,7 +240,7 @@ struct CxxInterpreter
     interpret(context_type &x);
 
 private: friend class TargetWorker;
-    static std::unique_ptr<NinjaDedup> ninja_dedup;
+    // static std::unique_ptr<NinjaDedup> ninja_dedup;
 };
 
 template<typename TypeContext>

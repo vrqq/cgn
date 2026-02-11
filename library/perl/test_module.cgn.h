@@ -23,9 +23,9 @@ public:
         cgn::Configuration &cfg;
         std::set<std::string> module_names;
 
-        context_type(cgn::CGNTargetOptIn *opt) : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
+        context_type(cgn::CGNTargetOpt *opt) : name(opt->name), cfg(opt->cfg), opt(opt) {}
     private: friend class ModuleTestInterpreter;
-        cgn::CGNTargetOptIn *opt;
+        cgn::CGNTargetOpt *opt;
     };
 
     constexpr static cgn::ConstLabelGroup<1> preload_labels() { 

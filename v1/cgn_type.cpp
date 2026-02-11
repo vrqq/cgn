@@ -22,6 +22,8 @@ void InfoTable::merge_from(const InfoTable &rhs)
 void InfoTable::merge_entry(
     const std::string &name, const BaseInfo *rhs
 ) {
+    if (rhs == nullptr)
+        return ;
     if (auto fd = _data.find(name); fd != _data.end())
         fd->second->merge_entry(rhs);
     else {

@@ -31,7 +31,7 @@ struct BinDevelInfo : cgn::BaseInfo {
     bool within_cmakeconfig = false;
     bool within_pkgconfig   = false;
 
-    static const char *name() { return "BinDevelInfo"; }
+    // static const char *name() { return "BinDevelInfo"; }
     BinDevelInfo() : cgn::BaseInfo{_glb_bindevel_vtable()} {}
 
 private:

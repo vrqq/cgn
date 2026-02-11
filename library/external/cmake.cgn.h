@@ -42,7 +42,7 @@ struct CMakeInfo {
 //   CMAKE_CXX_COMPILER_TARGET (inited when cross-compile)
 // variable override in interpreter
 //   CMAKE_INSTALL_PREFIX
-struct CMakeContext {
+struct CMakeContext : protected cgn::QuickDepContext {
     
     const std::string &name;
 
@@ -70,18 +70,18 @@ struct CMakeContext {
 
     cxx::CxxInfo pub;
 
-    CMAKE_CGN_API CMakeContext(cgn::CGNTargetOptIn *opt);
+    CMAKE_CGN_API CMakeContext(cgn::CGNTargetOpt *opt);
 
     // user should read return value then fill into vars manually.
     cgn::CGNTarget add_dep(const std::string &label) { return add_dep(label, this->cfg); }
     cgn::CGNTarget add_dep(const std::string &label, const cgn::Configuration &cfg) {
-        return opt->quick_dep(label, cfg);
+        return quick_dep(label, cfg);
     }
     cgn::CGNTarget add_dep_with_named_config(
         const std::string &label, const std::string &cfg_name, 
         bool merge_cfg_visit = false
     ) {
-        return opt->quick_dep_namedcfg(label, cfg_name, merge_cfg_visit);
+        return quick_dep_namedcfg(label, cfg_name, merge_cfg_visit);
     }
 
     // BinDevelInfo *get_bindevel(const std::string &factory_label) 
@@ -90,9 +90,8 @@ struct CMakeContext {
     friend class CMakeInterpreter;
     friend class CMakeConfigInterpeter;
 private:
-    cgn::CGNTargetOptIn *opt;
     std::string     cc_env_loader;
-    cgn::GraphNode *cc_env_loader_adep;
+    // cgn::GraphNode *cc_env_loader_adep;
 };
 
 struct CMakeInterpreter {
