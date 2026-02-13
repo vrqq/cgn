@@ -207,7 +207,7 @@ struct CGN_EXPORT Tools {
     static bool is_directory_case_sensitive(const std::string& directory);
 
     // remove duplicate items in list.
-    static void remove_duplicate_inplace(std::vector<std::string> &data);
+    static void remove_duplicate_inplace(std::vector<std::string> &data, bool front_to_end = true);
 
     template<typename T, typename Handle> std::string convert_list_to_string(
         const T &ls, Handle escaper = [](const std::string &in){ return in; }

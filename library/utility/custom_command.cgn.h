@@ -26,7 +26,7 @@ struct CustomCommand
     // CGNTarget.result.infos[]
     cgn::InfoTable analysis_infos;
 
-    char ninja_dep_level = cgn::CGNTarget::NINJA_LEVEL_DYNDEP;
+    // char ninja_dep_level = cgn::CGNTarget::NINJA_LEVEL_DYNDEP;
 
     // add_dep() usually called before opt_confirm()
     cgn::CGNTarget 
@@ -72,11 +72,11 @@ struct CustomCommand
     //  Do not use function to do, using XXWorker instead, like CopyWorker.
     // CGN_UTILITY_API void set_analysis_result();
 
-    CustomCommand(cgn::CGNTargetOptIn *opt)
-    : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
+    CustomCommand(cgn::CGNTargetOpt *opt)
+    : name(opt->name), cfg(opt->cfg), opt(opt) {}
 
 private: friend struct CustomInterpreter;
-    cgn::CGNTargetOptIn *opt;
+    cgn::CGNTargetOpt *opt;
     std::vector<std::pair<
         std::string, std::function<std::string(cgn::CGNTargetOpt *)>
     >> script_content;

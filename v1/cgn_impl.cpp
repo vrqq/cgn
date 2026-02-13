@@ -1054,7 +1054,7 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
         // };
         
         // // load all rows in main.ninja
-        // constexpr std::string_view SUBNINJA{"subninja "};
+        
         // bool entry_tested = false, need_rebuild = false;
         // for (std::string ln; !fin.eof() && std::getline(fin, ln);)
         //     if (ln.size() > SUBNINJA.size()) {
@@ -1069,12 +1069,26 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
         //         main_subninja.insert(subfile);
         //     }
 
-        auto rv = raymii::Command::exec("ninja -f " + obj_main_ninja.string() + " -n");
-        bool need_rebuild = (rv.exitstatus == 0);
+        bool need_rebuild = false;
+        constexpr std::string_view SUBNINJA{"subninja "};
+        for (std::string ln; !fin.eof() && std::getline(fin, ln);)
+            if (ln.size() > SUBNINJA.size()) {
+                auto subfile = NinjaFile::parse_ninja_str(ln.substr(SUBNINJA.size()));
+                if (main_subninja.insert(subfile).second == false) {
+                    logger.verbose_paragraph("\n" + subfile + " duplicate, regenerate.\n");
+                    need_rebuild = true;
+                    break;
+                }
+            }
+
+        if (!need_rebuild) {
+            auto rv = raymii::Command::exec("ninja -f " + obj_main_ninja.string() + " -n");
+            need_rebuild |= (rv.exitstatus != 0);
+        }
 
         // clear previous main.ninja if error found.
         if (fin.close(); need_rebuild) {
-            logger.verbose_paragraph("Clear ninja entry " + obj_main_ninja.string() + "\n");
+            logger.verbose_paragraph("Rebuild ninja entry " + obj_main_ninja.string() + "\n");
             main_subninja.clear();
             std::ofstream fout{obj_main_ninja};
             fout.close();

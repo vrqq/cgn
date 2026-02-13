@@ -1,18 +1,56 @@
+// C++ compiler
+// NO-DEPS
+// 
+// cflags, ldflags: the last would cover the previous one
+// include_dirs: search from left to right
+//
+// Order of cxx compiler arguments
+//   LinkAndRunInfo:
+//      link.exe <ldflags_interpreter> <ldflags_deps> <ldflags_current>
+//   CxxInfo:
+//      gcc.exe / cl.exe
+//              <cflags_interpreter> <cflags_deps> <cflags_current>
+//              <incdir_current> <incdir_deps> <incdir_interpreter>
+//              <defines_any_order>
+//
+// ReturnValue[LinkAndRunInfo]
+//   <current_target> + <deps>
+// ReturnValue[CxxInfo]
+//   .cflags  : <deps> <this.pub>
+//   .ldflags : <deps> <this.pub>
+//   .include_dirs : <this.pub> <deps>
+//   .defines : any order
+//
+// 
+// Supported configurations
+// * cxx_toolchain="msvc" os="win"
+//      cl.exe with link.exe
+// * cxx_toolchain="gcc"  os="linux"
+//      gcc/g++ with binutils-ld
+// * cxx_toolchain="llvm" os="linux"
+//      clang/clang++ with llvm-ld
+// * cxx_toolchain="llvm" os="mac"
+//      clang/clang++ with bsd-ld (os internal)
+//
+// Others are under development
+// * toolchain="gcc"  os="mac"
+//      GNU binutils's ld does not support Darwin (macOS)
+//      gcc/g++ with bsd-ld (os internal)
+// * toolchain="llvm" os="win"
+//      clang++ and llvm-ld for windows
+// * toolchain="llvm2" os="mac" (using llvm-ld)
+//
 #pragma once
 #include <vector>
-#include <memory>
-#include <type_traits>
 #include <unordered_set>
 #include "../../cgn.h"
 #include "windef.h"
 
 namespace cxx {
 
-// /WHOLEARCHIVE in default
 enum class DepType : char{
     // (DO NOT CONSUME ANY TargetInfo from dep)
     // only define the build order, drop the return info from deps. 
-    // Add order_only dependency for current target.
     _order_dep = 1,
 
     // (aka PRIVATE)
@@ -24,21 +62,20 @@ enum class DepType : char{
 
     // (aka PUBLIC)
     // consume and inherit the dep[CxxInfo] and dep[LinkAndRunInfo] from dependents, 
+    // like to add '/WHOLEARCHIVE' if current is exe target.
     _inherit = 1L << 3,
 
-    // ar rcs on both self.srcs[] and deps[LinkAndRun].object_files
-    // consume dep[CxxInfo].object_files to current static library (ar rcs).
-    _archive = 1L << 4,
+    // consume dep[CxxInfo].object_files to current static library (ar rcs) or shared/executable (wholearchive).
+    _pack_obj = 1L << 4,
 
-    // [shared_library only] no-whole-archive on deps[LinkAndRun].static_library
-    _no_whole = 1L << 5,
+    _bypass_obj = 1L << 5,
 };
 
 constexpr static DepType order_dep   = DepType::_order_dep;
 constexpr static DepType private_dep = DepType::_private_dep;
 constexpr static DepType inherit     = DepType::_inherit;
-constexpr static DepType archive     = DepType::_archive;
-constexpr static DepType _no_whole   = DepType::_no_whole;
+constexpr static DepType pack_obj    = DepType::_pack_obj;
+constexpr static DepType bypass_obj  = DepType::_bypass_obj;
 
 inline constexpr bool 
 operator&(DepType a, DepType b) { return ((char)a & (char)b); }
@@ -46,10 +83,9 @@ operator&(DepType a, DepType b) { return ((char)a & (char)b); }
 inline constexpr DepType 
 operator|(DepType a, DepType b) { return DepType((char)a | (char)b); }
 
-
 struct CxxInfo : cgn::BaseInfo
 {
-    std::vector<std::string>
+    std::unordered_set<std::string>
         defines;       // c++ define (no escape)
 
     // std::vector<cgn::CGNPath>
@@ -60,19 +96,19 @@ struct CxxInfo : cgn::BaseInfo
     std::vector<std::string>
         cflags,        // compiler specific cflags, shell-escaped required
                        // e.g.: "-Idir\\ 1"
-        ldflags,       // flags for linker(auto '-Wl,' prefix added), shell-escaped required
-                       // e.g.："-rpath=\\$ORIGIN", "/L:ws2_32.lib"
+        ldflags,       // flags when linking, shell-escaped required
+                       // e.g.："-Wl,--rpath=\\$ORIGIN", "/L:ws2_32.lib"
         arflags;       // flags for static library archiver
                        // 'ar' on linux, 'lib.exe' on windows
                        
+    static const char *name() { return "CxxInfo"; }
     CxxInfo() : BaseInfo{&_glb_cxx_vtable()} {}
 
 private:
     LANGCXX_CGN_BUNDLE_API const static cgn::BaseInfo::VTable &_glb_cxx_vtable();
-}; //struct CxxInfo
+};
 
-
-struct CxxContext : CxxInfo, protected cgn::QuickDepContext
+struct CxxContext : CxxInfo, private cgn::QuickDepContext
 {
     // 'x': cxx_executable, 's': cxx_shared, 'a': cxx_static, 'o': cxx_sources
     const char role;
@@ -98,15 +134,8 @@ struct CxxContext : CxxInfo, protected cgn::QuickDepContext
 
     cgn::Configuration &cfg;
 
-    // Add target dependency
-    // @param label : factory label
-    // @param cfg   : the config
-    // @param flag  :
-    //    - order_dep : same as order_only in ninjabuild
-    //    - priv_dep  : apply CxxInfo and LinkAndRunInfo on current target only
-    //    - inherit   : priv_dep and expose from current target
-    //    - archive   : (static lib only) archive deps[LinkAndRun].object to current .a
-    //    - no_whole  : (shared lib only) do not use /WHOLEARCHIVE on deps[LinkAndRun].static
+    // add_dep() would not change (CxxInfo*)this / this.pub 
+    // whether flag == priv_dep / inherit / order_only
     LANGCXX_CGN_BUNDLE_API cgn::CGNTarget add_dep(
         const std::string &label, cgn::Configuration cfg, DepType flag
     );
@@ -115,12 +144,14 @@ struct CxxContext : CxxInfo, protected cgn::QuickDepContext
         return add_dep(label, this->cfg, flag);
     }
 
+    // void set_runtime(const std::string &rout, const std::string &src);
+
 protected:
     LANGCXX_CGN_BUNDLE_API CxxContext(char role, cgn::CGNTargetOpt *opt);
 
-protected:
-    friend struct CxxWorker;
-    friend class CxxInterpreter;
+private: friend struct CxxInterpreter; // field for interpreter
+    friend struct TargetWorker;
+    // cgn::CGNTargetOpt *opt;  //self opt
 
     // collection from deps, as the part of interpreter return value.
     // also with [CxxInfo] and [DefaultInfo] field inherit from deps.
@@ -129,15 +160,25 @@ protected:
 
     // collection from deps, only apply on current target.
     // Added by this->add_dep(), consumed by TargetWorker::step2_merge_selfarg().
-    // _lnr_to_self.static_files[] param to /WHOLEARCHIVE
-    CxxInfo             _cxx_to_self;
+    cxx::CxxInfo        _cxx_to_self;
     cgn::LinkAndRunInfo _lnr_to_self;
 
-    // [only valid when this == CxxShared] (role == 's')
-    // static_files[] param to /NO-WHOLEARCHIVE
-    // std::unordered_set<std::string> _self_no_whole_archive;
-    std::vector<std::string> _self_no_whole_archive;
-}; //struct CxxContext
+    // [only valid when this == CxxShared]
+    // path of xxx.a, param to /WHOLEARCHIVE
+    std::vector<std::string> _wholearchive_a;
+
+    // The maximum result->ninja_dep_level collect from deps,
+    // the value is max(all_deps with cxx::inherit) .
+    char _max_pub_ninja_level = cgn::CGNTarget::NINJA_LEVEL_NONEED;
+
+    // target name in build.ninja when cxx::order_dep
+    //   build current_cxx : ... || <phony_order_only...>
+    // std::vector<std::string> phony_order_only;
+
+    // got TargetInfos[DefaultInfo].enforce_keep_order 
+    // from add_dep(..., cxx::inherit) then transport this flag
+    // bool _enforce_self_order_only = false;
+};
 
 template <char ROLE> struct CxxContextType : CxxContext {
     CxxContextType(cgn::CGNTargetOpt *opt)
@@ -148,12 +189,9 @@ using CxxStaticContext  = CxxContextType<'a'>;
 using CxxSharedContext  = CxxContextType<'s'>;
 using CxxExecutableContext = CxxContextType<'x'>;
 
-
-
 struct CxxToolchainInfo
 {
     std::string exe_cc, exe_cxx, exe_asm, exe_solink, exe_xlink, exe_ar;
-
     // is_compiler_controlled_link: 
     //   true: $(exe_cc == exe_solink) -fuse-ld=lld -fuse-ld=gold
     bool is_compiler_controlled_link;
@@ -176,114 +214,13 @@ struct CxxToolchainInfo
     // The first part is usually compiler options and needs no escaping  
     // (e.g., `--sysroot=`). Only the latter part generally requires it  
     // (e.g., `$ORIGIN` → `\$ORIGIN`).  
-    // CxxInfo arg;
+    CxxInfo arg;
 
-    // In stage1, all variable valid
-    // In stage2, merge all variable into only *_src.cflags and *_out.ldflags.
-    // In stage3, generate ninja file
-    // TODO: rename to c_opt, cpp_opt, exe_opt, ar_opt
-    struct {
-        std::vector<std::string> include_dirs, cflags, defines;
-    }c_src, cpp_src, asm_src;
-    struct {
-        std::vector<std::string> ldflags, compiler_driven_ldflags;
-    }exe_out, so_out;
+    std::vector<std::string> extra_cflags_cpp, extra_cflags_c, extra_cflags_asm;
+    std::vector<std::string> extra_ldflags_x, extra_ldflags_so;
+};
 
-    std::vector<std::string> ar_out_ldflags;
-}; //struct CxxToolchainInfo
-
-class CxxWorker {
-public:
-    // win10==0x0A00; win7==0x0601;
-    // win8.1/Server2012R2==0x0603;
-    static constexpr const char* DEFAULT_MINIMUM_WINVER = "0x0A00";
-
-    virtual std::string step1_test_param(cgn::Configuration &cfg, const std::string &via);
-
-    // TODO: cannot visit CxxContext from inherit class.
-    virtual std::string step2_confirm(CxxContext &x);
-
-    virtual void step3_gen_ninja();
-
-    template<typename T, 
-        typename = typename std::enable_if<std::is_base_of<CxxWorker, T>::value>::type> 
-    static std::shared_ptr<void> bind_custom_worker(const std::string &name) {
-        std::string label = api.get_debug_runtime()->label + ":" + name;
-        gen_worker[label] = []() ->std::unique_ptr<CxxWorker> { return std::unique_ptr<T>(new T); };
-        return std::shared_ptr<void>(nullptr, [label](void*){
-            gen_worker.erase(label);
-        });
-    }
-
-protected: friend class CxxInterpreter;
-    // step1 output (for step2 input)
-    CxxToolchainInfo s1out;
-
-    // dep_pack.run  (-> exe)
-    // dep_pack.obj  (-> static_lib) pack whole
-    // dep_pack.a    (-> shared)     pack whole
-    // dep_use.a     (-> shared)     pack necessary
-    // dep_use.obj   (-> shared)     pach whole
-    // dep_use.so    (-> shared)     link
-    // self_extra
-    //
-    // step2 output, for step3 input
-    // self_src, self_extra
-    // - self_src    have {'a.cpp', 'b.cpp'}, don't have '*.cpp'
-    // - self_extra  have LinkAndRunInfo{.shared[], .static[], .object[]}
-    // exe_cc, exe_link, ...
-    // cflags_c, cflags_cpp, cflags_asm, ldflags_so, ldflags_exe, arflags
-    // - cflags_ANY  don't have {'/I$include_dirs', '/D$defines' ...}
-    // - ldflags_ANY don't have {'-wholearchive', '/DEF', ...}
-    // - arflags     don't have {'/DEF:', ...}
-    char target_role;
-    std::string perferred_binary_name;
-    cgn::CGNTargetMaker *mk;
-    CxxToolchainInfo s2out;
-    std::vector<std::string> self_src;
-    cgn::LinkAndRunInfo      self_extra; // considered as output of self_src
-    std::vector<std::string> *self_extra_no_whole = nullptr;
-    std::vector<std::string> ninja_order_only_dep;
-    
-    // step3 output : s3out
-    // generate current target output by 
-    //   * compiler and its flags $s2out
-    //   * source code $self_src
-    //   * lib deps $self_extra
-    // foreach ninja obj target, set order_only=$ninja_order_only_dep
-    cgn::LinkAndRunInfo s3out;
-
-protected:
-    //helper function: convert list to string
-    template<typename T> static std::string 
-    list2str(const T &in, const std::string prefix="", 
-        std::function<std::string(const std::string&)> fn_escape = nullptr)
-    {
-        std::string rv;
-        for (auto &it : in)
-            rv += prefix + (fn_escape?fn_escape(it):it) + " ";
-        return rv;
-    }
-
-    std::string two_escape(const std::string &in) const {
-        return cgn::NinjaFile::escape_path(
-            cgn::CGN::shell_escape(in, mk->trimmed_cfg["host_shell"])
-        );
-    }
-    std::vector<std::string> two_escape(std::vector<std::string> in) const {
-        for (auto &it : in)
-            it = two_escape(it);
-        return in;
-    }
-
-private:
-    // storage for bind_worker()
-    static std::unordered_map<std::string, std::function<std::unique_ptr<CxxWorker>()>> gen_worker;
-
-    void default_step3_win();
-    void default_step3_xnix();
-}; //class CxxWorker
-
+// class NinjaDedup;
 struct CxxInterpreter
 {
     using context_type = CxxContext;
@@ -292,31 +229,34 @@ struct CxxInterpreter
         return {"@cgn.d//library/cxx/cxx.cgn.cc"};
     }
 
+    // TBD
     // generate the cflags and ldflags for external build system like
     // pkg-config or cmake.
     //@param type : "minimum" = "cmake", "default" = "makefile"
     LANGCXX_CGN_BUNDLE_API static CxxToolchainInfo 
-    test_param(cgn::Configuration &cfg, const std::string &type = "");
+    test_param(cgn::Configuration &cfg, const std::string &type = "minimum");
 
     LANGCXX_CGN_BUNDLE_API static void
     interpret(context_type &x);
 
 private: friend class TargetWorker;
     // static std::unique_ptr<NinjaDedup> ninja_dedup;
-}; //struct CxxInterpreter
+};
 
 template<typename TypeContext>
 struct CxxInterpreterIF : public CxxInterpreter {
     using context_type = TypeContext;
 };
-using CxxSharedInterpreter     = CxxInterpreterIF<CxxSharedContext>;
-using CxxStaticInterpreter     = CxxInterpreterIF<CxxStaticContext>;
-using CxxSourcesInterpreter    = CxxInterpreterIF<CxxSourcesContext>;
-using CxxExecutableInterpreter = CxxInterpreterIF<CxxExecutableContext>;
+
+using CxxSharedInterpreter  = cxx::CxxInterpreterIF<cxx::CxxSharedContext>;
+using CxxStaticInterpreter  = cxx::CxxInterpreterIF<cxx::CxxStaticContext>;
+using CxxSourcesInterpreter = cxx::CxxInterpreterIF<cxx::CxxSourcesContext>;
+using CxxExecutableInterpreter = cxx::CxxInterpreterIF<cxx::CxxExecutableContext>;
 
 
 // Section: prebulit cxx library
 // -----------------------------
+
 struct PrebuiltContext : protected cgn::QuickDepContext {
     const std::string &name;
     const cgn::Configuration &cfg;
@@ -352,8 +292,7 @@ struct CxxPrebuiltInterpreter {
     LANGCXX_CGN_BUNDLE_API static void interpret(context_type &x);
 };
 
-} //namespace
-
+} //namespace cxx
 
 #define cxx_executable(name, x) CGN_RULE_DEFINE( \
     cxx::CxxInterpreterIF<cxx::CxxExecutableContext>, name, x)

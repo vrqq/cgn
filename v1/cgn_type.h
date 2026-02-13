@@ -229,12 +229,12 @@ struct InfoTable
 
     bool empty() const { return _data.empty(); }
 
-    CGN_EXPORT void merge_from(const InfoTable &rhs);
+    CGN_EXPORT bool merge_from(const InfoTable &rhs);
 
-    CGN_EXPORT void merge_entry(const std::string &name, const BaseInfo *rhs);
+    CGN_EXPORT bool merge_entry(const std::string &name, const BaseInfo *rhs);
 
-    template<typename T> CGN_EXPORT void merge_entry(const T *rhs) {
-        merge_entry(typeid(T).name(), rhs);
+    template<typename T> CGN_EXPORT bool merge_entry(const T *rhs) {
+        return merge_entry(typeid(T).name(), rhs);
     }
 
     // template<bool RRef, typename = std::enable_if<Ref>::type>
@@ -267,10 +267,10 @@ struct CGNTarget : InfoTable
     std::string ninja_entry;
 
     // TBD?
-    constexpr static char NINJA_LEVEL_FULL   = 2;
-    constexpr static char NINJA_LEVEL_DYNDEP = 1;
-    constexpr static char NINJA_LEVEL_NONEED = 0;
-    char ninja_dep_level = 0; //'f'ull, 'd'yndep or 'n'o-need
+    // constexpr static char NINJA_LEVEL_FULL   = 2;
+    // constexpr static char NINJA_LEVEL_DYNDEP = 1;
+    // constexpr static char NINJA_LEVEL_NONEED = 0;
+    // char ninja_dep_level = 0; //'f'ull, 'd'yndep or 'n'o-need
 
     // OS specific path separator
     // relavent path : the files/folders relavent to WorkingRoot

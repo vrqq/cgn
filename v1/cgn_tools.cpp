@@ -886,14 +886,26 @@ bool Tools::is_directory_case_sensitive(const std::string& directory)
         return true;
 }
 
-void Tools::remove_duplicate_inplace(std::vector<std::string> &data)
+void Tools::remove_duplicate_inplace(std::vector<std::string> &data, bool front_to_end)
 {
     std::unordered_set<std::string> visited;
-    std::size_t i=0;
-    for (std::size_t j=0; j<data.size(); j++)
-        if (visited.insert(data[j]).second == true)
-            std::swap(data[i++], data[j]);
-    data.resize(i);
+    if (front_to_end) {
+        std::size_t i=0;
+        for (std::size_t j=0; j<data.size(); j++)
+            if (visited.insert(data[j]).second == true)
+                std::swap(data[i++], data[j]);
+        data.resize(i);
+    }
+    else {
+        std::vector<bool> flag_keep(data.size(), true);
+        for (std::size_t i = data.size()-1; i>=0; i--)
+            flag_keep[i] = (visited.insert(data[i]).second == true);
+        std::size_t i = 0;
+        for (std::size_t j=0; j<data.size(); j++)
+            if (flag_keep[j])
+                std::swap(data[i++], data[j]);
+        data.resize(i);
+    }
 }
 
 std::string Tools::get_lowercase_extension(const std::string &fpath)

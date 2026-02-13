@@ -7,29 +7,34 @@ namespace cgnv1 {
 
 // === CGNTarget implement ===
 
-void InfoTable::merge_from(const InfoTable &rhs)
+bool InfoTable::merge_from(const InfoTable &rhs)
 {
+    bool succ = 1;
     for (auto &[name, val] : rhs._data)
         if (auto fd = _data.find(name); fd != _data.end())
-            fd->second->merge_entry(val.get());
+            succ &= fd->second->merge_entry(val.get());
         else {
             auto &ref = _data[name] = val->allocate();
             if (ref->merge_entry(val.get()) == false)
-                _data.erase(name);
+                _data.erase(name), succ = 0;
         }
+    return succ;
 }
 
-void InfoTable::merge_entry(
+bool InfoTable::merge_entry(
     const std::string &name, const BaseInfo *rhs
 ) {
     if (rhs == nullptr)
-        return ;
+        return true;
     if (auto fd = _data.find(name); fd != _data.end())
-        fd->second->merge_entry(rhs);
+        return fd->second->merge_entry(rhs);
     else {
         auto &ref = _data[name] = rhs->allocate();
-        if (ref->merge_entry(rhs) == false)
+        if (ref->merge_entry(rhs) == false){
             _data.erase(name);
+            return false;
+        }
+        return true;
     }
 }
 
@@ -45,13 +50,13 @@ std::string CGNTarget::to_string(char type) const
         else {
             rv += "trimmed_cfg:\n    " + Logger::fmt_list(trimmed_cfg, "    ", 999) + "\n";
             rv += "ninja_target_entry: " + this->ninja_entry + "\n";
-            rv += "ninja_depend_level: ";
-            if (this->ninja_dep_level == NINJA_LEVEL_FULL)
-                rv += "FULL\n";
-            else if (this->ninja_dep_level == NINJA_LEVEL_DYNDEP)
-                rv += "DYNDEP\n";
-            else
-                rv += "NONEED\n";
+            // rv += "ninja_depend_level: ";
+            // if (this->ninja_dep_level == NINJA_LEVEL_FULL)
+            //     rv += "FULL\n";
+            // else if (this->ninja_dep_level == NINJA_LEVEL_DYNDEP)
+            //     rv += "DYNDEP\n";
+            // else
+            //     rv += "NONEED\n";
 
             rv += "OUTPUTS: (" + std::to_string(this->outputs.size()) + " elements)\n";
             for (auto it : this->outputs)

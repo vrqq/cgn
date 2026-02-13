@@ -111,6 +111,12 @@ inline cgn::Configuration config_guessor(std::unordered_set<std::string> &argls)
         
         if ((cfg["msvc_subsystem"] = extract(argls, {"WINDOW", "CONSOLE"})) == "")
             cfg["msvc_subsystem"] = "CONSOLE";
+
+        if ((cfg["cxx_winapi_winver"] = extract2(argls, {
+                {"WINVER_0x0A00", "0x0A00"}, {"WINVER_0x0601", "0x0601"}, // Win10, Win7
+                {"WINVER_0x0602", "0x0602"}, {"WINVER_0x0603", "0x0603"}  // Win8, Win8.1
+        })) == "")
+            cfg["cxx_winapi_winver"] = "0x0A00";
     }
     
     if (cfg["toolchain"] == "llvm") {

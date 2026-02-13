@@ -30,7 +30,7 @@
                 "--halt_on_error", "--scriptcc_debug", "-V",
                 "--target", "llvm,debug,asan",
                 // "query", "@aert//app/nodeapp:pkg_napi10"
-                "query", "@third_party//asio:asio.git"
+                "query", "@third_party//zlib"
             ]
         },
         {
