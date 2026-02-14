@@ -38,7 +38,7 @@ public:
         std::string script_gen = api.get_filepath("@cgn.d//library/cxx/vsenv_loader/msvc_quick_env.bat");
         script_gen = api.locale_path(script_gen);
 
-        std::string arg0 = api.shell_escape(script_gen);
+        std::string arg0 = api.shell_escape(script_gen, "cmd");
         if (arg0[0] == '@')
             arg0 = ".\\" + arg0;
         auto *rule = maker->ninja->append_rule();

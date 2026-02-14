@@ -1,3 +1,4 @@
+#define LANGCXX_CGN_BUNDLE_IMPL
 #include "cxx.cgn.h"
 #include "cxx_worker.hxx"
 

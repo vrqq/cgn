@@ -18,22 +18,22 @@ static CxxToolchainInfo step1_cmake_minumum(cgn::Configuration &cfg)
         rv.exe_cxx = prefix + "g++";
         rv.exe_ar  = prefix + "ar";
         rv.is_compiler_controlled_link = true;
-        rv.exe_out.compiler_driven_ldflags = rv.so_out.compiler_driven_ldflags = {"-shared"};
-        rv.c_src.cflags = rv.cpp_src.cflags = rv.asm_src.cflags = {"-fPIC","-pthread"};
+        rv.exe_arg.compiler_driven_ldflags = rv.so_arg.compiler_driven_ldflags = {"-shared"};
+        rv.c_arg.cflags = rv.cpp_arg.cflags = rv.asm_arg.cflags = {"-fPIC","-pthread"};
     }
     if (cfg["os"] == "linux" && cfg["cxx_toolchain"] == "llvm") {
         rv.exe_cc = rv.exe_asm = rv.exe_solink = rv.exe_xlink = prefix + "clang";
         rv.exe_cxx = prefix + "clang++";
         rv.exe_ar  = prefix + "ar";
         rv.is_compiler_controlled_link = true;
-        rv.c_src.cflags = rv.cpp_src.cflags = rv.asm_src.cflags = {"-fPIC", "-pthread"};
-        rv.exe_out.compiler_driven_ldflags = rv.so_out.compiler_driven_ldflags = {"-shared"};
+        rv.c_arg.cflags = rv.cpp_arg.cflags = rv.asm_arg.cflags = {"-fPIC", "-pthread"};
+        rv.exe_arg.compiler_driven_ldflags = rv.so_arg.compiler_driven_ldflags = {"-shared"};
     }
     if (cfg["os"] == "mac" && cfg["cxx_toolchain"] == "xcode") {
         rv.exe_cc = rv.exe_asm = rv.exe_solink = rv.exe_xlink = prefix + "clang";
         rv.exe_cxx = prefix + "clang++";
         rv.exe_ar  = prefix + "ar";
-        rv.exe_out.compiler_driven_ldflags = rv.so_out.compiler_driven_ldflags = {"-shared"};
+        rv.exe_arg.compiler_driven_ldflags = rv.so_arg.compiler_driven_ldflags = {"-shared"};
         rv.is_compiler_controlled_link = true;
     }
     if (cfg["cxx_toolchain"] == "msvc") {
@@ -46,7 +46,7 @@ static CxxToolchainInfo step1_cmake_minumum(cgn::Configuration &cfg)
         rv.exe_cxx = prefix + "cl.exe";
         rv.exe_ar = prefix + "lib.exe";
         rv.exe_solink = rv.exe_xlink = prefix + "link.exe";
-        rv.so_out.ldflags = {"/DLL"};
+        rv.so_arg.ldflags = {"/DLL"};
         rv.exe_asm = prefix + (cfg["host_cpu"]=="x86"? "ml.exe":"ml64.exe");
         rv.is_compiler_controlled_link = false;
     }
@@ -80,9 +80,9 @@ static std::pair<CxxToolchainInfo, std::string> step1_win_msvc(cgn::Configuratio
     interp.exe_ar     = (exe_prefix + "lib.exe");
     interp.exe_solink = (exe_prefix + "link.exe");
     interp.exe_xlink  = (exe_prefix + "link.exe");
-    interp.so_out.ldflags = {"/DLL"};
-    interp.cpp_src.cflags = {"/std:c++17"};
-    interp.c_src.cflags   = {"/std:c17"};
+    interp.so_arg.ldflags = {"/DLL"};
+    interp.cpp_arg.cflags = {"/std:c++17"};
+    interp.c_arg.cflags   = {"/std:c17"};
     interp.is_compiler_controlled_link = false;
 
     std::vector<std::string> common_defines = {
@@ -133,12 +133,12 @@ static std::pair<CxxToolchainInfo, std::string> step1_win_msvc(cgn::Configuratio
         // The /LARGEADDRESSAWARE option tells the linker that the application 
         // can handle addresses larger than 2 gigabytes.
         common_ldflags += {"/SAFESEH", "/MACHINE:X86", "/LARGEADDRESSAWARE"};
-        interp.ar_out_ldflags += {"/MACHINE:X86"};
+        interp.ar_arg_arflags += {"/MACHINE:X86"};
     }
     if (cfg["cpu"] == "x86_64"){
         common_defines += {"_AMD64_"};  
         common_ldflags += {"/MACHINE:X64"};
-        interp.ar_out_ldflags += {"/MACHINE:X64"};
+        interp.ar_arg_arflags += {"/MACHINE:X64"};
     }
 
     //["msvc_runtime"]
@@ -208,14 +208,14 @@ static std::pair<CxxToolchainInfo, std::string> step1_win_msvc(cgn::Configuratio
     if (cfg["msvc_subsystem"] == "WINDOW")
         common_ldflags += {"/SUBSYSTEM:WINDOW"};
 
-    interp.c_src.defines   += common_defines;
-    interp.cpp_src.defines += common_defines;
+    interp.c_arg.defines   += common_defines;
+    interp.cpp_arg.defines += common_defines;
 
-    interp.c_src.cflags   += common_cflags;
-    interp.cpp_src.cflags += common_cflags;
+    interp.c_arg.cflags   += common_cflags;
+    interp.cpp_arg.cflags += common_cflags;
 
-    interp.so_out.ldflags  += common_ldflags;
-    interp.exe_out.ldflags += common_ldflags;
+    interp.so_arg.ldflags  += common_ldflags;
+    interp.exe_arg.ldflags += common_ldflags;
     
     return {interp, ""};
 } //step1_win_msvc()
@@ -236,12 +236,12 @@ static std::pair<CxxToolchainInfo, std::string> step1_linux_gcc(cgn::Configurati
     interp.exe_xlink  = (prefix + "g++");
     interp.is_compiler_controlled_link = true;
     
-    interp.c_src.cflags   = {"-std=c17"};
-    interp.cpp_src.cflags = {"-std=c++17"};
+    interp.c_arg.cflags   = {"-std=c17"};
+    interp.cpp_arg.cflags = {"-std=c++17"};
     
-    interp.so_out.compiler_driven_ldflags = {"-shared"};
+    interp.so_arg.compiler_driven_ldflags = {"-shared"};
 
-    interp.exe_out.ldflags = interp.so_out.ldflags = {
+    interp.exe_arg.ldflags = interp.so_arg.ldflags = {
         "--warn-common", "-z,origin", 
         "--export-dynamic",  // force export from executable
         // "--warn-section-align", 
@@ -275,7 +275,7 @@ static std::pair<CxxToolchainInfo, std::string> step1_linux_gcc(cgn::Configurati
             "-Og", "-g", "-Wall", "-ggdb", "-O0",
             "-fno-eliminate-unused-debug-symbols", 
             "-fno-eliminate-unused-debug-types"};
-        interp.cpp_src.cflags += {"-ftemplate-backtrace-limit=0"};
+        interp.cpp_arg.cflags += {"-ftemplate-backtrace-limit=0"};
     }
     if (cfg["optimization"] == "release")
         cflags_1st += {"-O2", "-flto", "-fwhole-program"};
@@ -299,16 +299,16 @@ static std::pair<CxxToolchainInfo, std::string> step1_linux_gcc(cgn::Configurati
         ldflags_1st += {"-fsanitize=" + sanitizer};
     }
 
-    interp.c_src.defines   += defines_1st;
-    interp.cpp_src.defines += defines_1st;
-    interp.asm_src.defines += defines_1st;
+    interp.c_arg.defines   += defines_1st;
+    interp.cpp_arg.defines += defines_1st;
+    interp.asm_arg.defines += defines_1st;
 
-    interp.c_src.cflags   += cflags_1st;
-    interp.cpp_src.cflags += cflags_1st;
-    interp.asm_src.cflags += cflags_1st;
+    interp.c_arg.cflags   += cflags_1st;
+    interp.cpp_arg.cflags += cflags_1st;
+    interp.asm_arg.cflags += cflags_1st;
 
-    interp.so_out.compiler_driven_ldflags  += ldflags_1st;
-    interp.exe_out.compiler_driven_ldflags += ldflags_1st;
+    interp.so_arg.compiler_driven_ldflags  += ldflags_1st;
+    interp.exe_arg.compiler_driven_ldflags += ldflags_1st;
 
     return {interp, {}};
 } //step1_linux_gcc()
@@ -329,17 +329,17 @@ static std::pair<CxxToolchainInfo, std::string> step1_linuxllvm_and_xcode(cgn::C
     interp.exe_xlink  = (prefix + "clang++");
     interp.is_compiler_controlled_link = true;
 
-    interp.so_out.compiler_driven_ldflags = {"-shared"};
+    interp.so_arg.compiler_driven_ldflags = {"-shared"};
     if (cfg["os"] == "linux") {
         interp.exe_ar     = (prefix + "llvm-ar");
         interp.exe_solink = (prefix + "clang++");
         interp.exe_xlink  = (prefix + "clang++");
-        interp.exe_out.compiler_driven_ldflags = {"-fuse-ld=lld"};
-        interp.so_out.compiler_driven_ldflags  = {"-fuse-ld=lld", "-shared"};
+        interp.exe_arg.compiler_driven_ldflags = {"-fuse-ld=lld"};
+        interp.so_arg.compiler_driven_ldflags  = {"-fuse-ld=lld", "-shared"};
     }
 
-    interp.c_src.cflags   = {"-std=c17"};
-    interp.cpp_src.cflags = {"-std=c++17"};
+    interp.c_arg.cflags   = {"-std=c17"};
+    interp.cpp_arg.cflags = {"-std=c++17"};
 
     std::vector<std::string> cflags_1st = {
         "-fvisibility=hidden",
@@ -507,7 +507,7 @@ std::string CxxWorker::step2_confirm(CxxContext &x)
     
     // merge to $s2out
     s2out = s1out;
-    for (auto xsrc : {&s2out.c_src, &s2out.cpp_src, &s2out.asm_src}){
+    for (auto xsrc : {&s2out.c_arg, &s2out.cpp_arg, &s2out.asm_arg}){
         xsrc->cflags += x._cxx_to_self.cflags + x.cflags;
         xsrc->defines += x._cxx_to_self.defines + x.defines;
 
@@ -518,7 +518,7 @@ std::string CxxWorker::step2_confirm(CxxContext &x)
         cgn::Tools::remove_duplicate_inplace(final_inc);
         std::swap(xsrc->include_dirs, final_inc);
     }
-    for (auto xout : {&s2out.exe_out, &s2out.so_out})
+    for (auto xout : {&s2out.exe_arg, &s2out.so_arg})
         xout->ldflags += x._cxx_to_self.ldflags + x.ldflags;
 
     // generate $ninja_order_only_dep
@@ -642,19 +642,19 @@ void CxxWorker::default_step3_win()
         else mk->ninja->append_variable(*pname, value);
     };
     write_env(&njenv_cflags_c, 
-        list2str(s2out.c_src.cflags) 
-        + list2str(s2out.c_src.include_dirs, "/I")
-        + list2str(s2out.c_src.defines, "/D")
+        list2str(s2out.c_arg.cflags) 
+        + list2str(s2out.c_arg.include_dirs, "/I")
+        + list2str(s2out.c_arg.defines, "/D")
     );
     write_env(&njenv_cflags_cpp,
-        list2str(s2out.cpp_src.cflags) 
-        + list2str(s2out.cpp_src.include_dirs, "/I")
-        + list2str(s2out.cpp_src.defines, "/D")
+        list2str(s2out.cpp_arg.cflags) 
+        + list2str(s2out.cpp_arg.include_dirs, "/I")
+        + list2str(s2out.cpp_arg.defines, "/D")
     );
     write_env(&njenv_cflags_asm,
-        list2str(s2out.asm_src.cflags) 
-        + list2str(s2out.asm_src.include_dirs, "/I")
-        + list2str(s2out.asm_src.defines, "/D")
+        list2str(s2out.asm_arg.cflags) 
+        + list2str(s2out.asm_arg.include_dirs, "/I")
+        + list2str(s2out.asm_arg.defines, "/D")
     );
 
     if (mk->ninja) {
@@ -749,7 +749,7 @@ void CxxWorker::default_step3_win()
         field->implicit_inputs = njdep_env;
         field->variables["restat"] = "1";
         field->variables["libexe"] = ccenv + s2out.exe_ar;
-        field->variables["arflags"] = list2str(s2out.ar_out_ldflags);
+        field->variables["arflags"] = list2str(s2out.ar_arg_arflags);
         if (def_file.size()) {
             field->variables["arflags"] += "/DEF:" + def_file + " ";
             field->implicit_inputs += {cgn::NinjaFile::escape_path(def_file)};
@@ -780,7 +780,7 @@ void CxxWorker::default_step3_win()
 
         //prepare link.exe or cl.exe /link
         std::string ldflags; {
-            auto &xarg = (target_role=='s'?s2out.so_out:s2out.exe_out);
+            auto &xarg = (target_role=='s'?s2out.so_arg:s2out.exe_arg);
             if (s2out.is_compiler_controlled_link)
                 ldflags += list2str(xarg.compiler_driven_ldflags) + "/link ";
             ldflags += list2str(xarg.ldflags);
@@ -876,19 +876,19 @@ void CxxWorker::default_step3_xnix()
         field.order_only = ninja_order_only_dep;
         if (file_type == '+') {
             field.variables["cc"] = ccenv + two_escape(s2out.exe_cxx);
-            field.variables["cflags"] = list2str(s2out.cpp_src.cflags)
-                                      + list2str(s2out.cpp_src.include_dirs, "-I")
-                                      + list2str(s2out.cpp_src.defines, "-D");
+            field.variables["cflags"] = list2str(s2out.cpp_arg.cflags)
+                                      + list2str(s2out.cpp_arg.include_dirs, "-I")
+                                      + list2str(s2out.cpp_arg.defines, "-D");
         }else if (file_type == 'A') {
             field.variables["cc"] = ccenv + two_escape(s2out.exe_asm);
-            field.variables["cflags"] = list2str(s2out.asm_src.cflags)
-                                      + list2str(s2out.asm_src.include_dirs, "-I")
-                                      + list2str(s2out.asm_src.defines, "-D");
+            field.variables["cflags"] = list2str(s2out.asm_arg.cflags)
+                                      + list2str(s2out.asm_arg.include_dirs, "-I")
+                                      + list2str(s2out.asm_arg.defines, "-D");
         }else {
             field.variables["cc"] = ccenv + two_escape(s2out.exe_cc);
-            field.variables["cflags"] = list2str(s2out.c_src.cflags)
-                                      + list2str(s2out.c_src.include_dirs, "-I")
-                                      + list2str(s2out.c_src.defines, "-D");
+            field.variables["cflags"] = list2str(s2out.c_arg.cflags)
+                                      + list2str(s2out.c_arg.include_dirs, "-I")
+                                      + list2str(s2out.c_arg.defines, "-D");
         }
 
         if (mk->ninja)
@@ -928,7 +928,7 @@ void CxxWorker::default_step3_xnix()
                      + cgn::NinjaFile::escape_path(self_extra.object_files);
         field.outputs = {outfile_njesc};
         field.variables["exe"] = ccenv + two_escape(s2out.exe_ar);
-        field.variables["arflags"] = list2str(s2out.ar_out_ldflags);
+        field.variables["arflags"] = list2str(s2out.ar_arg_arflags);
         mk->ninja->append_build(field);
         return write_ninja_phony_entry(mk, field.outputs);
     }
@@ -956,7 +956,7 @@ void CxxWorker::default_step3_xnix()
         outfile_njesc = cgn::NinjaFile::escape_path(outfile);
 
         std::string ldflags; {
-            auto &xarg = (target_role=='s'? s2out.so_out : s2out.exe_out);
+            auto &xarg = (target_role=='s'? s2out.so_arg : s2out.exe_arg);
             if (s2out.is_compiler_controlled_link) {
                 ldflags += list2str(xarg.compiler_driven_ldflags)
                          + list2str(xarg.ldflags, "-Wl,");

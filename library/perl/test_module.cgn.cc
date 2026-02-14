@@ -53,7 +53,10 @@ if ($old eq $str) {
     close $out;
 }
 )" "\n";
-        api.write_file_content_if_changed(api.locale_path(mk->out_prefix + "modtest.pm"), pmout.str());
+
+        std::string modtest_pm_filepath = api.locale_path(mk->out_prefix + "modtest.pm");
+        api.write_file_content_if_changed(modtest_pm_filepath, pmout.str());
+        mk->ninja_file_appendix += {modtest_pm_filepath};
 
         //generate ninja entry
         mk->ninja->append_include(api.get_filepath("@cgn.d//library/utility/quick_run.ninja"));
@@ -62,7 +65,7 @@ if ($old eq $str) {
         phony->variables["exe"] = cgn::NinjaFile::escape_path(api.shell_escape(perl_target.outputs[0]));
         phony->variables["desc"] = "Perl module test:" + hint;
         phony->variables["restat"] = "1";
-        phony->inputs  = {mk->ninja->escape_path(api.locale_path(mk->out_prefix + "modtest.pm"))};
+        phony->inputs  = {mk->ninja->escape_path(modtest_pm_filepath)};
         phony->outputs = {mk->ninja->escape_path(api.locale_path(mk->ninja_entry))};
         phony->order_only = {mk->ninja->escape_path(perl_target.ninja_entry)};
     } //endif(!file_unchanged)

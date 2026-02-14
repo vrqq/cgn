@@ -23,7 +23,7 @@
 //  CPP = cxx::test_param(cfg["cxx_toolchain"])
 //  CXX = cxx::test_param(cfg["cxx_toolchain"]) 
 //  RC  = cxx::test_param(cfg["cxx_toolchain"]) Resource Compiler
-struct NMakeContext
+struct NMakeContext : protected cgn::QuickDepContext
 {
     const std::string &name;
 
@@ -84,21 +84,21 @@ struct NMakeContext
     std::vector<std::string> nmake_targets;
 
     cgn::CGNTarget add_dep(const std::string &label, const cgn::Configuration &cfg, bool keep_order = true) {
-        auto rv = opt->quick_dep(label, cfg);
+        auto rv = quick_dep(label, cfg);
         if (keep_order)
-            this->opt->quickdep_ninja_full += {rv.ninja_entry};
+            ninja_fulldeps += {rv.ninja_entry};
         return rv;
     }
 
-    void confirm_with_error(const std::string &error_msg) {
-        opt->confirm_with_error(error_msg);
+    void set_fail(const std::string &error_msg) {
+        opt->set_fail(error_msg);
     }
 
-    NMAKE_CGN_API NMakeContext(cgn::CGNTargetOptIn *opt)
-    : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
+    NMAKE_CGN_API NMakeContext(cgn::CGNTargetOpt *opt)
+    : cgn::QuickDepContext(opt), name(opt->name), cfg(opt->cfg) {}
 
 private: friend class NMakeInterpreter;
-    cgn::CGNTargetOptIn *opt;
+    std::vector<std::string> ninja_fulldeps;
 };
 
 struct NMakeInterpreter

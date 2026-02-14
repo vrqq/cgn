@@ -184,12 +184,12 @@ struct CxxToolchainInfo
     // TODO: rename to c_opt, cpp_opt, exe_opt, ar_opt
     struct {
         std::vector<std::string> include_dirs, cflags, defines;
-    }c_src, cpp_src, asm_src;
+    }c_arg, cpp_arg, asm_arg;
     struct {
         std::vector<std::string> ldflags, compiler_driven_ldflags;
-    }exe_out, so_out;
+    }exe_arg, so_arg;
 
-    std::vector<std::string> ar_out_ldflags;
+    std::vector<std::string> ar_arg_arflags;
 }; //struct CxxToolchainInfo
 
 class CxxWorker {

@@ -13,7 +13,7 @@
 
 #include <cgn>
 
-struct CustomCommand
+struct CustomCommand : cgn::QuickDepContext
 {
     const std::string &name;
     cgn::Configuration &cfg;
@@ -73,10 +73,9 @@ struct CustomCommand
     // CGN_UTILITY_API void set_analysis_result();
 
     CustomCommand(cgn::CGNTargetOpt *opt)
-    : name(opt->name), cfg(opt->cfg), opt(opt) {}
+    : cgn::QuickDepContext(opt), name(opt->name), cfg(opt->cfg) {}
 
 private: friend struct CustomInterpreter;
-    cgn::CGNTargetOpt *opt;
     std::vector<std::pair<
         std::string, std::function<std::string(cgn::CGNTargetOpt *)>
     >> script_content;

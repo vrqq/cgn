@@ -233,7 +233,7 @@ struct InfoTable
 
     CGN_EXPORT bool merge_entry(const std::string &name, const BaseInfo *rhs);
 
-    template<typename T> CGN_EXPORT bool merge_entry(const T *rhs) {
+    template<typename T> bool merge_entry(const T *rhs) {
         return merge_entry(typeid(T).name(), rhs);
     }
 
