@@ -26,6 +26,7 @@
 
 #include "configuration.h"
 #include "cgn_api.h"
+#include "cgn_tools_advcopy.h"
 
 namespace cgnv1 {
 
@@ -272,6 +273,62 @@ HostInfo Tools::get_host_info()
         std::ifstream{"/proc/" + std::to_string(getppid()) + "/comm"}>>rv.shell;
     #endif
     return rv;
+}
+
+Tools::PatchSearchResult Tools::path_search(const std::string &pattern) {
+    AdvanceCopy::SearchRecord up = AdvanceCopy::path_search(pattern);
+    PatchSearchResult rv;
+    rv.PATH_SEPARATOR = std::filesystem::path::preferred_separator;
+
+    rv.file_need_copy.reserve(up.file_need_copy.size());
+    for (auto &[first, second] : up.file_need_copy)
+        rv.file_need_copy.push_back({first.string(), second.string()});
+    
+    rv.node_need_watch.reserve(up.node_need_watch.size());
+    for (auto &it : up.node_need_watch)
+        rv.node_need_watch.push_back(it.string());
+    
+    rv.errmsg = up.errmsg;
+    return rv;
+}
+
+std::vector<std::string> Tools::file_glob(const std::string &pattern, std::string *errmsg)
+{
+    return AdvanceCopy::file_match(pattern, errmsg);
+}
+
+std::string Tools::copy_to_dir(
+    const std::vector<std::string> &src_rel, 
+    const std::vector<std::string> &src_rel_exclude, 
+    const std::string &src_base, 
+    const std::string &dst_dir,
+    const std::string depfile,
+    const std::string stampfile,
+    bool print_log
+) {
+    return AdvanceCopy::copy_to_dir(src_rel, src_rel_exclude, src_base,
+            dst_dir, depfile, stampfile, print_log);
+}
+
+std::string Tools::flatcopy_to_dir(
+    const std::vector<std::string> &src, 
+    const std::vector<std::string> &src_exclude, 
+    const std::string &dst_dir,
+    const std::string depfile,
+    const std::string stampfile,
+    bool print_log
+) {
+    return AdvanceCopy::flatcopy_to_dir(src, src_exclude, dst_dir, depfile, stampfile, print_log);
+}
+
+std::string Tools::copy_rename(
+    const std::string &src,
+    const std::string &dst,
+    const std::string &depfile,
+    const std::string &stampfile,
+    bool print_log
+) {
+    return AdvanceCopy::copy_rename(src, dst, depfile, stampfile, print_log);
 }
 
 // devnote

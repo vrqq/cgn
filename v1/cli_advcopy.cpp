@@ -5,44 +5,44 @@
 #include <vector>
 #include <unordered_map>
 #include <cstdio>
-#include "advcopy.h"
+#include "cgn_tools_advcopy.h"
 
-int show_help(char *arg0) {
+int show_help(const std::string &arg0) {
     std::cerr
         <<"Usage: \n"
-        <<arg0 <<" copy_to_dir      argfile.txt [logfile.txt]\n"
-        <<arg0 <<" flat_copy_to_dir argfile.txt [logfile.txt]\n"
-        <<arg0 <<" copy_rename      argfile.txt [logfile.txt]\n"
-        <<arg0 <<" match <pattern_string>\n"
-        <<arg0 <<" debug <pattern_string>\n"
+        <<"  "<<arg0 <<" copy_to_dir      argfile.txt [logfile.txt]\n"
+        <<"  "<<arg0 <<" flat_copy_to_dir argfile.txt [logfile.txt]\n"
+        <<"  "<<arg0 <<" copy_rename      argfile.txt [logfile.txt]\n"
+        <<"  "<<arg0 <<" match <pattern_string>\n"
+        <<"  "<<arg0 <<" debug <pattern_string>\n"
         <<"Options in argfile:\n"
-        <<"    @MF makefile_dependency_file.d\n"
-        <<"    @stamp timestamp_file.stamp\n"
-        <<"    @src   src or src_rel\n"
-        <<"    @srcex src_exclude\n"
-        <<"    @sbase src_base (copy_to_dir only)\n"
-        <<"    @dst   dst_dir (copy_to_dir) or dst_file (copy_rename)\n"
+        <<"  @MF makefile_dependency_file.d\n"
+        <<"  @stamp timestamp_file.stamp\n"
+        <<"  @src   src or src_rel\n"
+        <<"  @srcex src_exclude\n"
+        <<"  @sbase src_base (copy_to_dir only)\n"
+        <<"  @dst   dst_dir (copy_to_dir) or dst_file (copy_rename)\n"
         <<"Example argfile.txt of copy_to_dir()\n"
-        <<" @MF out1.d\n"
-        <<" @src src1\n"
-        <<" @src src2\n"
-        <<" @sbase src_base\n"
-        <<" @dst dst_dir\n"
+        <<"  @MF out1.d\n"
+        <<"  @src src1\n"
+        <<"  @src src2\n"
+        <<"  @sbase src_base\n"
+        <<"  @dst dst_dir\n"
         <<std::endl;
     return 1;
 }
 
-int main(int argc, char **argv)
+int advcopy_main(const std::vector<std::string> &argv)
 {
     // parse cli
-    if (argc != 3 && argc != 4){
-        std::cerr<<"Missing args, 2 or 3 args required, current is "<<argc-1<<std::endl;
+    if (argv.size() != 3 && argv.size() != 4){
+        std::cerr<<"Missing args, 2 or 3 args required, current is "<<argv.size()-1<<std::endl;
         return show_help(argv[0]);
     }
     std::string arg1 = argv[1];
     std::string arg2 = argv[2];
-    if (argc == 4)
-        std::freopen(argv[3], "w", stdout);
+    if (argv.size() == 4)
+        std::freopen(argv[3].c_str(), "w", stdout);
 
     // parse argfile
     std::unordered_map<std::string, std::vector<std::string>> fn_args;
@@ -148,4 +148,14 @@ int main(int argc, char **argv)
     // no function matched
     std::cerr<<"Unsupported command "<<arg1<<" "<<arg2<<std::endl;
     return show_help(argv[0]);
-} //main()
+} //advcopy_main()
+
+#ifdef STANDALONE_ADVCOPY
+int main(int argc, char *argv[])
+{
+    std::vector<std::string> args;
+    for (int i=0; i<argc; i++)
+        args.push_back(argv[i]);
+    return advcopy_main(args);
+}
+#endif

@@ -49,6 +49,11 @@ cxx_executable("cgn", x) {
     x.add_dep(":cgn_static", cxx::private_dep);
 }
 
+cxx_executable("advcopy", x) {
+    x.defines = {"STANDALONE_ADVCOPY"};
+    x.srcs = {base + "v1/cli_advcopy.cpp", base + "v1/cgn_tools_advcopy.cpp"};
+}
+
 alias("cgn_host_dbg", x) {
     x.actual_label = ":cgn";
 

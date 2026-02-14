@@ -34,59 +34,68 @@ struct NMakeContext : protected cgn::QuickDepContext
     //  * build_out_of_src : by assigning build_dir to make build-file out of source code.
     
     // The source code dir, only used when build_dir_varname empty. (see below)
-    cgn::CGNPath src_base;
+    cgn::CGNPath project_dir;
+
+    // 
+    // The arguments for generate nmake_build.bat
+    // cd ${project_dir}\${nmake_run_dir}
+    // nmake.exe /F ${makefile} ${target_install};
+    // if (return code != 0)
+    //   nmake.exe /F ${makefile} ${override_vars} ${target_clean};
+    //   nmake.exe /F ${makefile} ${override_vars} ${target_install};
+    // --------------------------------------------------------------
 
     //the path where to run nmake.exe
     // cd ${src_base}/${nmake_run_dir}
+    // (where src_base would influenced by $need_copy_src)
     std::string nmake_run_dir = ".";
 
-    // The 'makefile' file path base on nmake_run_dir
-    // nmake -f ${makefile}
+    // The 'makefile' file path base on $nmake_run_dir
+    // cd $nmake_run_dir; nmake /F $makefile
     std::string makefile;
-    
-    // the relavent file path base on 'cwd'
-    // std::string makefile = "Makefile";
-
-    // input files base on 'src_base'
-    std::vector<std::string> inputs_rpath;
-    std::vector<std::string> inputs_exclude_rpath;
-
-    // nmake output files
-    std::vector<std::string> outputs;
-
-    // A variable inside Makefile to present 'INSTALL_PREFIX'
-    // set [$install_prefix_varname] = {out_prefix}/install
-    std::string install_prefix_varname;
-
-    // A variable inside Makefile to present 'BUILD_DIR', keep empty if 
-    // out-of-source compile is not supported.
-    // <empty> : copy source code to {out_prefix}/src and run
-    // <have_value> : set [$build_dir_varname] = {out_prefix}/build
-    std::string build_dir_varname;
 
     // some vars defined to nmake.exe
     std::unordered_map<std::string, std::string> override_vars;
 
+    // A variable inside Makefile to present 'INSTALL_PREFIX'
+    // interpreter(): override_vars[$install_prefix_varname] = {out_prefix}/install
+    std::string install_prefix_varname;
+
+    // A variable inside Makefile to present 'BUILD_DIR', keep empty if 
+    // out-of-source compile is not supported.
+    // interpreter(): override_vars[$build_dir_varname] = {out_prefix}/build
+    std::string build_dir_varname;
+
+    // the nmake target which to install one by one
+    std::vector<std::string> target_installs;
+
+    // the nmake target which to clear build
+    std::string target_clean = "clean";
+
+    // nmake output files (relative path base on $install_prefix)
+    std::vector<std::string> outputs;
+
+    // Using xcopy.exe to copy source code to ${output}/src before build.
+    bool need_copy_src = false;
+    std::vector<std::string> copy_exclude;
+
+    // Extra ninja target watch file.
+    // Auto added by add_dep(keep_order == true), but user can also add by hand for non-CGNTarget dependency.
+    // $x.makefile would add by interpreter automatically.
+    std::vector<cgn::CGNPath> extra_watch_files;
+
     // true  : set var["CC","CPP","CXX","AS"] from CxxInterpreter
     // false : keep it as original
-    // bool auto_compiler_rel = true;
+    // bool autovar_compiler = true;
 
     // true  : set var["CFLAGS","CXXFLAGS","CPPFLAGS"] from CxxInterpreter
     // false : do not inherit any flags, keep them as original
-    bool auto_cflags_rel = false;
-
-    // the nmake target which to install
-    std::string install_target_name = "install";
-
-    // the nmake target which to clear build
-    std::string clean_target_name   = "clean";
-
-    std::vector<std::string> nmake_targets;
+    bool autovar_cflags = false;
 
     cgn::CGNTarget add_dep(const std::string &label, const cgn::Configuration &cfg, bool keep_order = true) {
         auto rv = quick_dep(label, cfg);
         if (keep_order)
-            ninja_fulldeps += {rv.ninja_entry};
+            extra_watch_files += {rv.ninja_entry};
         return rv;
     }
 
@@ -97,17 +106,15 @@ struct NMakeContext : protected cgn::QuickDepContext
     NMAKE_CGN_API NMakeContext(cgn::CGNTargetOpt *opt)
     : cgn::QuickDepContext(opt), name(opt->name), cfg(opt->cfg) {}
 
-private: friend class NMakeInterpreter;
-    std::vector<std::string> ninja_fulldeps;
+    friend class NMakeInterpreter;
 };
 
 struct NMakeInterpreter
 {
     using context_type = NMakeContext;
     
-    constexpr static cgn::ConstLabelGroup<3> preload_labels() {
+    constexpr static cgn::ConstLabelGroup<2> preload_labels() {
         return {"@cgn.d//library/cxx/cxx.cgn.cc",
-                "@cgn.d//library/utility/copy.cgn.cc",
                 "@cgn.d//library/external/nmake.cgn.cc"};
     }
     NMAKE_CGN_API static void interpret(context_type &x);

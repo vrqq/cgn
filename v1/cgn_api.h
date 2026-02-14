@@ -20,7 +20,6 @@
 
 namespace cgnv1 {
 
-
 struct CGN_EXPORT Tools {
     static uint32_t host_to_u32be(uint32_t in);
     static uint32_t u32be_to_host(uint32_t in);
@@ -33,21 +32,53 @@ struct CGN_EXPORT Tools {
 
     static HostInfo get_host_info();
 
-    // TODO: merge advcopy to CGN
-    // struct FileMatchResult
-    // {
-    //     std::vector<std::pair<std::string, std::string>> file_matched;
-    //     std::string errmsg;
-    // };
-    // static FileMatchResult match_file(const std::string &pattern, bool skip_invalid_symlink);
+    // TBD: Do we need to expose these advcopy tool?
+    struct PatchSearchResult {
+        std::string PATH_SEPARATOR;
 
-    // static std::system_error copy_one_file();
+        // only regular_file, symlink_file or empty_dir
+        // pair<path matched pattern, the relative path of matched path (empty allowed)>
+        // the full path need to copy: {pair.first / pair.second}
+        std::vector<std::pair<std::string, std::string>> file_need_copy;
 
-    // static std::system_error copy_files();
+        // regular_file, symlink_file or directory
+        // node add to depfile
+        std::vector<std::string> node_need_watch;
 
-    // static std::system_error flat_copy_files();
+        std::string errmsg;
+    };
 
-    static std::vector<std::string> file_glob(const std::string &dir, const std::string &base = ".");
+    // @return result
+    static PatchSearchResult path_search(const std::string &pattern);
+
+    static std::vector<std::string> file_glob(const std::string &dir, std::string *errmsg = nullptr);
+    
+    static std::string copy_to_dir(
+        const std::vector<std::string> &src_rel, 
+        const std::vector<std::string> &src_rel_exclude, 
+        const std::string &src_base, 
+        const std::string &dst_dir,
+        const std::string depfile,
+        const std::string stampfile,
+        bool print_log = false
+    );
+
+    static std::string flatcopy_to_dir(
+        const std::vector<std::string> &src, 
+        const std::vector<std::string> &src_exclude, 
+        const std::string &dst_dir,
+        const std::string depfile,
+        const std::string stampfile,
+        bool print_log = false
+    );
+
+    static std::string copy_rename(
+        const std::string &src,
+        const std::string &dst,
+        const std::string &depfile,
+        const std::string &stampfile,
+        bool print_log = false
+    );
 
     // converts p to be relative to a different base directory.
     // The path returned is converted into weakly_canonical format,
@@ -279,6 +310,8 @@ public:
         auto loader = [this, factory, extra_scripts](CGNTargetOpt *opt) {
             // load prerequisite
             for (const char *label : Interpreter::preload_labels() + extra_scripts) {
+                if (label == nullptr)
+                    throw std::runtime_error{"Wrong preload_labels()"};
                 std::pair<cgnv1::GraphNode *, std::string> dll = active_script(label);
                 if (dll.second.size())
                     return opt->set_fail(dll.second);
@@ -324,6 +357,8 @@ public:
     const std::unordered_map<std::string, std::string> &get_kvargs() const;
 
     const TLRuntime *get_debug_runtime() const;
+
+    std::string get_cgn_binary_mirror_path() const;
 
     ~CGN();
 

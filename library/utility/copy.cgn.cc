@@ -14,7 +14,7 @@ std::string CopyWorker::preconfig(cgn::CGNTargetOpt *opt, const std::string &arg
     // copy rule configuration
     // advcopy.exe varies by host_os and host_cpu.
     cgn::QuickDepContext qdep{opt};
-    cgn::CGNTarget advcopy = qdep.quick_dep_namedcfg("@cgn.d//advcopy", "host_release", false);
+    cgn::CGNTarget advcopy = qdep.quick_dep_namedcfg("@cgn.d//:advcopy", "host_release", false);
     // opt->cfg.visit_keys({"host_os", "host_cpu"});
     if (advcopy.errmsg.size() || advcopy.outputs.empty())
         return "Cannot load advcopy: " + advcopy.errmsg;

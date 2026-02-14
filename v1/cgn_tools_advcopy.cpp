@@ -3,7 +3,7 @@
 #include <unordered_set>
 #include <filesystem>
 #include <cassert>
-#include "advcopy.h"
+#include "cgn_tools_advcopy.h"
 
 namespace cgnv1 {
 
@@ -256,6 +256,8 @@ std::vector<std::string> AdvanceCopy::file_match(
     if (resp.errmsg.size()) {
         if (errmsg)
             *errmsg = resp.errmsg;
+        else
+            throw std::runtime_error{"Path search failed: "  + resp.errmsg};
         return {};
     }
     std::vector<std::string> rv;

@@ -37,6 +37,27 @@ std::string self_realpath()
         return name;
     return "";
 }
+#elif __APPLE__
+#include <mach-o/dyld.h>
+std::string self_realpath()
+{
+    char path[4096];
+    uint32_t size = sizeof(path);
+    if (_NSGetExecutablePath(path, &size) != 0) {
+        throw std::runtime_error("Buffer too small for executable path");
+    }
+    return std::filesystem::canonical(path);
+}
+#else
+#include <unistd.h>
+std::string self_realpath()
+{
+    char path[4096];
+    ssize_t count = readlink("/proc/self/exe", path, sizeof(path) - 1);
+    if (count == -1) throw std::runtime_error("Cannot get executable path");
+    path[count] = '\0';
+    return std::filesystem::path(path);
+}
 #endif
 
 // for only debug purpersal in dev
@@ -137,7 +158,7 @@ CGNImpl::active_script(const std::string &label, bool parallel_build_mode)
     auto [labe2, _expand_err] = _expand_cell(label);
     if (_expand_err.size()) {
         if (halt_on_error)
-            throw std::runtime_error{_expand_err};
+            throw std::runtime_error{"ActiveScript:" + _expand_err};
         return {nullptr, _expand_err};
     }
     if (std::string_view{labe2.data(), 3} == "../")
@@ -558,7 +579,7 @@ CGNImpl::_create_target_impl(
     std::string override_anode_name;
     auto make_ret = [&](const std::string &errmsg) {
         if (halt_on_error && errmsg.size())
-            throw std::runtime_error{errmsg};
+            throw std::runtime_error{"CreateTarget(" + suggest_label + "): " + errmsg};
         
         CGNTarget rv;
         if (now_rt.target_now)
@@ -971,6 +992,19 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
 
     std::ofstream stamp_file(cgn_out / ".cgn_out_root.stamp");
     stamp_file.close();
+
+    // copy cgn.exe to $analysis_path if changed, then build.ninja can use internal tools.
+    std::filesystem::path cgn_exe_now{self_realpath()};
+    cgn_exe_shadow = analysis_path / cgn_exe_now.filename();
+    if (!std::filesystem::exists(cgn_exe_shadow) || 
+        std::filesystem::last_write_time(cgn_exe_shadow) < std::filesystem::last_write_time(cgn_exe_now)
+    ) {
+        std::filesystem::copy_file(cgn_exe_now, cgn_exe_shadow, 
+            std::filesystem::copy_options::overwrite_existing);
+        logger.println(cgn_exe_shadow.string() + " updated.");
+    }else
+        logger.verbose_paragraph(cgn_exe_shadow.string() + " no need to update, mtime="
+            + std::to_string(std::filesystem::last_write_time(cgn_exe_shadow).time_since_epoch().count()));
 
     // run vcvars64.bat if necessary
     #ifdef _WIN32

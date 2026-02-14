@@ -18,6 +18,7 @@ int show_helper(const char *arg0) {
              <<"     build   <target_label>\n"
              <<"     run     <target_label>\n"
              <<"     query   <target_label> <config name>\n"
+             <<"     advcopy ...\n"
              <<"     preload\n"
              <<"     clean\n"
              <<"  Options:\n"
@@ -81,6 +82,9 @@ int cgn_preload_all()
     std::cout<<"All thread done, "<<error_count.load()<<" errors occured. "<<std::endl;
     return error_count.load();
 }
+
+//defined in cli_advcopy.cpp
+extern int advcopy_main(const std::vector<std::string> &argv);
 
 // extern int dev_helper();
 
@@ -168,6 +172,12 @@ try{do{
         else
             return show_helper(argv[0]);
     }
+
+    // cgn::CGNTools (static functions)
+    // --------------------------------
+    // [CMD] cgn advcopy xxxxxx
+    if (args[0] == "advcopy")
+        return advcopy_main(args);
 
     // cgn::CGN API call
     // -----------------

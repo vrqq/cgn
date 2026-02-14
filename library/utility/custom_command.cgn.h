@@ -30,7 +30,7 @@ struct CustomCommand : cgn::QuickDepContext
 
     // add_dep() usually called before opt_confirm()
     cgn::CGNTarget 
-    add_dep(const std::string &label, const cgn::Configuration &cfg) {
+    add_dep(const std::string &label, const cgn::Configuration &cfg, ) {
         return opt->quick_dep(label, cfg);
     }
     cgn::CGNTarget 

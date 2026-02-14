@@ -108,7 +108,6 @@ public:
     //     std::function<void(CGNTargetOpt*)> loader
     // );
 
-
     CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs);
 
     ~CGNImpl();
@@ -123,6 +122,8 @@ public:
     static void tls_pop(TLRuntime *if_thisone) { if (tls_runtime == if_thisone) tls_runtime = tls_runtime->call_from; }
 
     Logger logger;
+
+    std::filesystem::path cgn_exe_shadow;
 
 private:
     // CGN *host_api;

@@ -132,6 +132,11 @@ const TLRuntime *CGN::get_debug_runtime() const
     return pimpl->tls_runtime;
 }
 
+std::string CGN::get_cgn_binary_mirror_path() const
+{
+    return pimpl->cgn_exe_shadow.string();
+}
+
 CGN::~CGN()
 {
     release();

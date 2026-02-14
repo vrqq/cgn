@@ -30,7 +30,8 @@
                 "--halt_on_error", "--scriptcc_debug", "-V",
                 "--target", "llvm,debug,asan",
                 // "query", "@aert//app/nodeapp:pkg_napi10"
-                "query", "@third_party//zlib"
+                // "query", "@third_party//zlib"
+                "query", "@third_party//perl:perl_win"
             ]
         },
         {

@@ -6,9 +6,10 @@ CGN_LIBRARY_GIT_API void GitFetcher::interpret(context_type &x)
     if (x.using_depot_tool.size())
         return x.opt->set_fail("'using_depot_tool' current unavailable.");
 
+    bool is_win_host = (x.opt->cfg["host_os"] == "win");
     std::string shell_type = x.opt->cfg["host_shell"];
-    auto two_escape = [shell_type](const std::string &in) {
-        return cgn::NinjaFile::escape_path(cgn::CGN::shell_escape(in, shell_type));
+    auto two_escape = [shell_type, is_win_host](const std::string &in) {
+        return cgn::NinjaFile::escape_path(cgn::CGN::shell_escape(in, is_win_host?"cmd":shell_type));
     };
     x.opt->cfg.visit_keys({"host_os"});
 
@@ -39,9 +40,15 @@ CGN_LIBRARY_GIT_API void GitFetcher::interpret(context_type &x)
             return ;
         auto *field = mk->ninja->append_build();
         field->rule = "phony";
-        // field->implicit_inputs = {cgn::NinjaFile::escape_path(dest_dir)};
-        // field->outputs = {cgn::NinjaFile::escape_path(mk->ninja_entry)};
         field->outputs = {cgn::NinjaFile::escape_path(mk->ninja_entry = dest_dir)};
+        
+        field = mk->ninja->append_build();
+        field->rule = "phony";
+        field->outputs = {cgn::NinjaFile::escape_path(dest_dir + "/.git")};
+
+        field = mk->ninja->append_build();
+        field->rule = "phony";
+        field->outputs = {cgn::NinjaFile::escape_path(dest_dir + "/.git/HEAD")};
     });
 
     if (mk->ninja == nullptr)

@@ -473,7 +473,7 @@ std::string CxxWorker::step2_confirm(CxxContext &x)
             self_src += {api.rebase_path(p, ".", x.opt)};
         else {
             std::string path2 = api.rebase_path(p, ".", x.opt);
-            for (const auto &it : api.file_glob(path2, "."))
+            for (const auto &it : api.file_glob(path2))
                 self_src += {it};
         }
     }
