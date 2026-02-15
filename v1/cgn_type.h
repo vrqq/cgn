@@ -458,7 +458,6 @@ struct QuickDepContext
 
     QuickDepContext(CGNTargetOpt *current_opt) : opt(current_opt) {}
 
-protected:
     CGNTargetOpt *opt;
 };
 

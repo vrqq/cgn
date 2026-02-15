@@ -92,7 +92,7 @@ CGNTarget QuickDepContext::quick_dep(const std::string &label, const Configurati
 
 CGNTarget QuickDepContext::quick_dep_namedcfg(const std::string &label, const std::string &cfgname, bool merge_infos) {
     auto early_cfg = api.query_config(cfgname);
-    if (!early_cfg.first.empty()) {
+    if (early_cfg.first.empty()) {
         CGNTarget rv;
         rv.errmsg = "empty config '" + cfgname + "'";
         rv.anode  = early_cfg.second;

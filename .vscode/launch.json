@@ -27,11 +27,13 @@
             "program": "${workspaceFolder}/build_linuxd/cgn",
             "cwd": "${workspaceRoot}/..",
             "args": [
-                "--halt_on_error", "--scriptcc_debug", "-V",
+                "--halt_on_error", "-V", "--scriptcc_debug",
                 "--target", "llvm,debug,asan",
                 // "query", "@aert//app/nodeapp:pkg_napi10"
                 // "query", "@third_party//zlib"
-                "query", "@third_party//perl:perl_win"
+                // "query", "@third_party//perl:perl_win",
+                // "query", "@cgn.d//library/perl:host_exe",
+                "query", "@third_party//openssl:openssl3_build",
             ]
         },
         {

@@ -60,6 +60,7 @@ CGN_LIBRARY_GENERAL_API void AliasInterpreter::interpret(context_type &x)
     cgn::CGNTargetMaker *mk = x.opt->confirm();
     if (!mk)
         return ;
+    mk->merge_from(early);
     mk->outputs = early.outputs;
     
     // Generate ninja file if file changed.

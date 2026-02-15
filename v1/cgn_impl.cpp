@@ -597,11 +597,11 @@ CGNImpl::_create_target_impl(
             graph.remove_inbound_edges(rv.anode);
             for (auto it : now_rt.dep_anodes)
                 graph.add_edge(it, rv.anode);
-            now_rt.call_from->dep_anodes.insert(rv.anode);
         }
 
         if (rv.anode && now_rt.call_from)
             now_rt.call_from->dep_anodes.insert(rv.anode);
+
         tls_pop(&now_rt);
         return rv;
     };
@@ -745,8 +745,6 @@ CGNImpl::_create_target_impl(
     
     // case 2 and 4: Regenerate current Node if file changed
     if (now_rt.target_maker->file_unchanged == false) {
-        override_anode_name="";
-
         // remove all deps from current node 
         graph.remove_inbound_edges(now_rt.target_maker->anode);
 
@@ -757,6 +755,10 @@ CGNImpl::_create_target_impl(
         );
         graph.set_node_files(now_rt.target_maker->anode, 
             now_rt.target_maker->ninja_file_appendix);
+
+        // release to write down build.ninja to disk, then set_node_status_to_latest()
+        // would get the right mtime.
+        now_rt.target_maker->ninja = nullptr;
         
         // set anode dep from current
         // Script GraphNode has been added by active_script() below
@@ -781,7 +783,7 @@ CGNImpl::_create_target_impl(
         fout<<"subninja "<<NinjaFile::escape_path(ninja_file_unixsep)<<"\n";
 
     logger.verbose_paragraph("CreateTarget: subninja " + ninja_file_unixsep + " generated.");
-    return make_ret("");
+    return override_anode_name="", make_ret("");
 } //CGNImpl::_create_target_impl()
 
 std::pair<CGNTarget, int> CGNImpl::create_and_build_target(
@@ -828,6 +830,10 @@ CGNTargetMaker *CGNImpl::confirm_target_opt(CGNTargetOpt *in, const std::string 
 {
     assert(tls_runtime->active_opt == in);
 
+    // If the target has been confirmed before
+    if (tls_runtime->target_maker)
+        return tls_runtime->target_maker.get();
+
     // Set failed before config lock
     //  No adep to rt.call_from
     //  No ninja*, anode*, ...
@@ -866,6 +872,9 @@ CGNTargetMaker *CGNImpl::confirm_target_opt(CGNTargetOpt *in, const std::string 
     }
 
     // case 3 below: target cache not exist or removed, (re)generate ninja file.
+    // If the anode->files is empty, we cannot set _m_file_unchanged to true, 
+    // because the newly inited Graphnode don't include any files[], it should 
+    // include a build.ninja at least.
     GraphNode *anode = graph.get_node("T" + cache_name);
     maker->_m_file_unchanged = false;
     if (anode->files.size()) {

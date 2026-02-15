@@ -201,6 +201,7 @@ void CxxPrebuiltInterpreter::interpret(context_type &x)
             dotlib.push_back({stem, fullp});
         else
             lrinfo->runtime_files[cgn::make_path_base_out(stem + "." + ext)] = fullp;
+        mk->outputs += {fullp};
     }
     for (auto item : dotlib)
         if (dllstem.count(item.first) != 0)

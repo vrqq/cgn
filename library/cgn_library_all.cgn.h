@@ -10,9 +10,11 @@
 
 #include "@cgn.d/library/utility/copy.cgn.h"
 // #include "@cgn.d/library/utility/custom_command.cgn.h"
+#include "@cgn.d/library/utility/shell_script.cgn.h"
 #include "@cgn.d/library/utility/general.cgn.h"
 #include "@cgn.d/library/utility/git_fetch.cgn.h"
 // #include "@cgn.d/library/utility/package.cgn.h"
+
 
 #include "@cgn.d/library/external/cmake.cgn.h"
 #include "@cgn.d/library/external/nmake.cgn.h"

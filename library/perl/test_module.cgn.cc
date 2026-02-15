@@ -10,11 +10,14 @@ void ModuleTestInterpreter::interpret(ModuleTestInterpreter::context_type &x)
     // find perl.exe
     cgn::QuickDepContext qdep{x.opt};
 
-    auto perl_target = qdep.quick_dep_namedcfg("@cgn.d//library/perl:host_exe", "host_release", true);
+    auto perl_target = qdep.quick_dep_namedcfg("@cgn.d//library/perl:host_exe", "host_release", false);
+    if (perl_target.errmsg.size())
+        return x.opt->set_fail(perl_target.errmsg);
     if (perl_target.outputs.size() == 0)
         return x.opt->set_fail("Perl exe not found");
 
     // confirm
+    x.cfg.visit_keys({"host_shell"});
     cgn::CGNTargetMaker *mk = x.opt->confirm();
     if (!mk)
         return ;
@@ -62,7 +65,8 @@ if ($old eq $str) {
         mk->ninja->append_include(api.get_filepath("@cgn.d//library/utility/quick_run.ninja"));
         auto *phony = mk->ninja->append_build();
         phony->rule = "run";
-        phony->variables["exe"] = cgn::NinjaFile::escape_path(api.shell_escape(perl_target.outputs[0]));
+        phony->variables["exe"] = cgn::NinjaFile::escape_path(
+            api.shell_escape(perl_target.outputs[0], x.cfg["host_shell"]));
         phony->variables["desc"] = "Perl module test:" + hint;
         phony->variables["restat"] = "1";
         phony->inputs  = {mk->ninja->escape_path(modtest_pm_filepath)};

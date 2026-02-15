@@ -55,7 +55,7 @@ void NMakeInterpreter::interpret(context_type &x)
 
         cgn::NinjaFile::RuleSection *xcopy = mk->ninja->append_rule();
         xcopy->name = "nmake_copy";
-        xcopy->command = "xcopy.exe /E /I /Y /h ${in} ${out} ${args}";
+        xcopy->command = "xcopy.exe /D /E /I /Y /h ${in} ${out} ${args}";
         xcopy->variables["description"] = "XCOPY ${in} -> ${out}";
 
         ninja_copy_target = mk->ninja->append_build();

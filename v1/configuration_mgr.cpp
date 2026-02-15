@@ -115,9 +115,11 @@ void ConfigurationManager::set_name(
 // const Configuration *
 std::pair<Configuration, GraphNode *>
 ConfigurationManager::get(const std::string name) const {
+    GraphNode *anode = graph->get_node(node_name(name));
+    graph->test_status(anode);
     if (auto fd = named_cfgs.find(name); fd != named_cfgs.end())
-        return {*(fd->second), graph->get_node(node_name(name))};
-    return {Configuration{}, graph->get_node(node_name(name))};
+        return {*(fd->second), anode};
+    return {Configuration{}, anode};
 }
 
 ConfigurationID ConfigurationManager::commit(Configuration &cfg)
