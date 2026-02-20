@@ -168,9 +168,10 @@ try{do{
             auto ls = api.file_glob(args[2]);
             for (auto &ss : ls)
                 std::cout<<ss<<"\n";
+            return 0;
         }
-        else
-            return show_helper(argv[0]);
+        
+        return show_helper(argv[0]);
     }
 
     // cgn::CGNTools (static functions)

@@ -261,8 +261,12 @@ std::vector<std::string> AdvanceCopy::file_match(
         return {};
     }
     std::vector<std::string> rv;
-    for (auto it : resp.file_need_copy)
-        rv.push_back((it.first / it.second).string());
+    for (auto it : resp.file_need_copy) {
+        if (it.second.empty())
+            rv.push_back(it.first.string());
+        else
+            rv.push_back((it.first / it.second).string());
+    }
     return rv;
 }
 

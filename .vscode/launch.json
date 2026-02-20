@@ -32,8 +32,8 @@
                 // "query", "@aert//app/nodeapp:pkg_napi10"
                 // "query", "@third_party//zlib"
                 // "query", "@third_party//perl:perl_win",
-                // "query", "@cgn.d//library/perl:host_exe",
-                "query", "@third_party//openssl:openssl3_build",
+                "query", "@cgn.d//library/perl:host_exe",
+                // "query", "@third_party//openssl:openssl3_build",
             ]
         },
         {
@@ -45,7 +45,8 @@
             "args": [
                 "--halt_on_error", "--scriptcc_debug", "-V",
                 "--target", "xcode,debug,asan",
-                "query", "@cgn.d//:cgn"
+                "query", "@third_party//zlib",
+                // "query", "@cgn.d//:cgn",
             ],
         },
     ]

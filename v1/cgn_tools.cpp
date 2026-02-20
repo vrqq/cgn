@@ -20,8 +20,11 @@
     #include <unistd.h>
 #endif
 
-#if defined(__linux__) || defined(__APPLE__)
+#if defined(__linux__)
     #include <sys/utsname.h>
+#elif defined(__APPLE__)
+    #include <sys/utsname.h>
+    #include <sys/sysctl.h>
 #endif
 
 #include "configuration.h"

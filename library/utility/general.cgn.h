@@ -14,7 +14,7 @@
 
 #include "../../cgn.h"
 
-struct RunExecInterperter
+struct RunExecInterpreter
 {
     struct context_type {
         const std::string &name;
@@ -26,7 +26,7 @@ struct RunExecInterperter
         context_type(cgn::CGNTargetOpt *opt)
         : name(opt->name), cfg(opt->cfg), opt(opt) {}
 
-    private: friend struct RunExecInterperter;
+    private: friend struct RunExecInterpreter;
         cgn::CGNTargetOpt *opt;
     };
 
@@ -92,7 +92,7 @@ struct GroupInterpreter
 }; //GroupInterpreter
 
 
-#define run_exec(name, x) CGN_RULE_DEFINE(RunExecInterperter, name, x)
+#define run_exec(name, x) CGN_RULE_DEFINE(RunExecInterpreter, name, x)
 #define alias(name, x)    CGN_RULE_DEFINE(AliasInterpreter, name, x)
 #define group(name, x)    CGN_RULE_DEFINE(GroupInterpreter, name, x)
 

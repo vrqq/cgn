@@ -119,7 +119,7 @@ public:
 
     thread_local static TLRuntime *tls_runtime;
     static void tls_push(TLRuntime *rt) { rt->call_from = tls_runtime; tls_runtime = rt; }
-    static void tls_pop(TLRuntime *if_thisone) { if (tls_runtime == if_thisone) tls_runtime = tls_runtime->call_from; }
+    static void tls_pop(TLRuntime *if_thisone) { assert(tls_runtime == if_thisone); tls_runtime = tls_runtime->call_from; }
 
     Logger logger;
 

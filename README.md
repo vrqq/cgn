@@ -1,5 +1,6 @@
 # What is CGN
-`cgn` 是一个Build system, 参考了chrome-gn, bazel 和 buck 的设计思路, 仅使用C++ compiler做build target管理, 不引入其他语言.
+`cgn` is a modern, object-orineted Build system, it support multiple language (TODO) and complex multi-platform builds.  
+参考了chrome-gn, bazel 和 buck 的设计思路, 仅使用C++ compiler做build target管理, 不引入其他语言, 可以理解为在 Chrome-GN 的基础上增加target返回值 以及多编程语言支持.
 
 ## evolution
 1. 早先使用Makefile, 通过环境变量控制编译参数
@@ -9,7 +10,7 @@
 
 一直在使用chrome gn, 但是仍决定自己造一套轮子, 这些工具链的缺点:
 * chrome gn 的`user_function`没有返回值, 很难优雅的多层依赖, 尤其跨config时重复编译. (例如在debug环境编译release 版本的perl.exe)
-* bazel 的predefined c++ rule 命名混乱, 可能是历史遗留问题, 遇到打包需求很难扩展, 并且其面向过程的声明式定义 用完gn再看它真的不是一个好的设计.
+* bazel 的predefined c++ rule 命名混乱, 可能是历史遗留问题, 遇到打包需求很难扩展, 并且其面向过程(procedure oriented) 的声明式定义, 可以看作是cmake的python dialect, 用完gn再看它真的不是一个好的设计.
 
 所以自制了当前工具 称之为 `CPP Generate Ninja`.
 对于小型工程, 尤其很少外部依赖的, 首选推荐GN. (https://github.com/vrqq/gn_catalina)
@@ -29,6 +30,40 @@
 
 4. create a folder like `@myproject` as your own cell, see `@cgndemo` folder for all examples.
     NOW `@cgndemo` folder is under construction
+
+**Project Structure**
+```
+your_monorepo/
+├── @cgn.d/                   # CGN framework (git submodule)
+│   ├── library/              # Built-in interpreters
+│   │   ├── cxx/              # C++ compiler integration
+│   │   ├── external/         # CMake, NMake support
+│   │   └── utility/          # Custom commands, etc.
+│   ├── cgn.h                 # Main header file
+│   └── v1/                   # Core implementation
+├── @third_party/             # External dependencies (git submodule)
+├── @myproject/               # Your project cell
+│   └── src/
+│       ├── BUILD.cgn.cc      # A build definition
+│       └── main.cc           # Source code
+├── debug.sh                  # Debug build script
+├── release.sh                # Release build script
+├── cgn-out/                  # Build output directory
+│   ├── obj/                  # Object files & intermediate outputs
+│   ├── bin/                  # Executables
+│   └── lib/                  # Libraries
+└── .git/                     # Monorepo git repository
+```
+
+**build.cgn.cc example: C/C++ Shared Library**
+```cpp
+cxx_shared("myshared", x) {
+    x.srcs = {"src/impl.cc"};
+    x.pub.include_dirs = {"include"};
+    x.add_dep("@third_party//openssl", cxx::priv_dep);
+}
+```
+
 
 # Appendix
 **Proxy guide for Linux (for V2RayA)**

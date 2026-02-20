@@ -88,7 +88,7 @@ cgn::CGNTarget CxxContext::add_dep(
     //
     // cxx_executable() and cxx_shared() for both msvc and GNU
     //  r_lnk.obj & r_lnk.a & r_lnk.so-> _self (for priv_dep)
-    //      Note: utilize by current target interpreter
+    //      Note: utilized by current target interpreter
     //  r_lnk.obj & r_lnk.a & r_lnk.so-> _self & _pub (for cxx::inherit)
     //      Note: valid for both export and link to self since visiblity(hidden)
     //  r_lnk.runtime[BASE_ON_OUTPUT] -> executable._self (for priv)

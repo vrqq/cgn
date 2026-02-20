@@ -423,11 +423,11 @@ CGNImpl::active_script(const std::string &label, bool parallel_build_mode)
             std::string dbg_flag = scriptcc_debug_mode?" -g":"";
             // in macos no -fuse-ld=lld supported in XCode
             if (Tools::get_host_info().os == "mac")
-                run_link(dbg_flag + " -fPIC --shared -Wl,-undefined,dynamic_lookup -o " + s.sofile);
+                run_link(dbg_flag + " -fPIC --shared -fvisibility=hidden -Wl,-undefined,dynamic_lookup -o " + s.sofile);
             else if (is_clang) //llvm-linker is faster then gnu linker
-                run_link(dbg_flag + " -fuse-ld=lld -fPIC --shared -o " + s.sofile);
+                run_link(dbg_flag + " -fuse-ld=lld -fPIC -fvisibility=hidden --shared -o " + s.sofile);
             else
-                run_link(dbg_flag + " -fPIC --shared -o " + s.sofile);
+                run_link(dbg_flag + " -fPIC -fvisibility=hidden --shared -o " + s.sofile);
             dfcoll.insert(script_srcs.begin(), script_srcs.end());
             node_vals.insert(node_vals.end(), dfcoll.begin(), dfcoll.end());
         }
@@ -1013,7 +1013,7 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
         logger.println(cgn_exe_shadow.string() + " updated.");
     }else
         logger.verbose_paragraph(cgn_exe_shadow.string() + " no need to update, mtime="
-            + std::to_string(std::filesystem::last_write_time(cgn_exe_shadow).time_since_epoch().count()));
+            + std::to_string((int64_t)std::filesystem::last_write_time(cgn_exe_shadow).time_since_epoch().count()));
 
     // run vcvars64.bat if necessary
     #ifdef _WIN32
@@ -1215,6 +1215,11 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
 
 CGNImpl::~CGNImpl()
 {
+    auto *ptr = tls_runtime;
+    // std::cerr<<"PTR ADDR: "<<(void*)ptr<<std::endl;
+    // std::cerr<<"PTR: "<<ptr->label<<std::endl;
+    assert(tls_runtime == nullptr);
+
     targets.clear();
     named_factories.clear();
     cfg_mgr.reset();

@@ -309,7 +309,7 @@ void Graph::db_load(const std::string &filename)
         fwrite(version, DB_VERSION_FIELD_SIZE, 1, file_);
     };
 
-    if (!fin)
+    if (!fin || fin.seekg(0, std::ios::end).tellg() < DB_VERSION_FIELD_SIZE)
         return fn_create_new();
     std::stringstream ss;
     ss<<fin.rdbuf(); //read whole file

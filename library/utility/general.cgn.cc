@@ -1,10 +1,10 @@
 #define CGN_LIBRARY_GENERAL_IMPL
 #include "general.cgn.h"
 
-// RunExecInterperter
+// RunExecInterpreter
 // ------------------
 
-CGN_LIBRARY_GENERAL_API void RunExecInterperter::interpret(context_type &x)
+CGN_LIBRARY_GENERAL_API void RunExecInterpreter::interpret(context_type &x)
 {
     std::string shell_name = x.cfg["host_shell"];
     cgn::CGNTargetMaker *mk = x.opt->confirm();
@@ -29,7 +29,7 @@ CGN_LIBRARY_GENERAL_API void RunExecInterperter::interpret(context_type &x)
         field->outputs += {mk->ninja->escape_path(fp)};
         mk->outputs += {fp};
     }
-} //RunExecInterperter::interpret
+} //RunExecInterpreter::interpret
 
 
 // Target Alias
