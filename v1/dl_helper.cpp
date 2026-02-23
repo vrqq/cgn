@@ -12,7 +12,7 @@ namespace cgnv1 {
         // std::filesystem::path p{file};
         // auto cookie = ::AddDllDirectory(p.parent_path().string().c_str());
         // if (cookie == nullptr)
-        //     throw std::runtime_error{"Cannot set DLL search path"};
+        //     throw std::runtime_error{"Failed to set DLL search directory"};
         hnd = GlobalSymbol::WinLoadLibrary(file);
     }
     DLHelper::~DLHelper() {
@@ -30,7 +30,7 @@ namespace cgnv1 {
         m_ptr = dlopen(file.c_str(), RTLD_LAZY | RTLD_GLOBAL);
         if (!m_ptr)
             throw std::runtime_error{
-                "(dlopen)Cannot load library " + file + ": " + dlerror()};
+                "dlopen failed: cannot load library " + file + ": " + dlerror()};
     }
     DLHelper::~DLHelper() {
         dlclose(m_ptr);

@@ -60,12 +60,12 @@ std::string self_realpath()
 }
 #endif
 
-// for only debug purpersal in dev
+// for debug purposes in development
 // void cgn_setup(CGNInitSetup &x) {}
 
 namespace cgnv1 {
 
-// dirty patch: popen run /bin/sh with POSIX
+// Workaround: prefer a POSIX shell when using popen
 // https://man.uex.se/3/popen
 static std::string HOST_SHELL = Tools::get_host_info().os == "win"? "cmd" : "bash";
 
@@ -138,18 +138,20 @@ std::string CGNImpl::expand_filelabel_to_filepath(const std::string &in) const
     return result;
 }
 
-// NodeName == unique_label (like @cgn.d//library/cxx/cxx.cgn.cc)
-// start: (lock)
-// case1: script loaded && stat(files[]) == Latest
-//        return ;
-// case2: script loaded && stat(files[]) == Stale
-//        unload script => goto case 3
-// case3: script not-load && stat(files[]) == Stale
-//        (unlock)-rebuild-(lock) => goto case 4
-// case4: script not-load && stat(files[]) == Latest
-//        load and return;
-// finally: (unlock)
-// TODO: (bug to be fixed) return anode even if file not found.
+// Script activation lifecycle (simplified):
+// - NodeName is a unique label (e.g. @cgn.d//library/cxx/cxx.cgn.cc).
+// - Steps (with locking implied):
+//   begin: (lock)
+//   1) Script loaded && graph files == Latest    
+//      -> return cached result.
+//   2) Script loaded && graph files == Stale     
+//      -> unload script and goto 3.
+//   3) Script not loaded && graph files == Stale 
+//      -> rebuild (with release lock) then goto 4.
+//   4) Script not loaded && graph files == Latest 
+//      -> load script and return.
+//   end: Ensure locks are released appropriately.
+// TODO: return GraphNode even if label not existed.
 std::pair<GraphNode*, std::string> 
 CGNImpl::active_script(const std::string &label, bool parallel_build_mode)
 {
@@ -244,11 +246,11 @@ CGNImpl::active_script(const std::string &label, bool parallel_build_mode)
         bool is_clang = cc_end_with("clang") || cc_end_with("clang++") 
                      || cc_end_with("clang.exe") || cc_end_with("clang++.exe");
 
-        // .rsp file is temporary and not included in adep->files[]
-        // .so / .dll is in adep->files[] when first created.
-        // Since GCC header detection can only analyse only for one sources
-        // at same time (output into .d files), so we have to compile each
-        // sources code separately and link them together.
+        // .rsp files are temporary and not included in adep->files[].
+        // .so/.dll is added to adep->files[] when first created.
+        // Since GCC header detection can only analyze one source at a time
+        // (dependency info in .d file), compile each source separately and 
+        // then link them together.
         std::filesystem::create_directories(analysis_path / fpath.parent_path());
         CLParser clpar;
         std::unordered_set<std::string> dfcoll;
@@ -266,11 +268,7 @@ CGNImpl::active_script(const std::string &label, bool parallel_build_mode)
             std::ofstream frsp(rspname); 
 
             if (is_msvc && is_win) {
-                //TODO: Since msvc cl.exe /D cannot process '#' in command line
-                //      but filename can accept it, we consider 2 solution here
-                //      1. use /FI to insert char that can't be defined in cmd
-                //      2. use TLS to storage CGN_ULABEL_PREFIX when load_library
-                //
+                // Note: MSVC's cl.exe has problems handling '#' in /D defines.
                 frsp<< "/c " << ("." / pt).string() <<" /nologo /showIncludes /Gy "
                     "/DWINVER=0x0603 /D_WIN32_WINNT=0x0603 /D_AMD64_ "
                     // " /DCGN_VAR_PREFIX=" + def_var_prefix +
@@ -292,8 +290,6 @@ CGNImpl::active_script(const std::string &label, bool parallel_build_mode)
                     frsp<<"-g ";
                 frsp<<"-c " << it << " -MMD -MF " + Tools::shell_escape(depname, HOST_SHELL) +
                         " -fPIC -fdiagnostics-color=always -std=c++11 -I. " + 
-                        // " -DCGN_VAR_PREFIX=" + Tools::shell_escape(def_var_prefix) +
-                        // " -DCGN_ULABEL_PREFIX=" + Tools::shell_escape(def_ulabel_prefix) + 
                         " -o " + Tools::shell_escape(outname, HOST_SHELL);
             }
             frsp.close();
@@ -314,7 +310,7 @@ CGNImpl::active_script(const std::string &label, bool parallel_build_mode)
             if (is_win)
                 win_trampo.add_objfile(outname);
 
-            //header dep
+            // Parse header dependencies
             std::string errmsg;
             std::string dummy_arg;
             if (is_msvc) {
@@ -337,7 +333,7 @@ CGNImpl::active_script(const std::string &label, bool parallel_build_mode)
             }
         } //end for (file in script_srcs[])
         
-        //add header dep before set_node_files
+        // Add header dependency entries before calling set_node_files
         auto run_link = [&](std::string arg) {
             std::ofstream frsp(s.sofile + ".rsp");
             frsp << linker_in << arg;
@@ -432,7 +428,7 @@ CGNImpl::active_script(const std::string &label, bool parallel_build_mode)
             node_vals.insert(node_vals.end(), dfcoll.begin(), dfcoll.end());
         }
 
-        //build successful, update graph and goto case 4
+        // Build successful: update graph and proceed to load the script (case 4)
         {
             std::string content;
             for (auto it: node_vals){
@@ -453,7 +449,7 @@ CGNImpl::active_script(const std::string &label, bool parallel_build_mode)
         graph.set_node_status_to_latest(s.anode);
     }
 
-    // for compile only mode, no anode return evenif anode is latest.
+    // For compile-only mode, return nullptr anode even if the anode is latest.
     if (parallel_build_mode)
         return {nullptr, ""};
 
@@ -524,8 +520,8 @@ std::string CGNImpl::remove_factory(
 //     return false;
 // }
 
-// cache supported (cache detection in API::confirm_target_opt())
-// Prepare variable and call
+// Cache detection are implemented in API::confirm_target_opt()
+// Prepare variables and invoke the target creation.
 // @param label: //hello:world
 CGNTarget CGNImpl::create_target(
     const std::string &factory_label_in, 
@@ -644,9 +640,9 @@ CGNImpl::_create_target_impl(
         a_opt.src_prefix = dir_in + "/";
         a_opt.cfg = a_cfg_in;
 
-        if (a_opt.name.empty()) { 
+        if (a_opt.name.empty()) {
             if (last_dir.empty()) // for label="@cell//"
-                return make_ret("CreateTarget: target factory name must be assgined.");
+                return make_ret("CreateTarget: target factory name must be assigned.");
             a_opt.name = last_dir;
             suggest_label += ":" + last_dir;
         }
@@ -660,8 +656,8 @@ CGNImpl::_create_target_impl(
         if (script_err.size())
             return make_ret(script_err);
         
-        // Find by factory_label, 
-        // Note: the adep of Interpreter::preload_labels() would be added inside fn_loader
+        // Find the factory by label.
+        // Note: Interpreter::preload_labels() GraphNode dep would be added inside fn_loader.
         if (auto fd = named_factories.find(suggest_label); fd != named_factories.end())
             fn_loader = fd->second;
         else
@@ -676,14 +672,14 @@ CGNImpl::_create_target_impl(
             _parent_dir = b_opt_in->out_parent_prefix;
         
         if (b_opt_in->name.empty() || b_opt_in->src_prefix.empty() || _parent_dir.empty())
-            return make_ret("CreateTarget: CGNTargetOpt misssing fields");
+            return make_ret("CreateTarget: CGNTargetOpt missing fields");
         
         if (!b_fn_loader)
             return make_ret("CreateTarget: argument fn_loader required.");
 
         if (Tools::is_absolute_path(_parent_dir) 
         && !Tools::is_file_inside(_parent_dir, cgn_out.string()))
-            return make_ret("CreateTarget: out_parent_prefix should inside " + cgn_out.string());
+            return make_ret("CreateTarget: out_parent_prefix should be inside " + cgn_out.string());
         
         std::filesystem::path parent_dir{_parent_dir};
         b_opt_in->out_parent_prefix_unixsep = b_opt_in->out_parent_prefix 
@@ -700,7 +696,7 @@ CGNImpl::_create_target_impl(
         override_anode_name = "U" + b_opt_in->out_parent_prefix_unixsep + b_opt_in->name + "_" + cfgid_before_trim;
     } //endif not ByNamedFactory
 
-    //Cycle dep detection
+    // Cycle dependency detection
     // Since the real "factory + cfgid" would determinate in cfg lock
     // (usually in interpreter). This string only use to check cycle
     // dependency.
@@ -711,24 +707,24 @@ CGNImpl::_create_target_impl(
         if (it->loop_detect_key == now_rt.loop_detect_key)
             return make_ret("CreateTarget: cycle-dependency");
 
-    // call target builder (user lambda fn and interpreter inside)
-    //  the API.confirm_target_opt() would be called inside fn_loader.
+    // Call the target builder (user-provided lambda and the interpreter).
+    // The API.confirm_target_opt() will be called from inside fn_loader.
     now_rt.active_opt->_api_pimpl = this;
     fn_loader(now_rt.active_opt);
 
-    // if there's no opt.confirm() or opt.set_fail() called.
+    // If neither opt.confirm() nor opt.set_fail() was called.
     if (now_rt.target_now == nullptr)
         return make_ret("CreateTarget: " + now_rt.label  + " unconfirmed.");
 
-    // Case of enter confirm_target_opt()
-    //  1. target_cache found and anode.files[] latest
-    //     -> return directly
-    //  2. target_cache found but anode.files[] stale
-    //     -> target_cache has been removed in confirm() and goto case 4
-    //  3. target_cache not exist, anode.files[] latest
-    //     -> target_maker.file_unchanged == true, assign target_cache here
-    //  4. target_cache not exist, anode.files stale
-    //     -> target_maker.file_unchanged == false, assign target_cache here
+    // Cases handled by confirm_target_opt():
+    // 1) cache exists and anode.files[] are Latest
+    //    -> return cache.
+    // 2) cache exists but anode.files[] are Stale
+    //    -> delete cache and continue to step 4.
+    // 3) cache missing and anode.files[] are Latest
+    //    -> target_maker.file_unchanged = true, assign target_cache here.
+    // 4) cache missing and anode.files[] are Stale
+    //    -> target_maker.file_unchanged = true, assign target_cache here.
 
     // case 1
     if (now_rt.target_maker == nullptr)
@@ -836,9 +832,8 @@ CGNTargetMaker *CGNImpl::confirm_target_opt(CGNTargetOpt *in, const std::string 
     if (tls_runtime->target_maker)
         return tls_runtime->target_maker.get();
 
-    // Set failed before config lock
-    //  No adep to rt.call_from
-    //  No ninja*, anode*, ...
+    // Set failure before acquiring the configuration lock.
+    // At this point there are no adeps to rt.call_from and no ninja/anode set.
     if (with_errmsg.size()) {
         tls_runtime->target_maker = std::make_unique<CGNTargetMaker>(*in);
         tls_runtime->target_maker->errmsg = with_errmsg;

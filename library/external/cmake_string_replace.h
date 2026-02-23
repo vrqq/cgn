@@ -1,14 +1,15 @@
-// Simple cmake variable string replace
+// Simple CMake variable string replacement utility.
 #pragma once
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <stdexcept>
 
-// Simple cmake variable string replace, support both ${VAR} and $<VAR> format, without eval any expression.
-// @param dict: the dict for variable replace, key should be in format of "${VAR}" or "$<VAR>".
-// @param input: the input string to be replaced, should be in format of "abc${VAR}def" or "abc$<VAR>def".
-// @return: the replaced string, if the input string is invalid or the variable is not found in dict, an exception will be thrown.
+// Simple CMake variable string replacement. Supports both ${VAR} and $<VAR> forms.
+// Does not evaluate expressions.
+// @param dict: mapping from token (including delimiters) to replacement, e.g. "${VAR}" -> "value".
+// @param input: input string containing tokens like "abc${VAR}def" or "abc$<VAR>def".
+// @return: the replaced string. Throws std::runtime_error on malformed input or missing variables.
 static std::string cmake_string_replace(
     const std::unordered_map<std::string, std::string> &dict, 
     const std::string &input
@@ -21,7 +22,7 @@ static std::string cmake_string_replace(
     for (std::size_t i = 0; i < input.size(); ++i) {
         if (input[i] == '\\'){
             if (i + 1 >= input.size())
-                throw std::runtime_error{"invalid cmake string(end with \\):" + input};
+                throw std::runtime_error{"invalid CMake string(end with \\):" + input};
             result.push_back(input[i+1]);
             i++;
             continue;
@@ -32,15 +33,15 @@ static std::string cmake_string_replace(
             else if (input[i+1] == '<')
                 bracket_pos.push_back(i | flag_angle_branket);
             else
-                throw std::runtime_error{"invalid cmake string(invalid $expression): " + input};
+                throw std::runtime_error{"invalid CMake string(invalid $expression): " + input};
         }
         else if (input[i] == '}' || input[i] == '>') {
             if (bracket_pos.empty())
-                throw std::runtime_error{"invalid cmake string(missing left bracket): " + input};
+                throw std::runtime_error{"invalid CMake string(missing opening bracket): " + input};
             if (input[i] == '>' && (bracket_pos.back() & flag_angle_branket) == 0)
-                throw std::runtime_error{"invalid cmake string(missing <): " + input};
+                throw std::runtime_error{"invalid CMake string(expected '<' before closing '>' in): " + input};
             if (input[i] == '}' && (bracket_pos.back() & flag_angle_branket) != 0)
-                throw std::runtime_error{"invalid cmake string(missing {): " + input};
+                throw std::runtime_error{"invalid CMake string(missing {): " + input};
             
             // if that is the last bracket.
             if (bracket_pos.size() == 1) {
@@ -50,7 +51,7 @@ static std::string cmake_string_replace(
                 if (fd != dict.end())
                     result += fd->second;
                 else
-                    throw std::runtime_error{"invalid cmake string(" + strkey + "): " + input};
+                    throw std::runtime_error{"Undefined CMake variable " + strkey + " in: " + input};
             }
             bracket_pos.pop_back();
         }

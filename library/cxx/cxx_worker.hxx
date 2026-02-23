@@ -224,7 +224,7 @@ static std::pair<CxxToolchainInfo, std::string> step1_win_msvc(cgn::Configuratio
 static std::pair<CxxToolchainInfo, std::string> step1_linux_gcc(cgn::Configuration &cfg)
 {
     CxxToolchainInfo interp;
-    // For toolchain gcc, the cross compiler is present by compiler filename
+    // For GCC toolchain, cross-compiler binaries are identified by filename.
     // like /toolchain_X/arm-none-linux-gnueabi-gcc, and the kernel path 
     // (--sysroot) usually hard-coding inside compiler.
     std::string prefix = cfg["cxx_prefix"];
@@ -318,8 +318,7 @@ static std::pair<CxxToolchainInfo, std::string> step1_linuxllvm_and_xcode(cgn::C
 {
     CxxToolchainInfo interp;
 
-    // For toolchain llvm, user should assign the target os/cpu and sysroot for 
-    // cross compile.
+    // For LLVM toolchain, set target os/cpu and sysroot for cross-compilation.
     std::string prefix = cfg["cxx_prefix"];
     interp.exe_cc  = (prefix + "clang");
     interp.exe_cxx = (prefix + "clang++");

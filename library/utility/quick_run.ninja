@@ -23,3 +23,11 @@ rule unix_stamp
 rule win_stamp
     command = cmd /c "type nul > ${out}"
     description = STAMP ${out}
+
+rule win_run_and_stamp
+    command = ${exe} ${in} ${args} && cmd /c "type nul > ${out}"
+    description = ${desc}
+
+rule unix_run_and_stamp
+    command = ${exe} ${in} ${args} && touch ${out}
+    description = ${desc}
