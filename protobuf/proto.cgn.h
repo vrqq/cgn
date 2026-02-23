@@ -15,7 +15,7 @@
 #include <cgn>
 
 // when lang == Cxx, the TargetInfos made by cxx_sources() would be returned.
-struct ProtobufContext {
+struct ProtobufContext : private cgn::QuickDepContext {
     const std::string &name;
     const cgn::Configuration &cfg;
 
@@ -36,33 +36,11 @@ struct ProtobufContext {
     // to search by this list in order, and for cpp_out it ensure the 
     // 'include' keyword in .pb.h and .pb.cc files maintains the same 
     // relative path. Commonly, the list is set to ["."].
-    std::vector<std::string> include_dirs;
+    cgn::CGNPathArray include_dirs = {"."};
 
-    // If empty:
-    //  cgn-out/obj/<target_out>/lang_out
-    // If not empty:
-    //  relative-path of current folder
-    std::string lang_out;
-
-    // [depecrated: replaced by include_dirs]
-    // The prefix to add to the paths of the .proto files in this rule.
-    // When set, the .proto source files in the srcs attribute of this rule 
-    // are accessible at is the value of this attribute prepended to their 
-    // repository-relative path.
-    // The prefix in the strip_import_prefix attribute is removed before this 
-    // prefix is added.
-    // std::string import_prefix;
-
-    // [depecrated: replaced by include_dirs]
-    // The prefix to strip from the paths of the .proto files in this rule.
-    // When set, .proto source files in the srcs attribute of this rule are 
-    // accessible at their path with this prefix cut off.
-    // If it's a relative path (not starting with a slash), it's taken as a 
-    // package-relative one. If it's an absolute one, it's understood as a 
-    // repository-relative path.
-    // The prefix in the import_prefix attribute is added after this prefix 
-    // is stripped.
-    // std::string strip_import_prefix = "/";
+    // The .pb.cc and .pb.h file output dir
+    // set to opt->get_out_prefix_cfg0() if empty.
+    cgn::CGNPath lang_out;
 
     std::string protoc = "@third_party//protobuf:protoc";
 
@@ -70,12 +48,10 @@ struct ProtobufContext {
     // variable like : "@third_party//grpc:protoc-gen-grpc-cpp-plugin"
     std::string grpc_plugin_label;
     // void load_grpc_plugin(const std::string &label);
-
-    ProtobufContext(cgn::CGNTargetOptIn *opt)
-    : name(opt->factory_name), cfg(opt->cfg), opt(opt) {}
-
-private: friend struct ProtobufInterpreter;
-    cgn::CGNTargetOptIn *opt;
+    
+    friend struct ProtobufInterpreter;
+    ProtobufContext(cgn::CGNTargetOpt *opt)
+    : cgn::QuickDepContext{opt}, name(opt->name), cfg(opt->cfg){}
 };
 
 struct ProtobufInterpreter

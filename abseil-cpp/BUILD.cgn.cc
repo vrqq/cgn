@@ -1,12 +1,14 @@
 #include <cgn>
+#include "abseil-src.h"
 
+// Abseil LTS 20260107.1
 git("abseil-cpp.git", x) {
     x.repo = "https://github.com/abseil/abseil-cpp.git";
-    x.commit_id = "4447c7562e3bc702ade25105912dce503f0c4010";
+    x.commit_id = "255c84dadd029fd8ad25c5efb5933e47beaa00c7";
     x.dest_dir = "repo";
 }
 
-cmake("absl", x) {
+cmake("cmake_absl", x) {
     x.sources_dir = "repo";
     x.vars["ABSL_ENABLE_INSTALL"] = "ON";
     x.vars["ABSL_BUILD_TESTING"]  = "OFF";
@@ -207,8 +209,13 @@ cmake("absl", x) {
         };
     }
 
-} //cmake("absl")
+} //cmake("cmake_absl")
+
+// TODO: This parser is too slow to commit, we use ":cmake_absl" for current stage.
+// parse abseil-src.h to define targets.
+// #include "abseil-target_define.hxx"
 
 alias("abseil-cpp", x) {
-    x.actual_label = ":absl";
+    // x.actual_label = ":all";
+    x.actual_label = ":cmake_absl";
 }

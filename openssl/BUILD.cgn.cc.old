@@ -26,22 +26,22 @@ git("openssl.git", x) {
 perl_test_module_existed("perl_test", x) {
     x.module_names = {"FindBin", "IPC::Cmd", "File::Compare", "File::Copy", "Pod::Html"};
 }
-
-shell_script("openssl3_build", x) {
-    auto perl_target = x.quick_dep_namedcfg("@cgn.d//library/perl:host_exe", "host_release", false);
-    auto perl_modtest = x.quick_dep(":perl_test", x.cfg, false);
+custom_command("openssl3_build", x) {
+    auto perl_target = x.add_dep("@cgn.d//library/perl:host_exe", "host_release");
+    auto perl_modtest = x.add_dep(":perl_test", x.cfg);
     if (perl_target.outputs.size() == 0)
-        return x.opt->set_fail("Perl exe not found");
+        return x.opt_confirm_error("Perl exe not found");
     std::string perl_dep = perl_target.ninja_entry;
     std::string perl_exe = perl_target.outputs[0];
-    x.extra_watch_files += {cgn::make_path_base_working(perl_dep)};
+    x.watch_inputs += {cgn::make_path_base_working(perl_dep)};
+    x.watch_orderonly += {cgn::make_path_base_working(perl_modtest.ninja_entry)};
 
-    auto nasm_target = x.quick_dep_namedcfg("@third_party//nasm", "host_release", false);
+    auto nasm_target = x.add_dep("@third_party//nasm", "host_release");
     if (nasm_target.outputs.size() == 0)
-        return x.opt->set_fail("NASM exe not found");
+        return x.opt_confirm_error("NASM exe not found");
     std::string nasm_exe = nasm_target.outputs[0];
     std::string nasm_dir = api.parent_path(nasm_exe);
-    x.extra_watch_files += {cgn::make_path_base_working(nasm_exe)};
+    x.watch_inputs += {cgn::make_path_base_working(nasm_exe)};
 
     std::string cfg_arg;
 
@@ -66,7 +66,7 @@ shell_script("openssl3_build", x) {
     else if (x.cfg["os"]=="linux" && x.cfg["cpu"]=="x86_64" && linux_llvm)
         cfg_arg = "linux-x86_64-clang";
     else {
-        x.opt->set_fail("Unsupported platform.");
+        x.opt_confirm_error("Unsupported platform.");
         return ;
     }
 
@@ -82,23 +82,23 @@ shell_script("openssl3_build", x) {
     // std::string arg_zstd = zlib.get<BinDevelInfo>()->base;
 
     // opt confirm
-    cgn::CGNTargetMaker *mk = x.opt->confirm();
-    if (!mk)
+    if (x.opt_confirm_cached())
         return ;
     
     cgn::CGNPath build_dir  = cgn::make_path_base_out("build");
-    std::string install_dir = api.rebase_path(cgn::make_path_base_out("install"), "", mk);
-    std::string etc_dir     = api.rebase_path(cgn::make_path_base_out("etc"), "", mk);
-    std::string build_log   = api.rebase_path(cgn::make_path_base_out("build.log"), "", mk);
-    std::string instl_log   = api.rebase_path(cgn::make_path_base_out("install.log"), "", mk);
-    std::string config_log  = api.rebase_path(cgn::make_path_base_out("config.log"), "", mk);
-    api.mkdir(api.rebase_path(build_dir, "", mk));
+    std::string install_dir = x.rebase_path(cgn::make_path_base_out("install"), "");
+    std::string etc_dir     = x.rebase_path(cgn::make_path_base_out("etc"), "");
+
+    std::string build_log   = x.rebase_path(cgn::make_path_base_out("build.log"), "");
+    std::string instl_log   = x.rebase_path(cgn::make_path_base_out("install.log"), "");
+    std::string config_log  = x.rebase_path(cgn::make_path_base_out("config.log"), "");
+    api.mkdir(x.rebase_path(build_dir));
     api.mkdir(install_dir);
     api.mkdir(etc_dir);
 
     // compile output
     if (x.cfg["os"] == "win"){
-        x.script_outputs = {
+        x.watch_outputs = {
             cgn::make_path_base_out("install/bin/openssl.exe"),
             cgn::make_path_base_out("install/lib/libssl.lib"),
             cgn::make_path_base_out("install/bin/libssl-3-x64.dll"),
@@ -106,13 +106,13 @@ shell_script("openssl3_build", x) {
             cgn::make_path_base_out("install/bin/libcrypto-3-x64.dll"),
         };
         if (x.cfg["optimization"] == "debug")
-            x.script_outputs += {
+            x.watch_outputs += {
                 cgn::make_path_base_out("install/bin/libssl-3-x64.pdb"),
                 cgn::make_path_base_out("install/bin/libcrypto-3-x64.pdb")
             };
     }
     else 
-        x.script_outputs = {
+        x.watch_outputs = {
             cgn::make_path_base_out("install/bin/openssl"),
             cgn::make_path_base_out("install/lib64/libssl.a"),
             cgn::make_path_base_out("install/lib64/libcrypto.a")
@@ -120,32 +120,32 @@ shell_script("openssl3_build", x) {
 
     // prepare enviromnent for make / nmake
     if (x.cfg["os"] == "win")
-        x.worker.append_setenv("PATH", nasm_dir + ";%PATH%");
+        x.append_setenv("PATH", nasm_dir + ";%PATH%");
     else
-        x.worker.append_setenv("PATH", nasm_dir + ":$PATH");
-    x.worker.append_setenv("PERL", perl_exe);
+        x.append_setenv("PATH", nasm_dir + ":$PATH");
+    x.append_setenv("PERL", perl_exe);
 
     // https://github.com/openssl/openssl/blob/master/INSTALL.md#out-of-tree-builds
-    x.worker.append_pushd(build_dir, mk);
-    std::string src_cfgdir = api.rebase_path("repo/Configure", "", x.opt->src_prefix);
-    x.worker.append_escaped_cmd(
-        api.shell_escape(perl_exe, x.cfg["host_shell"]) 
-        + " " + api.shell_escape(src_cfgdir, x.cfg["host_shell"])
+    x.append_pushd(build_dir);
+    std::string src_cfgdir = x.rebase_path("repo/Configure", "");
+    x.append_escaped_cmd(
+        api.shell_escape(perl_exe) 
+        + " " + api.shell_escape(src_cfgdir)
         + " " + cfg_arg + " " + arg_build_type
-        + " --prefix=" + api.shell_escape(install_dir, x.cfg["host_shell"])
-        + " --openssldir=" + api.shell_escape(etc_dir, x.cfg["host_shell"])
-        + " > " + api.shell_escape(config_log, x.cfg["host_shell"])
+        + " --prefix=" + api.shell_escape(install_dir)
+        + " --openssldir=" + api.shell_escape(etc_dir)
+        + " > " + api.shell_escape(config_log)
     );
 
     if (x.cfg["os"] == "win") {
-        x.worker.append_escaped_cmd({"nmake > " + api.shell_escape(build_log, x.cfg["host_shell"])});
-        x.worker.append_escaped_cmd({"nmake install > " + api.shell_escape(instl_log, x.cfg["host_shell"])});
+        x.append_escaped_cmd({"nmake > " + api.shell_escape(build_log)});
+        x.append_escaped_cmd({"nmake install > " + api.shell_escape(instl_log)});
     }else{
-        x.worker.append_escaped_cmd({"make -j > " + api.shell_escape(build_log, x.cfg["host_shell"])});
-        x.worker.append_escaped_cmd("make install > " + api.shell_escape(instl_log, x.cfg["host_shell"]));
+        x.append_escaped_cmd({"make -j > " + api.shell_escape(build_log)});
+        x.append_escaped_cmd("make install > " + api.shell_escape(instl_log));
     }
 
-    x.worker.append_popd(); // for touch .stamp in interpreter
+    x.append_popd(); // for touch .stamp in interpreter
 
     // result output
     x.analysis_outputs = {
@@ -158,18 +158,18 @@ shell_script("openssl3_build", x) {
     // bin_devel->base = x.rebase_path(cgn::make_path_base_out("install"));
 }
 
-// custom_command("openssl3_exe", x) {
-//     cgn::CGNTarget buildt = x.add_dep(":openssl3_build", x.cfg);
-//     std::string inst_dir = buildt.outputs[0];
-//     if (x.cfg["os"] == "win")
-//         x.analysis_outputs = {
-//             cgn::make_path_base_working(inst_dir + "/bin/openssl.exe")
-//         };
-//     else
-//         x.analysis_outputs = {
-//             cgn::make_path_base_working(inst_dir + "/bin/openssl")
-//         };
-// }
+custom_command("openssl3_exe", x) {
+    cgn::CGNTarget buildt = x.add_dep(":openssl3_build", x.cfg);
+    std::string inst_dir = buildt.outputs[0];
+    if (x.cfg["os"] == "win")
+        x.analysis_outputs = {
+            cgn::make_path_base_working(inst_dir + "/bin/openssl.exe")
+        };
+    else
+        x.analysis_outputs = {
+            cgn::make_path_base_working(inst_dir + "/bin/openssl")
+        };
+}
 
 cxx_prebuilt("openssl3_static" , x) {
     cgn::CGNTarget buildt = x.add_dep(":openssl3_build");
@@ -215,7 +215,7 @@ cxx_prebuilt("openssl3_shared", x) {
         };
 }
 
-cxx_sources("system_prebuilt", x) {
+cxx_sources("host_prebuilt", x) {
     if (x.cfg["os"] != "win")
         x.pub.ldflags = {"-lssl", "-lcrypto"};
     else
@@ -228,10 +228,10 @@ alias("openssl", x) {
     else
         x.actual_label = ":openssl3_static";
 
-    // x.actual_label = ":system_prebuilt";
+    // x.actual_label = ":host_prebuilt";
 }
 
-alias("host_openssl3_exe", x) {
+alias("host_exe", x) {
     x.actual_label = ":openssl3_exe";
     x.load_named_config("host_release");
 }

@@ -40,7 +40,7 @@ copy_files("copy_to_output", x) {
 // There has bug in perl build script 'win32/Makefile'
 // It cannot be built in case-sensitive partition
 nmake("perl_win", x) {
-    x.src_base = "repo";
+    x.project_dir = "repo";
     x.nmake_run_dir = "win32";
     x.makefile = "Makefile";
 
@@ -54,8 +54,12 @@ nmake("perl_win", x) {
         else if (x.cfg["msvc_rutime"] == "MDd")
             x.override_vars["CFG"] = "DebugFull";
         else
-            x.confirm_with_error("Unsupported msvc_runtime " + x.cfg["msvc_runtime"].string());
+            x.set_fail("Unsupported msvc_runtime " + x.cfg["msvc_runtime"].string());
     }
+
+    x.need_copy_src = true;
+    x.copy_exclude = {".git"};
+    x.extra_watch_files = {"repo/.git/HEAD"};
 }
 
 // for windows os: using ":perl_win"

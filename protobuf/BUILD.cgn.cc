@@ -1,10 +1,10 @@
 #include <cgn>
 #include "file_list.cgn.h"
 
-// v31.1
+// v33.5
 git("protobuf.git", x) {
     x.repo = "https://github.com/protocolbuffers/protobuf.git";
-    x.commit_id = "74211c0dfc2777318ab53c2cd2c317a2ef9012de";
+    x.commit_id = "b6f9284da830b69be787732ffdaa35049d20a088";
     x.dest_dir = "repo";
 }
 
@@ -46,7 +46,8 @@ void config_target(cxx::CxxContext &x) {
                 "-Woverloaded-virtual",
                 "-Wno-sign-compare",
                 "-Wno-nonnull",
-                "-Wno-missing-field-initializers"
+                "-Wno-missing-field-initializers",
+                "-Wno-deprecated-declarations"
             };
     }
     
