@@ -429,6 +429,15 @@ static std::pair<CxxToolchainInfo, std::string> step1_linuxllvm_and_xcode(cgn::C
         ldflags_1st += {"-fsanitize=" + sanitizer};
     }
 
+
+    interp.c_arg.defines   += defines_1st;
+    interp.cpp_arg.defines += defines_1st;
+    interp.asm_arg.defines += defines_1st;
+
+    interp.c_arg.cflags   += cflags_1st;
+    interp.cpp_arg.cflags += cflags_1st;
+    interp.asm_arg.cflags += cflags_1st;
+
     return {interp, ""};
 } //step1_linuxllvm_and_xcode()
 

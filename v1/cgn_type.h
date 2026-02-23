@@ -124,6 +124,11 @@ public:
         lhs.insert(lhs.end(), rhs.begin(), rhs.end());
         return lhs;
     }
+    CGNPathArray operator+(std::initializer_list<CGNPath> rhs) {
+        CGNPathArray lhs = *this;
+        lhs.insert(lhs.end(), rhs.begin(), rhs.end());
+        return lhs;
+    }
 
     CGNPathArray &operator+=(const std::vector<std::string> &rhs) {
         for (auto &p1 : rhs)
@@ -131,9 +136,14 @@ public:
         return *this;
     }
 
-    CGNPathArray &operator+=(std::initializer_list<std::string> rhs) {
-        for (auto &p1 : rhs)
-            this->push_back(make_path_base_script(p1));
+    // CGNPathArray &operator+=(std::initializer_list<std::string> rhs) {
+    //     for (auto &p1 : rhs)
+    //         this->push_back(make_path_base_script(p1));
+    //     return *this;
+    // }
+
+    CGNPathArray &operator+=(std::initializer_list<CGNPath> rhs) {
+        this->insert(this->end(), rhs.begin(), rhs.end());
         return *this;
     }
     

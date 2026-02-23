@@ -141,7 +141,9 @@ void CxxInterpreter::interpret(context_type &x)
     errmsg = worker.step2_confirm(x);
     if (errmsg.size())
         return x.opt->set_fail(errmsg);
-    
+    if (!worker.mk)
+        return ;
+
     worker.step3_gen_ninja();
 
     worker.mk->merge_entry(&worker.s3out);

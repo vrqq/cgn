@@ -188,6 +188,9 @@ void CMakeInterpreter::interpret(context_type &x)
         return cmd;
     };
 
+    if (mk->ninja == nullptr)
+        return ;
+
     // [NINJA FILE] cmake_havedep_mode
     if (x.enforce_havedep_mode) {
         // rule to run custom command
@@ -207,7 +210,7 @@ void CMakeInterpreter::interpret(context_type &x)
         gen->variables["desc"] = "CMAKE_GEN " + src_dir;
 
         // target cmake build && install
-        std::string logfile_esc = two_escape(mk->out_prefix + ".log");
+        std::string logfile_esc = two_escape(mk->out_prefix + ".log", x.cfg["host_shell"]);
         auto *build = mk->ninja->append_build();
         build->rule    = "quick_run";
         build->inputs  = gen->outputs;

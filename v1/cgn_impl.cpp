@@ -578,8 +578,10 @@ CGNImpl::_create_target_impl(
 
     std::string override_anode_name;
     auto make_ret = [&](const std::string &errmsg) {
-        if (halt_on_error && errmsg.size())
+        if (halt_on_error && errmsg.size()) {
+            tls_pop(&now_rt);
             throw std::runtime_error{"CreateTarget(" + suggest_label + "): " + errmsg};
+        }
         
         CGNTarget rv;
         if (now_rt.target_now)

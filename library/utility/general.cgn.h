@@ -69,11 +69,19 @@ struct GroupInterpreter
         const cgn::Configuration &cfg;
 
         std::vector<cgn::CGNTarget> add_deps(
+            std::vector<std::string> labels
+        ) { return add_deps(labels, this->cfg); }
+
+        std::vector<cgn::CGNTarget> add_deps(
             std::initializer_list<std::string> labels
         ) { return add_deps(labels, this->cfg); }
 
         CGN_LIBRARY_GENERAL_API std::vector<cgn::CGNTarget> add_deps(
             std::initializer_list<std::string> labels,
+            const cgn::Configuration &cfg
+        );
+        CGN_LIBRARY_GENERAL_API std::vector<cgn::CGNTarget> add_deps(
+            std::vector<std::string> labels,
             const cgn::Configuration &cfg
         );
 

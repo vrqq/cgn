@@ -84,6 +84,15 @@ CGN_LIBRARY_GENERAL_API std::vector<cgn::CGNTarget> GroupInterpreter::GroupConte
     return rv;
 }
 
+CGN_LIBRARY_GENERAL_API std::vector<cgn::CGNTarget> GroupInterpreter::GroupContext::add_deps(
+    std::vector<std::string> labels, const cgn::Configuration &cfg
+) {
+    std::vector<cgn::CGNTarget> rv;
+    for (auto it : labels)
+        rv.push_back(quick_dep(it, cfg, true));
+    return rv;
+}
+
 CGN_LIBRARY_GENERAL_API void GroupInterpreter::interpret(context_type &x)
 {
     cgn::CGNTargetMaker *mk = x.opt->confirm();
