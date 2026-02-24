@@ -98,6 +98,7 @@ CGN_LIBRARY_GENERAL_API void GroupInterpreter::interpret(context_type &x)
     cgn::CGNTargetMaker *mk = x.opt->confirm();
     if (!mk)
         return ;
+    mk->merge_from(x.quickdep_result);
 
     if (mk->ninja) {
         auto *field = mk->ninja->append_build();

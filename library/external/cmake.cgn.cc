@@ -278,6 +278,7 @@ void CMakeConfigInterpeter::interpret(
     cgn::CGNTargetMaker *mk = x.opt->confirm();
     if (!mk)
         return ;
+    mk->merge_from(x.quickdep_result);
 
     // dir for cmake
     std::string build_dir = mk->out_prefix + "build";

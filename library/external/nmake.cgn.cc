@@ -36,6 +36,7 @@ void NMakeInterpreter::interpret(context_type &x)
     cgn::CGNTargetMaker *mk = x.opt->confirm();
     if (!mk)
         return ;
+    mk->merge_from(x.quickdep_result);
     
     // the real source code path
     std::string src_base = api.rebase_path(x.project_dir, ".", mk);

@@ -115,6 +115,10 @@ struct CxxContext : CxxInfo, protected cgn::QuickDepContext
         return add_dep(label, this->cfg, flag);
     }
 
+    void add_ninja_order_only_dep(const std::string &ninja_target_entry) {
+        quickdep_ninja_target.push_back(ninja_target_entry);
+    }
+
 protected:
     LANGCXX_CGN_BUNDLE_API CxxContext(char role, cgn::CGNTargetOpt *opt);
 
@@ -334,10 +338,10 @@ struct PrebuiltContext : protected cgn::QuickDepContext {
     PrebuiltContext(cgn::CGNTargetOpt *opt) : name(opt->name), cfg(opt->cfg), cgn::QuickDepContext(opt) {}
 
     cgn::CGNTarget add_dep(const std::string &label, const cgn::Configuration &cfg_in) {
-        return this->quick_dep(label, cfg_in);
+        return this->quick_dep(label, cfg_in, true);
     }
     cgn::CGNTarget add_dep(const std::string &label) {
-        return this->quick_dep(label, cfg);
+        return this->quick_dep(label, cfg, true);
     }
 
     friend struct CxxPrebuiltInterpreter;    

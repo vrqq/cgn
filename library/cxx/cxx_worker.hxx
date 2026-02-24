@@ -356,8 +356,9 @@ static std::pair<CxxToolchainInfo, std::string> step1_linuxllvm_and_xcode(cgn::C
 
     if (cfg["os"] == "linux") {
         if (cfg["cxx_asan"] == "")
-            ldflags_1st += {"-Wl,--warn-common"};
-        ldflags_1st += {"-Wl,--warn-backrefs", "-lrt"};
+            ldflags_lnk += {"--warn-common"};
+        ldflags_lnk += {"--warn-backrefs"};
+        ldflags_1st += {"-lrt"};
     }
     if (cfg["os"] == "mac") //for macos : using warn-commons instead of warn-common
         ldflags_1st += {"-fprofile-instr-generate", "-Wl,-warn_commons"};
@@ -437,6 +438,10 @@ static std::pair<CxxToolchainInfo, std::string> step1_linuxllvm_and_xcode(cgn::C
     interp.cpp_arg.cflags += cflags_1st;
     interp.asm_arg.cflags += cflags_1st;
 
+    interp.exe_arg.compiler_driven_ldflags += ldflags_1st;
+    interp.so_arg.compiler_driven_ldflags  += ldflags_1st;
+    interp.exe_arg.ldflags += ldflags_lnk;
+    interp.so_arg.ldflags  += ldflags_lnk;
     return {interp, ""};
 } //step1_linuxllvm_and_xcode()
 
@@ -852,6 +857,11 @@ void CxxWorker::default_step3_xnix()
         njdep_setenv = {cgn::NinjaFile::escape_path(s2out.env_loader_script)};
     }
 
+    if (s2out.is_compiler_controlled_link == false) {
+        mk->errmsg = "Only is_compiler_controlled_link==true supported.";
+        return ;
+    }
+
     if (mk->ninja) {
         static std::string rule_path = api.get_filepath(rule_ninja);
         mk->ninja->append_include(rule_path);
@@ -976,7 +986,7 @@ void CxxWorker::default_step3_xnix()
         // TODO: macos bsd-linker ldflags?
         if (mk->trimmed_cfg["os"] == "linux") {
             if (mk->trimmed_cfg["pkg_mode"] != "") {
-                ldflags += "-Wl,--enable-new-dtags " + two_escape("-Wl,-rpath=$ORIGIN");
+                ldflags += "-Wl,--enable-new-dtags " + two_escape("-Wl,-rpath=$ORIGIN") + " ";
                 s3out.runtime_files[cgn::make_path_base_out(filename)] = outfile;
             }
             else {
@@ -984,7 +994,7 @@ void CxxWorker::default_step3_xnix()
                 for (auto &so : self_extra.shared_files) {
                     auto path1    = cgn::Tools::parent_path(so);
                     auto path_rel = cgn::Tools::rebase_path(path1, mk->out_prefix);
-                    ldflags += two_escape("-Wl,--rpath=$ORIGIN/" + path_rel);
+                    ldflags += two_escape("-Wl,--rpath=$ORIGIN/" + path_rel) + " ";
                 }
             }
 

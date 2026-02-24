@@ -143,6 +143,7 @@ void CxxInterpreter::interpret(context_type &x)
         return x.opt->set_fail(errmsg);
     if (!worker.mk)
         return ;
+    worker.mk->merge_from(x.quickdep_result);
 
     worker.step3_gen_ninja();
 
@@ -170,6 +171,7 @@ void CxxPrebuiltInterpreter::interpret(context_type &x)
     cgn::CGNTargetMaker *mk = x.opt->confirm();
     if (!mk)
         return ;
+    mk->merge_from(x.quickdep_result);
 
     // result[CxxInfo]
     for (auto &it : x.pub.include_dirs)
