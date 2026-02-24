@@ -73,6 +73,14 @@ shell_script("openssl3_build", x) {
     // --debug --release
     std::string arg_build_type = (x.cfg["optimization"] == "debug"?"--debug":"--release");
 
+    // CC and CFLAGS
+    if (x.cfg["os"] == "linux") {
+        cxx::CxxToolchainInfo cxx_toolchain = cxx::CxxInterpreter::test_param(x.cfg, "minimum");
+        std::string cflags_str = api.convert_list_to_string(cxx_toolchain.c_arg.cflags);
+        x.worker.append_setenv("CC", cxx_toolchain.exe_cc);
+        x.worker.append_setenv("CFLAGS", api.shell_escape(cflags_str, x.cfg["host_shell"]));
+    }
+
     // --with-zlib-lib, --with-zlib-include. (TODO)
     // cgn::CGNTarget zlib = x.add_dep("@third_party//zlib", x.cfg);
     // std::string arg_zlib = zlib.get<BinDevelInfo>()->base;
@@ -171,6 +179,7 @@ shell_script("openssl3_build", x) {
 //         };
 // }
 
+// dlopen are required by libcrypto-lib-dso_dlfcn.o in libcrypto.a
 cxx_prebuilt("openssl3_static" , x) {
     cgn::CGNTarget buildt = x.add_dep(":openssl3_build");
     auto instdir = buildt.outputs[0];
@@ -181,11 +190,13 @@ cxx_prebuilt("openssl3_static" , x) {
         // x.opt->confirm_with_error("In windows MSVC, no static library supported, using shared library instead.");
         // return ;
     }
-    else
+    else {
         x.files = {
             cgn::make_path_base_working(instdir + "/lib64/libssl.a"),
-            cgn::make_path_base_working(instdir + "/lib64/libcrypto.a")
+            cgn::make_path_base_working(instdir + "/lib64/libcrypto.a"),
         };
+        x.system_libs = {"dl"};
+    }
 }
 
 cxx_prebuilt("openssl3_shared", x) {

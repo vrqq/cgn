@@ -37,9 +37,10 @@ void config_target(cxx::CxxContext &x) {
             x.cflags = {
                 "-Wno-sign-compare",
                 "-Wno-nonnull",
-                "-Wno-missing-field-initializers"
+                "-Wno-missing-field-initializers",
                 "-Wno-overloaded-virtual",
                 "-Wno-attributes",
+                "-Wno-deprecated-declarations",
             };
         else
             x.cflags = {
