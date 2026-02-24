@@ -419,11 +419,11 @@ CGNImpl::active_script(const std::string &label, bool parallel_build_mode)
             std::string dbg_flag = scriptcc_debug_mode?" -g":"";
             // in macos no -fuse-ld=lld supported in XCode
             if (Tools::get_host_info().os == "mac")
-                run_link(dbg_flag + " -fPIC --shared -fvisibility=hidden -Wl,-undefined,dynamic_lookup -o " + s.sofile);
+                run_link(dbg_flag + " -fPIC --shared -fvisibility=hidden -fvisibility-inlines-hidden -Wl,-undefined,dynamic_lookup -o " + s.sofile);
             else if (is_clang) //llvm-linker is faster then gnu linker
-                run_link(dbg_flag + " -fuse-ld=lld -fPIC -fvisibility=hidden --shared -o " + s.sofile);
+                run_link(dbg_flag + " -fuse-ld=lld -fPIC -fvisibility=hidden -fvisibility-inlines-hidden --shared -o " + s.sofile);
             else
-                run_link(dbg_flag + " -fPIC -fvisibility=hidden --shared -o " + s.sofile);
+                run_link(dbg_flag + " -fPIC -fvisibility=hidden -fvisibility-inlines-hidden --shared -o " + s.sofile);
             dfcoll.insert(script_srcs.begin(), script_srcs.end());
             node_vals.insert(node_vals.end(), dfcoll.begin(), dfcoll.end());
         }
@@ -1212,10 +1212,12 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
 
 CGNImpl::~CGNImpl()
 {
-    auto *ptr = tls_runtime;
+    // tls_runtime may not nullptr for throw exception case,
+    // since tls_pop() cannot run.
+    // auto *ptr = tls_runtime;
     // std::cerr<<"PTR ADDR: "<<(void*)ptr<<std::endl;
     // std::cerr<<"PTR: "<<ptr->label<<std::endl;
-    assert(tls_runtime == nullptr);
+    // assert(tls_runtime == nullptr);
 
     targets.clear();
     named_factories.clear();

@@ -19,9 +19,14 @@
 #define CGN_RULE_TITLE1(x, z) x##_##z
 #define CGN_RULE_TITLE(x, z) CGN_RULE_TITLE1(x, z)
 
+#ifdef _WIN32
+#else
+    #define CGN_HIDDEN_SYMBOL __attribute__((visibility("hidden")))
+#endif
+
 // standard target factory with interpeter class
 #define CGN_RULE_DEFINE(InterpreterD, NameD, CtxD, ...) \
 void CGN_RULE_TITLE(_tf, __LINE__)(InterpreterD::context_type& CtxD); \
 static std::shared_ptr<void> CGN_RULE_TITLE(_tfreg, __LINE__) \
     = api.bind_target_factory<InterpreterD>(NameD, &CGN_RULE_TITLE(_tf, __LINE__), ## __VA_ARGS__); \
-void CGN_RULE_TITLE(_tf, __LINE__)(InterpreterD::context_type& CtxD)
+CGN_HIDDEN_SYMBOL void CGN_RULE_TITLE(_tf, __LINE__)(InterpreterD::context_type& CtxD)

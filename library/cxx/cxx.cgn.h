@@ -335,6 +335,9 @@ struct PrebuiltContext : protected cgn::QuickDepContext {
     //linux shared/static lib: .so / .a / .o
     std::vector<cgn::CGNPath> files;
 
+    // string like : "dl", "libdl.so", "liblzo2.so.2" ...
+    std::vector<std::string> system_libs;
+
     PrebuiltContext(cgn::CGNTargetOpt *opt) : name(opt->name), cfg(opt->cfg), cgn::QuickDepContext(opt) {}
 
     cgn::CGNTarget add_dep(const std::string &label, const cgn::Configuration &cfg_in) {

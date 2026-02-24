@@ -240,7 +240,8 @@ struct CGN_EXPORT Tools {
     // remove duplicate items in list.
     static void remove_duplicate_inplace(std::vector<std::string> &data, bool front_to_end = true);
 
-    template<typename T, typename Handle> std::string convert_list_to_string(
+    template<typename T, typename Handle = std::function<std::string(const std::string &)>
+    > std::string convert_list_to_string(
         const T &ls, Handle escaper = [](const std::string &in){ return in; }
     ) {
         std::string rv;

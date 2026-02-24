@@ -168,6 +168,7 @@ CxxToolchainInfo CxxInterpreter::test_param(
 
 void CxxPrebuiltInterpreter::interpret(context_type &x)
 {
+    x.cfg.visit_keys({"cxx_toolchain"});
     cgn::CGNTargetMaker *mk = x.opt->confirm();
     if (!mk)
         return ;
@@ -176,6 +177,12 @@ void CxxPrebuiltInterpreter::interpret(context_type &x)
     // result[CxxInfo]
     for (auto &it : x.pub.include_dirs)
         it = api.convert_cgnpath_to_working_root(it, x.opt);
+    for (auto &it : x.system_libs) {
+        if (x.cfg["cxx_toolchain"] == "msvc")
+            x.pub.ldflags += {"/l" + it};
+        else
+            x.pub.ldflags += {"-l" + it};
+    }
     mk->merge_entry(&x.pub);
 
     // TargetInfos[LinkAndRunInfo]

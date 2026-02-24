@@ -20,6 +20,14 @@ static CxxToolchainInfo step1_cmake_minumum(cgn::Configuration &cfg)
         rv.is_compiler_controlled_link = true;
         rv.exe_arg.compiler_driven_ldflags = rv.so_arg.compiler_driven_ldflags = {"-shared"};
         rv.c_arg.cflags = rv.cpp_arg.cflags = rv.asm_arg.cflags = {"-fPIC","-pthread"};
+
+        if (cfg["cxx_sysroot"] != "") {
+            std::vector<std::string> common_values = {"--sysroot=" + (std::string)(cfg["cxx_sysroot"])};
+            rv.c_arg.cflags   += common_values;
+            rv.cpp_arg.cflags += common_values;
+            rv.exe_arg.compiler_driven_ldflags += common_values;
+            rv.so_arg.compiler_driven_ldflags  += common_values;
+        }
     }
     if (cfg["os"] == "linux" && cfg["cxx_toolchain"] == "llvm") {
         rv.exe_cc = rv.exe_asm = rv.exe_solink = rv.exe_xlink = prefix + "clang";
@@ -28,6 +36,16 @@ static CxxToolchainInfo step1_cmake_minumum(cgn::Configuration &cfg)
         rv.is_compiler_controlled_link = true;
         rv.c_arg.cflags = rv.cpp_arg.cflags = rv.asm_arg.cflags = {"-fPIC", "-pthread"};
         rv.exe_arg.compiler_driven_ldflags = rv.so_arg.compiler_driven_ldflags = {"-shared"};
+
+        std::vector<std::string> common_values;
+        if (cfg["cxx_gcctoolchain"] != "")
+            common_values += {"--gcc-toolchain=" + (std::string)cfg["cxx_gcctoolchain"]};
+        if (cfg["cxx_sysroot"] != "")
+            common_values += {"--sysroot=" + (std::string)(cfg["cxx_sysroot"])};
+        rv.c_arg.cflags   += common_values;
+        rv.cpp_arg.cflags += common_values;
+        rv.exe_arg.compiler_driven_ldflags += common_values;
+        rv.so_arg.compiler_driven_ldflags  += common_values;
     }
     if (cfg["os"] == "mac" && cfg["cxx_toolchain"] == "xcode") {
         rv.exe_cc = rv.exe_asm = rv.exe_solink = rv.exe_xlink = prefix + "clang";
@@ -281,8 +299,10 @@ static std::pair<CxxToolchainInfo, std::string> step1_linux_gcc(cgn::Configurati
         cflags_1st += {"-O2", "-flto", "-fwhole-program"};
     
     //["cxx_sysroot"]
-    if (cfg["cxx_sysroot"] != "")
-        cflags_1st += {"--sysroot=" + (std::string)cfg["cxx_sysroot"]};
+    if (cfg["cxx_sysroot"] != ""){
+        cflags_1st  += {"--sysroot=" + (std::string)cfg["cxx_sysroot"]};
+        ldflags_1st += {"--sysroot=" + (std::string)cfg["cxx_sysroot"]};
+    }
 
     //["cxx_asan/..."]
     std::string sanitizer;
@@ -398,9 +418,16 @@ static std::pair<CxxToolchainInfo, std::string> step1_linuxllvm_and_xcode(cgn::C
         cflags_1st += {"-stdlib=libc++"};
 
     //["cxx_sysroot"]
-    if (cfg["cxx_sysroot"] != "")
-        cflags_1st += {
-            "--sysroot=" + (std::string)(cfg["cxx_sysroot"])};
+    if (cfg["cxx_sysroot"] != ""){
+        cflags_1st  += {"--sysroot=" + (std::string)(cfg["cxx_sysroot"])};
+        ldflags_1st += {"--sysroot=" + (std::string)(cfg["cxx_sysroot"])};
+    }
+
+    //["cxx_gcctoolchain"]
+    if (cfg["cxx_gcctoolchain"] != "") {
+        cflags_1st  += {"--gcc-toolchain=" + (std::string)cfg["cxx_gcctoolchain"]};
+        ldflags_1st += {"--gcc-toolchain=" + (std::string)cfg["cxx_gcctoolchain"]};
+    }
 
     //llvm cross compile argument
     if (cfg["os"] != cfg["host_os"] || cfg["cpu"] != cfg["host_cpu"]) {

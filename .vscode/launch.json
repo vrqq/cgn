@@ -28,13 +28,14 @@
             "cwd": "${workspaceRoot}/..",
             "args": [
                 "--halt_on_error", "-V", "--scriptcc_debug",
-                "--target", "llvm,debug,asan",
+                "--target", "llvm,debug,asan,huaxin",
                 // "query", "@aert//app/nodeapp:pkg_napi10"
-                // "query", "@third_party//zlib"
+                "query", "@third_party//zlib"
                 // "query", "@third_party//perl:perl_win",
                 // "query", "@cgn.d//library/perl:host_exe",
                 // "query", "@third_party//abseil-cpp",
-                "query", "@third_party//protobuf",
+                // "query", "@third_party//protobuf",
+                // "query", "@aert//app:demo",
                 // "query", "@third_party//openssl:openssl3_build",
             ]
         },

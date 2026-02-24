@@ -1,6 +1,5 @@
 #define CGN_SETUP_IMPL
 
-#include "../cgn.h"
 #include "cgn_default_setup.cgn.h"
 
 void CGN_SETUP_IF cgn_setup(cgn::CGNInitSetup &x) {

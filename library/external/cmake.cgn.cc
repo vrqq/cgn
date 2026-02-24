@@ -46,8 +46,13 @@ CMakeContext::CMakeContext(cgn::CGNTargetOpt *opt)
     else if (cfg["msvc_runtime"] == "MTd")
         vars["CMAKE_MSVC_RUNTIME_LIBRARY"] = "MultiThreadedDebug";
     
-    if (cfg["sysroot"] != "")
-        vars["CMAKE_SYSROOT"] = cfg["sysroot"];
+    if (cfg["cxx_sysroot"] != "")
+        vars["CMAKE_SYSROOT"] = cfg["cxx_sysroot"];
+    
+    if (cfg["cxx_gcctoolchain"] != ""){
+        vars["CMAKE_C_COMPILER_EXTERNAL_TOOLCHAIN"] = cfg["cxx_gcctoolchain"];
+        vars["CMAKE_CXX_COMPILER_EXTERNAL_TOOLCHAIN"] = cfg["cxx_gcctoolchain"];
+    }
 
     std::string sans;
     auto append_san = [&](const char *cfgname, const std::string &ss) {

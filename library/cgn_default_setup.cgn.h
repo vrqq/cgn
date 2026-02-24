@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <unordered_set>
+#include "../cgn.h"
 
 #if defined(_WIN32)
     #if defined(CGN_SETUP_IMPL)
