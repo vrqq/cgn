@@ -52,8 +52,10 @@ cxx_shared("tbb", x) {
         x.defines += {"WIN32", "__TBB_SKIP_DEPENDENCY_SIGNATURE_VERIFICATION=1"};
         x.cflags += {"/external:W4", "/TP"};
     }
-    else //not win
-        x.ldflags += {"-pthread"};
+    else {//not win
+        x.defines += {"_REENTRANT"};
+        x.ldflags += {"-lpthread"};
+    }
     
     if (x.cfg["os"] == "linux") {
         x.cflags += {"-fvisibility=default"};

@@ -6,9 +6,6 @@
 #include <fstream>
 #include "@cgn.d/library/cxx/cxx.cgn.h"
 #include "proto.cgn.h"
-static std::string two_escape(const std::string &in) {
-    return cgn::NinjaFile::escape_path(cgn::CGN::shell_escape(in));
-}
 
 // BUGFIX:
 //  since the .proto filepath may starting with '@', so we have to generate
@@ -46,7 +43,9 @@ void ProtobufInterpreter::interpret(context_type &x)
     // - CxxInfo.include_dirs[] = {$pb_basedir}
     // - LinkAndRunInfo.object_files = merge_from_cxx_target
     // - outputs[] = $pb_basedir
-    x.opt->cfg.visit_keys({"host_os"});
+    x.opt->cfg.visit_keys({"host_os", "host_shell"});
+    if (x.lang == x.Cxx)  // cxx visit config
+        cxx::CxxInterpreter::test_param(x.opt->cfg, "default");
     cgn::CGNTargetMaker *mk = x.opt->confirm();
     if (!mk)
         return ;
@@ -88,7 +87,7 @@ void ProtobufInterpreter::interpret(context_type &x)
         }
 
         // The stem of .pb.cc file
-        pb_stems += {pb_basedir + mk->PATH_SEPARATOR + out_stem};
+        pb_stems += {pb_basedir + out_stem};
     }
 
     // NINJA[public-phony] phony-empty-file-placeholder for .pb.cc file shared in different configs
@@ -99,19 +98,17 @@ void ProtobufInterpreter::interpret(context_type &x)
         cgn::CGNTargetMaker *mid_mk = opt->confirm();
         if (mid_mk == nullptr || mid_mk->ninja == nullptr)
             return ;
-        for (auto stem : pb_stems) {
-            auto *field = mid_mk->ninja->append_build();
-            field->rule = "phony";
-            field->outputs = cgn::NinjaFile::escape_path({stem + ".pb.cc", stem + ".pb.h"});
-
-            field = mid_mk->ninja->append_build();
-            field->rule = "phony";
-            field->outputs = {cgn::NinjaFile::escape_path(stem + "_pb.py")};
-        }
+        for (auto stem : pb_stems)
+            for (auto suffix : {".pb.cc", ".pb.h", ".py"}) {
+                auto *field = mid_mk->ninja->append_build();
+                field->rule = "phony";
+                field->outputs = {cgn::NinjaFile::escape_path(stem + suffix)};
+            }
     });
 
     // Case CXX : .proto ($proto_files) -> .pb.cc ($pb_basedir, $pb_stems) -> .obj (subtarget)
     if (x.lang == x.Cxx) {
+        std::string protoc_gen_stampfile = mk->out_prefix + ".protoc_stamp";
         if (mk->ninja) {
             std::string proto_argfile = mk->out_prefix + ".protorsp";
             std::ofstream fout(proto_argfile);
@@ -142,7 +139,7 @@ void ProtobufInterpreter::interpret(context_type &x)
             field->implicit_inputs = mk->ninja->escape_path(proto_files);
             field->variables["args"] = "@" + proto_argfile;
             field->variables["desc"] = "PROTOC " + mk->label;
-            field->outputs = {mk->ninja->escape_path(mk->out_prefix + ".protoc_stamp")};
+            field->outputs = {mk->ninja->escape_path(protoc_gen_stampfile)};
             for (auto stem : pb_stems)
                 field->implicit_inputs += {stem + ".pb.h", stem + ".pb.cc"};
         } //endif(mk->ninja)
@@ -153,13 +150,14 @@ void ProtobufInterpreter::interpret(context_type &x)
         opt_cxx.out_parent_prefix = mk->out_prefix;
         opt_cxx.out_parent_prefix_unixsep = mk->out_prefix_unixsep;
         auto obj_target = api.create_target(&opt_cxx, 
-            [&pb_stems, &pb_basedir](cgnv1::CGNTargetOpt *opt_cxx){
+            [&pb_stems, &pb_basedir, &protoc_gen_stampfile](cgnv1::CGNTargetOpt *opt_cxx){
                 cxx::CxxSourcesContext ctx{opt_cxx};
                 ctx.pub.include_dirs = ctx.include_dirs 
                     = {cgn::make_path_base_working(pb_basedir)};
                 for (auto it : pb_stems)
                     ctx.srcs += {cgn::make_path_base_working(it + ".pb.cc")};
                 ctx.add_dep("@third_party//protobuf", cxx::inherit);
+                ctx.add_ninja_order_only_dep(protoc_gen_stampfile);
                 cxx::CxxInterpreter::interpret(ctx);
             });
         if (obj_target.errmsg.size()) {
@@ -167,6 +165,7 @@ void ProtobufInterpreter::interpret(context_type &x)
             return ;
         }
 
+        mk->ninja_entry = obj_target.ninja_entry;
         // merge cxx_obj target result into current one
         mk->merge_from(obj_target);
     } //endif (LANG == CXX)

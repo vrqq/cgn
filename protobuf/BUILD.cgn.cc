@@ -182,6 +182,8 @@ cxx_static("libprotobuf", x) {
 
     x.include_dirs = {"repo/src", "repo"};
     x.pub.include_dirs = {"repo/src"};
+    if (x.cfg["cxx_toolchain"] == "gcc" || x.cfg["cxx_toolchain"] == "llvm")
+        x.pub.cflags += {"-Wno-deprecated-declarations"};
     config_target(x);
     x.srcs = add_prefix(libprotobuf_srcs, "repo/");
     x.add_dep(":utf8_validity", cxx::inherit);

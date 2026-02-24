@@ -8,7 +8,7 @@ git("asio.git", x) {
     x.commit_id = "ed6aa8a13d51dfc6c00ae453fc9fb7df5d6ea963";
 }
 
-cxx_static("without_ssl", x) {
+cxx_sources("without_ssl", x) {
     const static std::string base = "repo/asio";
 
     x.include_dirs = x.pub.include_dirs = {base + "/include"};
@@ -18,12 +18,10 @@ cxx_static("without_ssl", x) {
     x.srcs = {base + "/src/asio.cpp"};
 }
 
-cxx_static("asio", x) {
+cxx_sources("asio", x) {
     const static std::string base = "repo/asio";
 
-    x.include_dirs = x.pub.include_dirs = {base + "/include"};
-    x.defines = x.pub.defines = {"ASIO_STANDALONE", "ASIO_SEPARATE_COMPILATION"};
-
-    x.srcs = {base + "/src/asio.cpp", base + "/src/asio_ssl.cpp"};
+    x.srcs = {base + "/src/asio_ssl.cpp"};
+    x.add_dep(":without_ssl", cxx::inherit);
     x.add_dep("@third_party//openssl", cxx::inherit);
 }

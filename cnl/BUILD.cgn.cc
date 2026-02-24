@@ -9,4 +9,5 @@ git("cnl.git", x) {
 // Header only cpp library
 cxx_prebuilt("cnl", x) {
     x.pub.include_dirs = {"repo/include"};
+    x.pub.cflags = {"-Wno-deprecated-literal-operator"};
 }
