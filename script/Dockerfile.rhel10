@@ -1,0 +1,6 @@
+FROM ubi:10.1
+
+RUN dnf install -y lldb
+
+# Default command to start a bash
+CMD ["bash"]

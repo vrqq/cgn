@@ -1,0 +1,21 @@
+FROM centos:7.9.2009
+
+# Fix CentOS 7 repositories to use vault since it reached EOL
+# Add LLVM toolset repository
+RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-* && \
+    sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-* &&\
+    echo '[llvmtoolset-build]' > /etc/yum.repos.d/scl-toolset.repo && \
+    echo 'name=LLVM Toolset 11.0 - Build' >> /etc/yum.repos.d/scl-toolset.repo && \
+    echo 'baseurl=https://buildlogs.centos.org/c7-llvm-toolset-11.0.x86_64/' >> /etc/yum.repos.d/scl-toolset.repo && \
+    echo 'gpgcheck=0' >> /etc/yum.repos.d/scl-toolset.repo && \
+    echo 'enabled=1' >> /etc/yum.repos.d/scl-toolset.repo && \
+    echo '' >> /etc/yum.repos.d/scl-toolset.repo && \
+    echo '[devtoolset-build]' >> /etc/yum.repos.d/scl-toolset.repo && \
+    echo 'name=GCC Toolset 9 - Build' >> /etc/yum.repos.d/scl-toolset.repo && \
+    echo 'baseurl=https://buildlogs.centos.org/c7-devtoolset-9.x86_64/' >> /etc/yum.repos.d/scl-toolset.repo && \
+    echo 'gpgcheck=0' >> /etc/yum.repos.d/scl-toolset.repo && \
+    echo 'enabled=1' >> /etc/yum.repos.d/scl-toolset.repo && \
+    yum update -y && yum install -y llvm-toolset-11.0-lldb llvm-toolset-11.0-clang llvm-toolset-11.0-lld llvm-toolset-11.0 && yum clean all
+
+# Default command to enable the LLVM toolset
+CMD ["scl", "enable", "llvm-toolset-11.0", "bash"]
