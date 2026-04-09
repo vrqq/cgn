@@ -7,6 +7,7 @@ const static std::string njbase = "./ninjabuild/src/";
 
 cxx_static("cgn_static", x) {
     x.pub.defines = x.defines = {"CGN_EXE_IMPLEMENT"};
+    x.pub.ldflags = {"-Wl,--export-dynamic", "-Wl,--rpath=$ORIGIN"};
     x.srcs = {
         base + "pe_loader/msvc_symbol_host.cpp",
         base + "pe_loader/msvc_trampo.cpp",
@@ -14,7 +15,7 @@ cxx_static("cgn_static", x) {
         base + "v1/cgn_api.cpp",
         base + "v1/cgn_impl.cpp",
         base + "v1/cgn_tools.cpp",
-        base + "v1/cgn_tools_fileglob.cpp",
+        base + "v1/cgn_tools_advcopy.cpp",
         base + "v1/cgn_tools_parentproc.cpp",
         base + "v1/cgn_type.cpp",
         // base + "v1/cli.cpp",
@@ -25,24 +26,20 @@ cxx_static("cgn_static", x) {
         base + "v1/ninja_file.cpp",
         base + "v1/win_exception.cpp",
 
-        njbase + "util.cc",
-        njbase + "edit_distance.cc",
-        njbase + "clparser.cc",
-        njbase + "depfile_parser.cc",
-        njbase + "metrics.cc",
-        njbase + "line_printer.cc",
-        njbase + "string_piece_util.cc",
-        njbase + "elide_middle.cc",
+        base + "v1/ninja_build_implement.cpp",
+        // njbase + "util.cc",
+        // njbase + "edit_distance.cc",
+        // njbase + "clparser.cc",
+        // njbase + "depfile_parser.cc",
+        // njbase + "metrics.cc",
+        // njbase + "line_printer.cc",
+        // njbase + "string_piece_util.cc",
+        // njbase + "elide_middle.cc",
     };
-    if (x.cfg["os"] == "win") {
-        x.srcs += {
-            njbase + "includes_normalize-win32.cc",
-        };
-    }
 }
 
 cxx_executable("cgn", x) {
-    x.srcs = {base + "v1/cli.cpp",};
+    x.srcs = {base + "v1/cli.cpp", base + "v1/cli_advcopy.cpp"};
     if (x.cfg["os"] == "mac")
         x.ldflags = {"-Wl,-undefined,dynamic_lookup"};
     

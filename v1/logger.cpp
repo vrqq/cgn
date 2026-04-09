@@ -11,6 +11,8 @@ std::string Logger::fmt_color(const std::string &ss, const char *c) const
 
 void Logger::println(const std::string &title, const std::string &body, const char *title_color)
 {
+    if (_override_disable_flag)
+        return;
     std::string fulltxt = (title.size()?fmt_color(title, title_color):"") + body;
     if (_is_verbose)
         return paragraph(fulltxt);
@@ -23,7 +25,7 @@ void Logger::println(const std::string &title, const std::string &body, const ch
 void Logger::paragraph(const std::string &text)
 {
     LinePrinter *printer = (LinePrinter*)line_printer;
-    if (text.empty())
+    if (text.empty() || _override_disable_flag)
         return ;
     printer->PrintOnNewLine(text + (text.back() != '\n'? "\n":""));
 }

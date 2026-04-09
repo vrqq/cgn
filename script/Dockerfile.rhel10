@@ -1,6 +1,6 @@
 FROM ubi:10.1
 
-RUN dnf install -y lldb
+RUN dnf install -y curl make pkgconf ninja-build lldb clang clang-libs compiler-rt lld gcc gcc-c++ gdb-gdbserver binutils python3 nodejs
 
 # Default command to start a bash
 CMD ["bash"]

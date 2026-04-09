@@ -3,7 +3,9 @@ build_win
 build_mac
 build_linuxd
 build_wind
+build_macd
 
 proof
 
+.vs
 .DS_Store

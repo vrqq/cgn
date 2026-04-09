@@ -116,6 +116,14 @@ NinjaFile::append_variable(const std::string &k, const std::string &v) {
     return ptr->key = k, ptr->value = v, ptr;
 }
 
+NinjaFile::GlobalVariable *
+NinjaFile::append_variable(const std::string &k, const std::vector<std::string> &v) {
+    auto ptr = append_section<GlobalVariable>();
+    for (auto &it : v)
+        ptr->value += (ptr->value.empty()?"":" ") + it;
+    return ptr->key = k, ptr;
+}
+
 template<typename T> T *NinjaFile::append_section() {
     return (T*)sections.emplace_back(new T).get();
 }

@@ -19,7 +19,7 @@ rule link
     deps    = gcc
     depfile = $out.d
     command = clang++ -fuse-ld=lld -Wl,--warn-unresolved-symbols $
-              -Wl,--export-dynamic -fvisibility=default $
+              -Wl,--export-dynamic -fvisibility=hidden $
               -Wl,-rpath=$$ORIGIN -MMD -MF $out.d $cflags $in -o $out
 
 include cgn_v1.ninja

@@ -22,12 +22,12 @@ int show_helper(const char *arg0) {
              <<"     preload\n"
              <<"     clean\n"
              <<"  Options:\n"
-             <<"     -C / --cgn-out + <dir_name>\n"
+             <<"     -C / --cgn-out <dir_name>\n"
              <<"     -V / --verbose\n"
              <<"     --winenv\n"
              <<"     --scriptcc_debug\n"
              <<"     --halt_on_error\n"
-             <<"     --scriptcc + xxx.exe\n"
+             <<"     --scriptcc <xxx.exe>\n"
              <<std::endl;
     return 1;
 }

@@ -22,7 +22,7 @@ public:
     //
     // Build <outputs> | <implicit_outputs> : <rule> <inputs> | <implicit_inputs> || <order-only>
     //     [variables].key = [variables].value
-    struct BuildSection final : Section {
+    struct CGN_EXPORT BuildSection final : Section {
         std::string rule;
         std::vector<std::string> 
             outputs, implicit_outputs, 
@@ -33,7 +33,7 @@ public:
         // variables["dyndep"]
         std::unordered_map<std::string, std::string> variables;
 
-        CGN_EXPORT bool operator==(const BuildSection &rhs) const;
+        bool operator==(const BuildSection &rhs) const;
         bool operator!=(const BuildSection &rhs) const { return !(*this == rhs); }
         
         virtual std::string to_string();
@@ -90,6 +90,8 @@ public:
     //Two variables are significant when declared in the outermost file scope.
     //builddir and ninja_required_version
     CGN_EXPORT GlobalVariable *append_variable(const std::string &k="", const std::string &v="");
+
+    CGN_EXPORT GlobalVariable *append_variable(const std::string &k="", const std::vector<std::string> &v={});
 
     CGN_EXPORT bool is_file_included(const std::string &file);
 

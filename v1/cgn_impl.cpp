@@ -101,34 +101,34 @@ static std::vector<std::string> expand_scripts(std::filesystem::path p)
     return rv;
 }
 
-static std::string mangle_var_prefix(const std::string &in) {
-    constexpr static std::array<bool, 256> chk = [](){
-        std::array<bool, 256> rv{};
-        for (bool &bv : rv) bv=0;
-        for (unsigned char c='0'; c<='9'; c++) rv[c]=1;
-        for (unsigned char c='a'; c<='z'; c++) rv[c]=1;
-        for (unsigned char c='A'; c<='Z'; c++) rv[c]=1;
-        return rv;
-    }();
+// static std::string mangle_var_prefix(const std::string &in) {
+//     constexpr static std::array<bool, 256> chk = [](){
+//         std::array<bool, 256> rv{};
+//         for (bool &bv : rv) bv=0;
+//         for (unsigned char c='0'; c<='9'; c++) rv[c]=1;
+//         for (unsigned char c='a'; c<='z'; c++) rv[c]=1;
+//         for (unsigned char c='A'; c<='Z'; c++) rv[c]=1;
+//         return rv;
+//     }();
 
-    constexpr static std::array<std::array<char, 3>, 256> rep = [](){
-        std::array<char, 16> hex{
-            '0', '1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
-        std::array<std::array<char, 3>, 256> rv{std::array<char, 3>{0}};
-        for (std::size_t i=0; i<256; i++)
-            rv[i] = {'_', hex[i/16], hex[i%16]};
-        return rv;
-    }();
+//     constexpr static std::array<std::array<char, 3>, 256> rep = [](){
+//         std::array<char, 16> hex{
+//             '0', '1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+//         std::array<std::array<char, 3>, 256> rv{std::array<char, 3>{0}};
+//         for (std::size_t i=0; i<256; i++)
+//             rv[i] = {'_', hex[i/16], hex[i%16]};
+//         return rv;
+//     }();
 
-    std::string out;
-    for (auto ch : in) {
-        if (chk[ch])
-            out.push_back(ch);
-        else
-            out.append(rep[ch].data(), 3);
-    }
-    return out;
-}
+//     std::string out;
+//     for (auto ch : in) {
+//         if (chk[ch])
+//             out.push_back(ch);
+//         else
+//             out.append(rep[ch].data(), 3);
+//     }
+//     return out;
+// }
 
 std::string CGNImpl::expand_filelabel_to_filepath(const std::string &in) const
 {
@@ -798,7 +798,10 @@ std::pair<CGNTarget, int> CGNImpl::create_and_build_target(
     std::string compdb = "ninja -f " + obj_main_ninja.string()
                        + " -t compdb > " + cgn_out.string() 
                        + "/obj/compile_commands.json";
-    system(compdb.c_str());
+    if (mcp_mode)
+        raymii::Command::exec(compdb.c_str());
+    else
+        system(compdb.c_str());
     logger.println(label + " analysed", "");
     graph.db_flush();
     
@@ -809,7 +812,11 @@ std::pair<CGNTarget, int> CGNImpl::create_and_build_target(
         cmd += " --verbose";
     logger.paragraph(cmd + "\n");
     
-    int exitcode = system(cmd.c_str());
+    int exitcode;
+    if (mcp_mode)
+        exitcode = raymii::Command::exec(cmd.c_str()).exitstatus;
+    else
+        exitcode = system(cmd.c_str());
     
     if (exitcode == 0 && rv.outputs.size())
         logger.println("Build success: ", rv.outputs[0] + "\n");
@@ -956,8 +963,10 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     scriptcc_debug_mode = cmd_kvargs.count("scriptcc_debug") || cmd_kvargs.count("scriptcc-debug");
     halt_on_error = cmd_kvargs.count("halt_on_error") || cmd_kvargs.count("halt_onerror") 
                  || cmd_kvargs.count("halt-on-error") || cmd_kvargs.count("halt-onerror");
+    mcp_mode = cmd_kvargs.count("mcp_mode") || cmd_kvargs.count("mcp-mode");
+    if (mcp_mode)
+        logger.disable_log();
     logger.set_verbose(cmd_kvargs.count("verbose"));
-
     logger.verbose_paragraph("CWD: " + std::filesystem::current_path().string());
 
     //init path

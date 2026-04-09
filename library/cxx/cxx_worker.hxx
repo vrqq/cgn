@@ -13,29 +13,31 @@ static CxxToolchainInfo step1_cmake_minumum(cgn::Configuration &cfg)
 {
     CxxToolchainInfo rv;
     std::string prefix = cfg["cxx_prefix"];
+    
     if (cfg["os"] == "linux" && cfg["cxx_toolchain"] == "gcc") {
         rv.exe_cc = rv.exe_asm = rv.exe_solink = rv.exe_xlink = prefix + "gcc";
         rv.exe_cxx = prefix + "g++";
         rv.exe_ar  = prefix + "ar";
-        rv.is_compiler_controlled_link = true;
-        rv.exe_arg.compiler_driven_ldflags = rv.so_arg.compiler_driven_ldflags = {"-shared"};
+        rv.exe_arg.ldflags = rv.so_arg.ldflags = {"-shared"};
         rv.c_arg.cflags = rv.cpp_arg.cflags = rv.asm_arg.cflags = {"-fPIC","-pthread"};
+        rv.exe_arg.is_compiler_controlled_link = rv.so_arg.is_compiler_controlled_link = true;
 
         if (cfg["cxx_sysroot"] != "") {
             std::vector<std::string> common_values = {"--sysroot=" + (std::string)(cfg["cxx_sysroot"])};
-            rv.c_arg.cflags   += common_values;
-            rv.cpp_arg.cflags += common_values;
-            rv.exe_arg.compiler_driven_ldflags += common_values;
-            rv.so_arg.compiler_driven_ldflags  += common_values;
+            rv.c_arg.cflags    += common_values;
+            rv.cpp_arg.cflags  += common_values;
+            rv.exe_arg.ldflags += common_values;
+            rv.so_arg.ldflags  += common_values;
         }
     }
+
     if (cfg["os"] == "linux" && cfg["cxx_toolchain"] == "llvm") {
         rv.exe_cc = rv.exe_asm = rv.exe_solink = rv.exe_xlink = prefix + "clang";
         rv.exe_cxx = prefix + "clang++";
         rv.exe_ar  = prefix + "ar";
-        rv.is_compiler_controlled_link = true;
+        rv.exe_arg.is_compiler_controlled_link = rv.so_arg.is_compiler_controlled_link = true;
         rv.c_arg.cflags = rv.cpp_arg.cflags = rv.asm_arg.cflags = {"-fPIC", "-pthread"};
-        rv.exe_arg.compiler_driven_ldflags = rv.so_arg.compiler_driven_ldflags = {"-shared"};
+        rv.exe_arg.ldflags = rv.so_arg.ldflags = {"-shared"};
 
         std::vector<std::string> common_values;
         if (cfg["cxx_gcctoolchain"] != "")
@@ -44,16 +46,18 @@ static CxxToolchainInfo step1_cmake_minumum(cgn::Configuration &cfg)
             common_values += {"--sysroot=" + (std::string)(cfg["cxx_sysroot"])};
         rv.c_arg.cflags   += common_values;
         rv.cpp_arg.cflags += common_values;
-        rv.exe_arg.compiler_driven_ldflags += common_values;
-        rv.so_arg.compiler_driven_ldflags  += common_values;
+        rv.exe_arg.ldflags += common_values;
+        rv.so_arg.ldflags  += common_values;
     }
+    
     if (cfg["os"] == "mac" && cfg["cxx_toolchain"] == "xcode") {
         rv.exe_cc = rv.exe_asm = rv.exe_solink = rv.exe_xlink = prefix + "clang";
         rv.exe_cxx = prefix + "clang++";
         rv.exe_ar  = prefix + "ar";
-        rv.exe_arg.compiler_driven_ldflags = rv.so_arg.compiler_driven_ldflags = {"-shared"};
-        rv.is_compiler_controlled_link = true;
+        rv.exe_arg.ldflags = rv.so_arg.ldflags = {"-shared"};
+        rv.exe_arg.is_compiler_controlled_link = rv.so_arg.is_compiler_controlled_link = true;
     }
+    
     if (cfg["cxx_toolchain"] == "msvc") {
         auto envdep = api.create_target("@cgn.d//library/cxx/vsenv_loader", cfg);
         assert(envdep.errmsg.empty());
@@ -66,7 +70,7 @@ static CxxToolchainInfo step1_cmake_minumum(cgn::Configuration &cfg)
         rv.exe_solink = rv.exe_xlink = prefix + "link.exe";
         rv.so_arg.ldflags = {"/DLL"};
         rv.exe_asm = prefix + (cfg["host_cpu"]=="x86"? "ml.exe":"ml64.exe");
-        rv.is_compiler_controlled_link = false;
+        rv.exe_arg.is_compiler_controlled_link = rv.so_arg.is_compiler_controlled_link = false;
     }
 
     return rv;
@@ -74,9 +78,13 @@ static CxxToolchainInfo step1_cmake_minumum(cgn::Configuration &cfg)
 
 static std::pair<CxxToolchainInfo, std::string> step1_win_msvc(cgn::Configuration &cfg)
 {
+    // win10==0x0A00; win7==0x0601;
+    // win8.1/Server2012R2==0x0603;
+    constexpr const char* DEFAULT_MINIMUM_WINVER = "0x0A00";
+
     std::string mimimum_winver = cfg["cxx_winapi_winver"];
     if (mimimum_winver.empty())
-        mimimum_winver = CxxWorker::DEFAULT_MINIMUM_WINVER;
+        mimimum_winver = DEFAULT_MINIMUM_WINVER;
 
     if (mimimum_winver.size() != 6)
         return {{}, "Invalid cfg['cxx_winapi_winver']"};
@@ -101,7 +109,7 @@ static std::pair<CxxToolchainInfo, std::string> step1_win_msvc(cgn::Configuratio
     interp.so_arg.ldflags = {"/DLL"};
     interp.cpp_arg.cflags = {"/std:c++17"};
     interp.c_arg.cflags   = {"/std:c17"};
-    interp.is_compiler_controlled_link = false;
+    interp.exe_arg.is_compiler_controlled_link = interp.so_arg.is_compiler_controlled_link = false;
 
     std::vector<std::string> common_defines = {
         //"UNICODE", "_UNICODE",   // default for NO unicode WidthType (encoding UTF-8 only)
@@ -252,19 +260,19 @@ static std::pair<CxxToolchainInfo, std::string> step1_linux_gcc(cgn::Configurati
     interp.exe_ar  = (prefix + "gcc-ar");
     interp.exe_solink = (prefix + "g++");
     interp.exe_xlink  = (prefix + "g++");
-    interp.is_compiler_controlled_link = true;
+    interp.exe_arg.is_compiler_controlled_link = interp.so_arg.is_compiler_controlled_link = true;
     
     interp.c_arg.cflags   = {"-std=c17"};
     interp.cpp_arg.cflags = {"-std=c++17"};
     
-    interp.so_arg.compiler_driven_ldflags = {"-shared"};
-
     interp.exe_arg.ldflags = interp.so_arg.ldflags = {
-        "--warn-common", "-z,origin", 
-        "--export-dynamic",  // force export from executable
-        // "--warn-section-align", 
-        // "-Bsymbolic", "-Bsymbolic-functions",
+        "-Wl,--warn-common", "-Wl,-z,origin", 
+        "-Wl,--export-dynamic",  // force export from executable
+        // "-Wl,--warn-section-align", 
+        // "-Wl,-Bsymbolic", "-Wl,-Bsymbolic-functions",
     };
+
+    interp.so_arg.ldflags += {"-shared"};
 
     std::vector<std::string> defines_1st;
 
@@ -327,8 +335,8 @@ static std::pair<CxxToolchainInfo, std::string> step1_linux_gcc(cgn::Configurati
     interp.cpp_arg.cflags += cflags_1st;
     interp.asm_arg.cflags += cflags_1st;
 
-    interp.so_arg.compiler_driven_ldflags  += ldflags_1st;
-    interp.exe_arg.compiler_driven_ldflags += ldflags_1st;
+    interp.so_arg.ldflags  += ldflags_1st;
+    interp.exe_arg.ldflags += ldflags_1st;
 
     return {interp, {}};
 } //step1_linux_gcc()
@@ -346,15 +354,14 @@ static std::pair<CxxToolchainInfo, std::string> step1_linuxllvm_and_xcode(cgn::C
     interp.exe_ar     = (prefix + "ar");
     interp.exe_solink = (prefix + "clang++");
     interp.exe_xlink  = (prefix + "clang++");
-    interp.is_compiler_controlled_link = true;
+    interp.exe_arg.is_compiler_controlled_link = interp.so_arg.is_compiler_controlled_link = true;
 
-    interp.so_arg.compiler_driven_ldflags = {"-shared"};
     if (cfg["os"] == "linux") {
         interp.exe_ar     = (prefix + "llvm-ar");
         interp.exe_solink = (prefix + "clang++");
         interp.exe_xlink  = (prefix + "clang++");
-        interp.exe_arg.compiler_driven_ldflags = {"-fuse-ld=lld"};
-        interp.so_arg.compiler_driven_ldflags  = {"-fuse-ld=lld", "-shared"};
+        interp.exe_arg.ldflags += {"-fuse-ld=lld"};
+        interp.so_arg.ldflags  += {"-fuse-ld=lld", "-shared"};
     }
 
     interp.c_arg.cflags   = {"-std=c17"};
@@ -367,7 +374,7 @@ static std::pair<CxxToolchainInfo, std::string> step1_linuxllvm_and_xcode(cgn::C
         "-I.", "-fPIC", "-pthread"};
     
     // '-Wl,$(ldflags_lnk[])' for clang++ linker driver
-    std::vector<std::string> ldflags_lnk;
+    // std::vector<std::string> ldflags_lnk;
     
     std::vector<std::string> ldflags_1st = {
         "-L.",
@@ -376,9 +383,8 @@ static std::pair<CxxToolchainInfo, std::string> step1_linuxllvm_and_xcode(cgn::C
 
     if (cfg["os"] == "linux") {
         if (cfg["cxx_asan"] == "")
-            ldflags_lnk += {"--warn-common"};
-        ldflags_lnk += {"--warn-backrefs"};
-        ldflags_1st += {"-lrt"};
+            ldflags_1st += {"-Wl,--warn-common"};
+        ldflags_1st += {"-Wl,--warn-backrefs", "-lrt"};
     }
     if (cfg["os"] == "mac") //for macos : using warn-commons instead of warn-common
         ldflags_1st += {"-fprofile-instr-generate", "-Wl,-warn_commons"};
@@ -403,13 +409,13 @@ static std::pair<CxxToolchainInfo, std::string> step1_linuxllvm_and_xcode(cgn::C
         ldflags_1st += {
             "-flto", 
         };
-        ldflags_lnk += {
-            "--exclude-libs=ALL", 
-            "--discard-all",
-            // "--thinlto-jobs=0", 
-            // "--thinlto-cache-dir=./thinlto_cache", 
-            // "--thinlto-cache-policy,cache_size_bytes=1g",
-            "--warn-unresolved-symbols"
+        ldflags_1st += {
+            "-Wl,--exclude-libs=ALL", 
+            "-Wl,--discard-all",
+            // "-Wl,--thinlto-jobs=0", 
+            // "-Wl,--thinlto-cache-dir=./thinlto_cache", 
+            // "-Wl,--thinlto-cache-policy,cache_size_bytes=1g",
+            "-Wl,--warn-unresolved-symbols"
         };
     }
 
@@ -465,31 +471,26 @@ static std::pair<CxxToolchainInfo, std::string> step1_linuxllvm_and_xcode(cgn::C
     interp.cpp_arg.cflags += cflags_1st;
     interp.asm_arg.cflags += cflags_1st;
 
-    interp.exe_arg.compiler_driven_ldflags += ldflags_1st;
-    interp.so_arg.compiler_driven_ldflags  += ldflags_1st;
-    interp.exe_arg.ldflags += ldflags_lnk;
-    interp.so_arg.ldflags  += ldflags_lnk;
+    interp.exe_arg.ldflags += ldflags_1st;
+    interp.so_arg.ldflags  += ldflags_1st;
     return {interp, ""};
 } //step1_linuxllvm_and_xcode()
 
-std::string CxxWorker::step1_test_param(cgn::Configuration &cfg, const std::string &via)
+std::pair<CxxToolchainInfo, std::string> 
+CxxWorker::step1_test_param(cgn::Configuration &cfg, const std::string &via) const
 {
     if (via == "cmake" || via == "minimum")
-        return this->s1out = step1_cmake_minumum(cfg), "";
-    auto rtn = [this](std::pair<CxxToolchainInfo, std::string> &&input){
-        this->s1out = input.first;
-        return input.second;
-    };
+        return {step1_cmake_minumum(cfg), ""};
     if (cfg["cxx_toolchain"] == "msvc" && cfg["os"] == "win")
-        return rtn(step1_win_msvc(cfg));
+        return step1_win_msvc(cfg);
     else if (cfg["cxx_toolchain"] == "gcc" && cfg["os"] == "linux")
-        return rtn(step1_linux_gcc(cfg));
+        return step1_linux_gcc(cfg);
     else if (
         (cfg["cxx_toolchain"] == "xcode" && cfg["os"] == "mac") ||
         (cfg["cxx_toolchain"] == "llvm"  && cfg["os"] == "linux")
     )
-        return rtn(step1_linuxllvm_and_xcode(cfg));
-    return "Unsupported toolchain";
+        return step1_linuxllvm_and_xcode(cfg);
+    return {{}, "Unsupported toolchain"};
 } // CxxWorker::step1_test_param()
 
 // ****************
@@ -497,8 +498,9 @@ std::string CxxWorker::step1_test_param(cgn::Configuration &cfg, const std::stri
 // Step 2 config confirm
 // ================
 
-std::string CxxWorker::step2_confirm(CxxContext &x)
+CxxWorker::Stage3In CxxWorker::step2_confirm(CxxToolchainInfo &s1out, CxxContext &x) const
 {
+    CxxWorker::Stage3In s2out;
     // preprocess "x.srcs = file_glob(*)"
     // if the source file is not at the same/sub folder of BUILD.cgn.cc
     // using absolutely path to locate.
@@ -508,390 +510,420 @@ std::string CxxWorker::step2_confirm(CxxContext &x)
     //           @cgn.d//library/advtools
     for (auto &p : x.srcs) {
         if (p.type == p.BASE_ON_OUTPUT)
-            return "Unsupported src " + p.to_string();
+            return x.opt->set_fail("Unsupported src " + p.to_string()), s2out;
+
+        auto check_and_add = [&](const std::string &p2) {
+            if (api.lowercase_extension_of_path(p2) == "def")
+                s2out.def_file = p2;
+            else
+                s2out.src_files += {p2};
+        };
         if (p.rpath.find('*') == p.rpath.npos) //if not file_glob
-            self_src += {api.rebase_path(p, ".", x.opt)};
+            check_and_add(api.rebase_path(p, ".", x.opt));
         else {
             std::string path2 = api.rebase_path(p, ".", x.opt);
             for (const auto &it : api.file_glob(path2))
-                self_src += {it};
+                check_and_add(it);
         }
     }
 
     // confirm configuration
     // 'host_shell' for function two_escape()
-    x.opt->cfg.visit_keys({"host_shell", "os", "cpu"});
-    mk = x.opt->confirm();
-    if (!mk) //return if cache found
-        return "";
+    x.opt->cfg.visit_keys({"host_shell", "os", "cpu", "cxx_toolchain"});
+    s2out.mk = x.opt->confirm();
+    if (!s2out.mk) //return if cache found
+        return s2out;
 
-    self_extra = x._lnr_to_self;
-    cgn::Tools::remove_duplicate_inplace(self_extra.object_files);
-    cgn::Tools::remove_duplicate_inplace(self_extra.static_files);
-    cgn::Tools::remove_duplicate_inplace(self_extra.shared_files);
+    s2out.src_extra = x._lnr_to_self;
+    cgn::Tools::remove_duplicate_inplace(s2out.src_extra.object_files);
+    cgn::Tools::remove_duplicate_inplace(s2out.src_extra.static_files);
+    cgn::Tools::remove_duplicate_inplace(s2out.src_extra.shared_files);
+    s2out.src_extra_no_whole = &x._self_no_whole_archive;
 
-    target_role = x.role;
-    perferred_binary_name = x.perferred_binary_name;
-    // self_staticlib_no_whole = &x._self_no_whole_archive;
-    self_extra_no_whole = &x._self_no_whole_archive;
+    s2out.target_role = x.role;
     
+    PackOut &pack_out = s2out.pack_out_suggestion;
+    if (x.perferred_binary_name.size()) {
+        pack_out.packout_file = s2out.mk->out_prefix + x.perferred_binary_name;
+        if (x.role == 's' || x.role == 'x') {
+            if (x.cfg["os"] == "win") {
+                pack_out.packout_rt_filepath = pack_out.packout_file + ".lib";
+                pack_out.packout_rt_filename = x.perferred_binary_name + ".lib";
+            }else {
+                pack_out.packout_rt_filepath = pack_out.packout_file;
+                pack_out.packout_rt_filename = x.perferred_binary_name;
+            }
+        }
+    }
+    else {
+        std::string ext1, ext2;
+        if (x.role == 'a')
+            ext1 = (x.cfg["os"]=="win"? ".lib": ".a");
+        else
+            ext1 = (x.cfg["os"]=="win"? (x.role=='s'?".dll":".exe"): (x.role=='s'?".so":""));
+        pack_out.packout_file = s2out.mk->out_prefix + x.name + ext1;
+
+        if (x.role == 's' || x.role == 'x') {
+            if (x.cfg["os"] == "win") {
+                pack_out.packout_rt_filepath = s2out.mk->out_prefix + x.name + ".lib";
+                pack_out.packout_rt_filename = x.name + ".lib";
+            }else {
+                pack_out.packout_rt_filepath = pack_out.packout_file;
+                pack_out.packout_rt_filename = x.name + ext1;
+            }
+        }
+    }
+
     // x.include_dirs CGNPath[] rebase
     for (auto &p : x.include_dirs)
         if (p.type != p.BASE_ON_WORKINGROOT)
-            p = cgn::make_path_base_working(api.rebase_path(p, ".", mk));
+            p = cgn::make_path_base_working(api.rebase_path(p, ".", s2out.mk));
 
     // x.pub.include_dirs CGNPath rebase
     for (auto &p : x.pub.include_dirs)
         if (p.type != p.BASE_ON_WORKINGROOT)
-            p = cgn::make_path_base_working(api.rebase_path(p, ".", mk));
+            p = cgn::make_path_base_working(api.rebase_path(p, ".", s2out.mk));
     
     // merge to $s2out
-    s2out = s1out;
-    for (auto xsrc : {&s2out.c_arg, &s2out.cpp_arg, &s2out.asm_arg}){
+    s2out.toolchain = &s1out;
+    for (auto xsrc : {&s1out.c_arg, &s1out.cpp_arg, &s1out.asm_arg}){
         xsrc->cflags += x._cxx_to_self.cflags + x.cflags;
         xsrc->defines += x._cxx_to_self.defines + x.defines;
 
         std::vector<std::string> final_inc;
         for (auto &p : x.include_dirs + x._cxx_to_self.include_dirs)
-            final_inc += {api.rebase_path(p, ".", mk)};
+            final_inc += {api.rebase_path(p, ".", s2out.mk)};
         final_inc += xsrc->include_dirs;
         cgn::Tools::remove_duplicate_inplace(final_inc);
         std::swap(xsrc->include_dirs, final_inc);
     }
-    for (auto xout : {&s2out.exe_arg, &s2out.so_arg})
+    for (auto xout : {&s1out.exe_arg, &s1out.so_arg})
         xout->ldflags += x._cxx_to_self.ldflags + x.ldflags;
 
     // generate $ninja_order_only_dep
     // TODO: cannot use variable in ninja order_dep region.
     if (true || x.quickdep_ninja_target.size() <= 1)
-        ninja_order_only_dep = x.quickdep_ninja_target;
+        s2out.ninja_order_only_dep = x.quickdep_ninja_target;
     else {
-        auto *field = mk->ninja->append_build();
-        mk->ninja->append_variable("target_dep", 
-            list2str(cgn::NinjaFile::escape_path(x.quickdep_ninja_target)));
-        ninja_order_only_dep = {"$target_dep"};
+        auto *field = s2out.mk->ninja->append_build();
+        s2out.mk->ninja->append_variable("target_dep", 
+            api.convert_list_to_string(cgn::NinjaFile::escape_path(x.quickdep_ninja_target)));
+        s2out.ninja_order_only_dep = {"$target_dep"};
     }
 
     // generate result InfoTable
-    if (!mk->merge_from(x._pub_infos) || !mk->merge_entry(&x.pub))
-        return "CxxInterpreter: internal error on generate InfoTable";
+    if (!s2out.mk->merge_from(x._pub_infos) || !s2out.mk->merge_entry(&x.pub))
+        s2out.mk->errmsg = "CxxInterpreter: internal error on generate InfoTable";
 
-    return "";
+    return s2out;
 } //CxxWorker::step2_confirm()
-
-// case for path_out: xxx.so / .lib may have same name with folder-name 
-//                    in src folder, so we have to add '_' before path_out.
-// case for path_out: cgn-out/.../ in same folder of current interpreter
-//                    add '__' (two underline) before path_out.
-// @param IN file_in : file_path with working_root_rel or abs_path
-// @param IN mk      : confirmed opt
-// @param IN dot_obj : path_out end with '.obj' or '.o'
-// @return pair<path_out, type_of_src> :
-//         - path_out : "output file relpath"
-//         - type of src : A/+/C/0 (asm, c++, c, 0:igonre)
-// TODO : in windows, ninja have bug that cannot mkdir end with '..'
-static std::pair<std::string, char> src_path_convert(
-    const std::string &file_in, const cgn::CGNTargetMaker *mk, bool dot_obj = false
-) {
-    // get extension
-    auto fd_slash = file_in.rfind('/');
-    auto fd = file_in.rfind('.');
-    if (fd == file_in.npos || (fd_slash != file_in.npos && fd < fd_slash))
-        return {"", 0};  // no extension, cpp header
-    std::string left = file_in.substr(0, fd);
-    std::string ext;
-    for (std::size_t i=fd+1; i<file_in.size(); i++)
-        ext.push_back( ('A'<=file_in[i] && file_in[i]<='Z')? (file_in[i]-'A'+'a'): file_in[i]);
-
-    if (ext == "def")
-        return {"", 'D'};
-    
-    char rv_type = 0;
-    if (ext == "cc" || ext == "cpp" || ext == "cxx" || ext == "c++")
-        rv_type = '+';
-    if (ext == "c")
-        rv_type = 'C';
-    if (ext == "s" || ext == "asm")
-        rv_type = 'A';
-
-    std::string src_dir = api.locale_path(mk->src_prefix);
-    bool start_with_outprefix = (file_in.size() > mk->out_prefix.size()
-        && memcmp(file_in.c_str(), mk->out_prefix.c_str(), mk->out_prefix.size())==0);
-    bool start_with_srcprefix = (file_in.size() > src_dir.size()
-        && memcmp(file_in.c_str(), src_dir.c_str(), src_dir.size())==0);
-    
-    // file_in is inside src_prefix
-    if (start_with_srcprefix) 
-        return {cgn::Tools::locale_path(mk->out_prefix + "_" 
-                + file_in.substr(mk->src_prefix.size()) 
-                + (dot_obj?".obj":".o")),
-            rv_type};
-
-    // file_in is inside current out_prefix
-    if (start_with_outprefix) {
-        std::string probe1 = file_in.substr(mk->out_prefix.size());
-        left = probe1.substr(0, probe1.rfind('.'));
-        return {cgn::Tools::locale_path(
-                mk->out_prefix + "__" + probe1 + (dot_obj?".obj":".o")),
-            rv_type};
-    }
-
-    // otherwise : abspath or other dirs
-    return {
-        mk->out_prefix + api.mangle_path_to_relative(file_in) + (dot_obj?".obj":".o"),
-        rv_type
-    };
-} //src_path_convert()
-
 
 // ****************
 //
 // Step 3 ninja file generation
 // ================
 
-constexpr const char *rule_ninja = "@cgn.d//library/cxx/cxx_rule.ninja";
-static void write_ninja_phony_entry(
-    cgn::CGNTargetMaker *mk, const std::vector<std::string> &ninja_field_output
-) {
-    if (mk->ninja == nullptr)
-        return ;
-    auto *entry = mk->ninja->append_build();
-    entry->rule = "phony";
-    entry->inputs = ninja_field_output;
-    entry->outputs = {cgn::NinjaFile::escape_path(mk->ninja_entry)};
+// case for path_out: xxx.so / .lib may have same name with folder-name 
+//                    in src folder, so we have to add '_' before path_out.
+// case for path_out: cgn-out/.../ in same folder of current interpreter
+//                    add '__' (two underline) before path_out.
+// @return pair<path_out, type_of_src> :
+//         - path_out : "output file relpath"
+//         - type of src : A/+/C/0 (asm, c++, c, 0:igonre)
+// TODO : in windows, ninja have bug that cannot mkdir end with '..'
+std::pair<std::string, char> CxxWorker::Stage3In::suggest_objout(std::string &file_in)
+{
+    std::string ext = api.lowercase_extension_of_path(file_in);
+    
+    char rv_type = 0;
+    if (ext == ".cc" || ext == ".cpp" || ext == ".cxx" || ext == ".c++")
+        rv_type = '+';
+    if (ext == ".c")
+        rv_type = 'C';
+    if (ext == ".s" || ext == ".asm")
+        rv_type = 'A';
+
+    std::string obj_file;
+    std::string src_dir = api.locale_path(mk->src_prefix);
+    bool start_with_outprefix = (file_in.size() > mk->out_prefix.size()
+        && memcmp(file_in.c_str(), mk->out_prefix.c_str(), mk->out_prefix.size())==0);
+    bool start_with_srcprefix = (file_in.size() > src_dir.size()
+        && memcmp(file_in.c_str(), src_dir.c_str(), src_dir.size())==0);
+
+    // file_in is inside src_prefix
+    if (start_with_srcprefix) 
+        obj_file = cgn::Tools::locale_path(mk->out_prefix + "_" 
+                + file_in.substr(mk->src_prefix.size()) 
+                + (mk->trimmed_cfg["os"]=="win"? ".obj":".o"));
+
+    // file_in is inside current out_prefix
+    if (start_with_outprefix) {
+        std::string probe1 = file_in.substr(mk->out_prefix.size());
+        obj_file = cgn::Tools::locale_path(
+                mk->out_prefix + "__" + probe1 + (mk->trimmed_cfg["os"]=="win"? ".obj":".o"));
+    }
+
+    // otherwise : abspath or other dirs
+    obj_file = mk->out_prefix + api.mangle_path_to_relative(file_in) + (mk->trimmed_cfg["os"]=="win"? ".obj":".o");
+
+    // NinjaBuild bug DirtyPatch:
+    // add ./ prefix of src filepath to avoid string starting with '@'
+    // if we add "./" in ninja input file, ninja.exe would auto remove it 
+    // when writing down to .rspfile, then it cause cl.exe parse it as
+    // another rspfile.
+    if (mk->trimmed_cfg["os"] == "win" && file_in[0] == '@')
+        file_in = "." + mk->PATH_SEPARATOR + file_in;
+    
+    return {obj_file, rv_type};
+} //suggest_objout()
+
+std::vector<std::string> CxxWorker::Stage3In::gen_cflags(
+    const std::string &include_prefix,
+    const std::string &define_prefix,
+    const CxxToolchainInfo::CompilingOption &info
+) const {
+    std::vector<std::string> cflags = info.cflags;
+    for (const std::string &inc : info.include_dirs)
+        cflags += {include_prefix + api.shell_escape(inc, mk->trimmed_cfg["host_shell"])};
+    for (const std::string &def : info.defines)
+        cflags += {define_prefix + api.shell_escape(def, mk->trimmed_cfg["host_shell"])};
+    return cflags;
+} //gen_cflags()
+
+std::string CxxWorker::Stage3In::two_escape(const std::string &in) const {
+    return cgn::NinjaFile::escape_path(
+        cgn::CGN::shell_escape(in, mk->trimmed_cfg["host_shell"])
+    );
 }
 
-void CxxWorker::default_step3_win()
+std::vector<std::string> CxxWorker::Stage3In::two_escape(std::vector<std::string> in) const {
+    for (auto &it : in)
+        it = two_escape(it);
+    return in;
+}
+
+std::string CxxWorker::Stage3In::two_escape_to_string(std::vector<std::string> in) const {
+    return api.convert_list_to_string(two_escape(in));
+}
+
+cgn::LinkAndRunInfo CxxWorker::Stage3In::done_with_entry(const std::vector<std::string> &out)
 {
-    using SItem = std::vector<std::string>;
-    
+    assert(target_role == 'o');
+    cgn::LinkAndRunInfo s3out;
+    s3out.object_files = out;
+    mk->outputs = out;
+    mk->merge_entry(&s3out);
+
+    if (mk->ninja == nullptr)
+        return s3out;
+    auto *entry = mk->ninja->append_build();
+    entry->rule = "phony";
+    entry->inputs = cgn::NinjaFile::escape_path(out);
+    entry->outputs = {cgn::NinjaFile::escape_path(mk->ninja_entry)};
+    return s3out;
+} //done_with_entry()
+
+cgn::LinkAndRunInfo CxxWorker::Stage3In::done_with_entry(const PackOut &out)
+{
+    assert(target_role != 'o');
+    cgn::LinkAndRunInfo s3out;
+    if (target_role == 'a')
+        s3out.static_files += {out.packout_file};
+    else if (target_role == 's'){
+        s3out.shared_files += {out.packout_file};
+        if (out.packout_rt_filepath.size()) //implib for dll in windows
+            s3out.runtime_files[cgn::make_path_base_out(out.packout_rt_filename)] = out.packout_rt_filepath;
+    }
+    mk->outputs = {out.packout_file};
+
+    if (mk->ninja == nullptr)
+        return s3out;
+    auto *entry = mk->ninja->append_build();
+    entry->rule = "phony";
+    entry->inputs = {cgn::NinjaFile::escape_path(out.packout_file)};
+    entry->outputs = {cgn::NinjaFile::escape_path(mk->ninja_entry)};
+    return s3out;
+}
+
+constexpr const char *rule_ninja = "@cgn.d//library/cxx/cxx_rule.ninja";
+
+static cgn::LinkAndRunInfo default_step3_win(CxxWorker::Stage3In *s3)
+{
     // add setenv batch dependency before cc.exe run
     std::string ccenv;
     std::vector<std::string> njdep_env;
-    if (s2out.env_loader_script.size()){
-        ccenv = "cmd.exe /c " + two_escape(s2out.env_loader_script) + " && ";
-        njdep_env = {cgn::NinjaFile::escape_path(s2out.env_loader_script)};
+    if (s3->toolchain->env_loader_script.size()) {
+        ccenv = "cmd.exe /c " + s3->two_escape(s3->toolchain->env_loader_script) + " && ";
+        njdep_env = {cgn::NinjaFile::escape_path(s3->toolchain->env_loader_script)};
     }
     
     // predefine ninja variable: cflags_c, cflags_cc, cflags_asm
-    std::string njenv_cflags_c = "cflags_c", 
-                njenv_cflags_cpp = "cflags_cpp", 
-                njenv_cflags_asm = "cflags_asm";
-    auto write_env = [&](std::string *pname, std::string value) {
-        if (!mk->ninja || value.empty()) *pname = "";
-        else mk->ninja->append_variable(*pname, value);
-    };
-    write_env(&njenv_cflags_c, 
-        list2str(s2out.c_arg.cflags) 
-        + list2str(s2out.c_arg.include_dirs, "/I")
-        + list2str(s2out.c_arg.defines, "/D")
-    );
-    write_env(&njenv_cflags_cpp,
-        list2str(s2out.cpp_arg.cflags) 
-        + list2str(s2out.cpp_arg.include_dirs, "/I")
-        + list2str(s2out.cpp_arg.defines, "/D")
-    );
-    write_env(&njenv_cflags_asm,
-        list2str(s2out.asm_arg.cflags) 
-        + list2str(s2out.asm_arg.include_dirs, "/I")
-        + list2str(s2out.asm_arg.defines, "/D")
-    );
+    const std::string njenv_cflags_c = "cflags_c", 
+                      njenv_cflags_cpp = "cflags_cpp", 
+                      njenv_cflags_asm = "cflags_asm";
+    if (s3->mk->ninja) {
+        s3->mk->ninja->append_variable(njenv_cflags_c, s3->gen_cflags("/I", "/D", s3->toolchain->c_arg));
+        s3->mk->ninja->append_variable(njenv_cflags_cpp, s3->gen_cflags("/I", "/D", s3->toolchain->cpp_arg));
+        s3->mk->ninja->append_variable(njenv_cflags_asm, s3->gen_cflags("/I", "/D", s3->toolchain->asm_arg));
 
-    if (mk->ninja) {
         static std::string rule_path = api.get_filepath(rule_ninja);
-        mk->ninja->append_include(rule_path);
+        s3->mk->ninja->append_include(rule_path);
     }
 
     // patch for .lib in windows : 
     //   if field->inputs empty, lib.exe would not generate any files,
     //   so here we feed a empty source file here.
-    if (target_role == 'a' && self_src.empty() && self_extra.object_files.empty())
-        self_src = {api.get_filepath("@cgn.d//library/cxx/vsenv_loader/empty_file.c")};
-
-    std::string def_file;
+    if (s3->target_role == 'a' && s3->src_files.empty() && s3->src_extra.object_files.empty())
+        s3->src_files = {api.get_filepath("@cgn.d//library/cxx/vsenv_loader/empty_file.c")};
 
     // build.ninja : source file => .o
-    std::string pdbfile = mk->out_prefix + "__vc.pdb";
+    std::string pdbfile = s3->mk->out_prefix + "__vc.pdb";
     std::vector<std::string> obj_out;
     std::vector<std::string> obj_out_ninja_esc;
-    for (auto &path_in : self_src) {
-        auto conv_resp = src_path_convert(path_in, mk, true);
-        auto &path_out = conv_resp.first; auto &file_type = conv_resp.second;
-        if (file_type == 0)
+    for (auto &src_in : s3->src_files) {
+        auto src_out = s3->suggest_objout(src_in);
+        if (src_out.second == 0)
             continue;
-        if (file_type == 'D') {
-            def_file = path_in;
-            continue;
-        }
 
         //field->input has been moved into cflags
         cgn::NinjaFile::BuildSection field;
-        field.outputs = {cgn::NinjaFile::escape_path(path_out)};
-        field.implicit_inputs = SItem{cgn::NinjaFile::escape_path(path_in)} + njdep_env;
-        field.order_only = ninja_order_only_dep;
-        if (file_type == 'A') {
+        field.outputs = {cgn::NinjaFile::escape_path(src_out.first)};
+        field.implicit_inputs = njdep_env + cgn::SList{cgn::NinjaFile::escape_path(src_in)};
+        field.order_only = s3->ninja_order_only_dep;
+        if (src_out.second == 'A') {
             field.rule = "msvc_ml";
-            field.variables["cc"] = ccenv + two_escape(s2out.exe_asm);
+            field.variables["cc"] = ccenv + s3->two_escape(s3->toolchain->exe_asm);
             field.variables["cflags"] = "$" + njenv_cflags_asm;
         }
-        if (file_type == '+') {
+        if (src_out.second == '+') {
             field.rule = "msvc_cl";
-            field.variables["cc"] = ccenv + two_escape(s2out.exe_cxx);
+            field.variables["cc"] = ccenv + s3->two_escape(s3->toolchain->exe_cxx);
             field.variables["cflags"] = "$" + njenv_cflags_cpp;
             field.variables["pdb"] = cgn::NinjaFile::escape_path(pdbfile);
         }
         else {
             field.rule = "msvc_cl";
-            field.variables["cc"] = ccenv + two_escape(s2out.exe_cc);
+            field.variables["cc"] = ccenv + s3->two_escape(s3->toolchain->exe_cc);
             field.variables["cflags"] = "$" + njenv_cflags_c;
             field.variables["pdb"] = cgn::NinjaFile::escape_path(pdbfile);
         }
 
-        // NinjaBuild bug DirtyPatch:
-        // add ./ prefix of src filepath to avoid string starting with '@'
-        // if we add "./" in ninja input file, ninja.exe would auto remove it 
-        // when writing down to .rspfile, then it cause cl.exe parse it as
-        // another rspfile.
-        if (path_in.at(0) == '@')
-            path_in = "." + mk->PATH_SEPARATOR + path_in;
-        field.variables["cflags"] += "/c " + two_escape(path_in);
+        field.variables["cflags"] += "/c " + s3->two_escape(src_in);
 
-        if (mk->ninja)
-            mk->ninja->append_build(field);
-        obj_out.push_back(path_out);
+        if (s3->mk->ninja)
+            s3->mk->ninja->append_build(field);
+        
+        obj_out.push_back(src_out.first);
         obj_out_ninja_esc.push_back(field.outputs[0]);
     } //endfor (auto &path_in : self_src)
 
     // build.ninja : cxx_sources()
     // cxx_sources() cannot process any field of LinkAndRunInfo
     // so add the .obj file generated by itself then return
-    if (target_role == 'o') {
-        s3out.object_files = obj_out;
-        return write_ninja_phony_entry(mk, obj_out_ninja_esc);
-    }
+    if (s3->target_role == 'o')
+        return s3->done_with_entry(obj_out);
+
+    const CxxWorker::PackOut &pack_out = s3->suggest_packout();
 
     // build.ninja : cxx_static()
     //  deps.obj + self.srcs.o => rv[LRinfo].a
     //  deps.rt / deps.so / deps.a => rv[LRinfo]
-    if (target_role == 'a') {
-        std::string outfile = mk->out_prefix + mk->name + ".lib";
-        if (perferred_binary_name.size())
-            outfile = mk->out_prefix + perferred_binary_name;
-        s3out.static_files = std::vector<std::string>{outfile};
-        
-        if (!mk->ninja)
-            return ;
-        auto *field = mk->ninja->append_build();
-        field->rule = "msvc_lib";
-        field->inputs = obj_out_ninja_esc
-                      + cgn::NinjaFile::escape_path(self_extra.object_files);
-        field->outputs = {cgn::NinjaFile::escape_path(outfile)};
-        field->implicit_inputs = njdep_env;
-        field->variables["restat"] = "1";
-        field->variables["libexe"] = ccenv + s2out.exe_ar;
-        field->variables["arflags"] = list2str(s2out.ar_arg_arflags);
-        if (def_file.size()) {
-            field->variables["arflags"] += "/DEF:" + def_file + " ";
-            field->implicit_inputs += {cgn::NinjaFile::escape_path(def_file)};
+    if (s3->mk->ninja && s3->target_role == 'a') {
+        cgn::NinjaFile::BuildSection field;
+        field.rule = "msvc_lib";
+        field.inputs = obj_out_ninja_esc
+                     + cgn::NinjaFile::escape_path(s3->src_extra.object_files);
+        field.outputs = {cgn::NinjaFile::escape_path(pack_out.packout_file)};
+        field.implicit_inputs = njdep_env;
+        field.variables["restat"] = "1";
+        field.variables["libexe"] = ccenv + s3->toolchain->exe_ar;
+        field.variables["arflags"] = api.convert_list_to_string(s3->toolchain->ar_arg_arflags);
+        if (s3->def_file.size()) {
+            field.variables["arflags"] += "/DEF:" + s3->def_file + " ";
+            field.implicit_inputs += {cgn::NinjaFile::escape_path(s3->def_file)};
         }
-
-        return write_ninja_phony_entry(mk, field->outputs);
+        s3->mk->ninja->append_build(field);
     } //endif (target_role == 'a')
 
     // build.ninja : cxx_shared() / cxx_executable()
     //   deps.object + deps.static + self.srcs.o => self.so / self.exe
-    //   with carg.ldflags and -wholearchive:x._wholearchive_a
+    //   with carg.ldflags and -wholearchive:src_extra.static_files
     //   self.so + {so from deps} => rv[LRinfo].so
-    if (target_role == 's' || target_role == 'x') {
-        std::string outfile_fname = mk->name + (target_role=='s'? ".dll" :".exe");
-        std::string outfile_implib = mk->out_prefix + mk->name + ".lib";
-        if (perferred_binary_name.size()) {
-            outfile_fname = perferred_binary_name;
-            outfile_implib = mk->out_prefix + outfile_fname + ".lib";
-        }
-        std::string outpath = mk->out_prefix + outfile_fname;
-
-        // write target result
-        s3out.shared_files = std::vector<std::string>{outfile_implib};
-        s3out.runtime_files[cgn::make_path_base_out(outfile_fname)] = outpath;
-
-        if (!mk->ninja)
-            return ;
-
+    if (s3->mk->ninja && (s3->target_role == 's' || s3->target_role == 'x')) {
         //prepare link.exe or cl.exe /link
-        std::string ldflags; {
-            auto &xarg = (target_role=='s'?s2out.so_arg:s2out.exe_arg);
-            if (s2out.is_compiler_controlled_link)
-                ldflags += list2str(xarg.compiler_driven_ldflags) + "/link ";
-            ldflags += list2str(xarg.ldflags);
-            for (auto elib : self_extra.static_files)
-                ldflags += "/WHOLEARCHIVE:" + two_escape(elib);
-        }
+        auto &ldflag_list = (s3->target_role=='s'?s3->toolchain->so_arg:s3->toolchain->exe_arg).ldflags;
+        for (auto elib : s3->src_extra.static_files)
+            ldflag_list += {"/WHOLEARCHIVE:" + elib};
         
         //prepare rpath argument
         //  this is seen as target ldflags, so put on the tail of cargs.ldflags
         //TODO: manifest and .runtime
 
-        //generate ninja section
-        // --start-group   : {all.obj} {dep.static without whole} -l{dep.shared}
-        // --whole-archive : {static_files from inherit dep}
-        auto *field = mk->ninja->append_build();
-        field->rule = "msvc_link";
-        field->inputs = obj_out_ninja_esc
-                      + cgn::NinjaFile::escape_path(self_extra.object_files)
-                      + cgn::NinjaFile::escape_path(self_extra.static_files) 
-                      + cgn::NinjaFile::escape_path(*self_extra_no_whole) 
-                      + cgn::NinjaFile::escape_path(self_extra.shared_files);
-        field->outputs = {cgn::NinjaFile::escape_path(outpath)};
-        field->implicit_inputs = njdep_env;
-        field->variables["restat"] = "1";
-        if (target_role == 's') //only add .lib for .dll
-            field->implicit_outputs = {cgn::NinjaFile::escape_path(outfile_implib)};
-        field->variables["link"] = ccenv + two_escape(target_role=='s'? s2out.exe_solink:s2out.exe_xlink);
-        field->variables["ldflags"] = ldflags;
-        if (def_file.size()) {
-            field->variables["ldflags"] += "/DEF:" + def_file + " ";
-            field->implicit_inputs += {cgn::NinjaFile::escape_path(def_file)};
+        cgn::NinjaFile::BuildSection field;
+        field.rule = "msvc_link";
+        field.inputs = obj_out_ninja_esc
+                     + cgn::NinjaFile::escape_path(s3->src_extra.object_files)
+                     + cgn::NinjaFile::escape_path(s3->src_extra.static_files) 
+                     + cgn::NinjaFile::escape_path(*s3->src_extra_no_whole) 
+                     + cgn::NinjaFile::escape_path(s3->src_extra.shared_files);
+        field.outputs = {cgn::NinjaFile::escape_path(pack_out.packout_file)};
+        field.implicit_inputs = njdep_env;
+        field.variables["restat"] = "1";
+        if (s3->target_role == 's') //only add .lib for .dll
+            field.implicit_outputs = {cgn::NinjaFile::escape_path(pack_out.packout_rt_filepath)};
+        field.variables["link"] = ccenv + s3->two_escape(s3->target_role=='s'? s3->toolchain->exe_solink:s3->toolchain->exe_xlink);
+        field.variables["ldflags"] = api.convert_list_to_string(s3->two_escape(ldflag_list));
+        if (s3->def_file.size()) {
+            field.variables["ldflags"] += " /DEF:" + s3->def_file + " ";
+            field.implicit_inputs += {cgn::NinjaFile::escape_path(s3->def_file)};
         }
 
         // copy runtime when cxx_executable() and not pkg_mode
-        if (target_role == 'x')
-            for (auto &one_entry : self_extra.runtime_files) {
+        if (s3->target_role == 'x')
+            for (auto &one_entry : s3->src_extra.runtime_files) {
                 const cgn::CGNPath &dst1 = one_entry.first;
                 if (dst1.type != dst1.BASE_ON_OUTPUT)
                     continue;
-                std::string dst = api.rebase_path(dst1, ".", mk);
+                std::string dst = api.rebase_path(dst1, ".", s3->mk);
                 const std::string &src = one_entry.second;
-                auto *cpfield = mk->ninja->append_build();
+                auto *cpfield = s3->mk->ninja->append_build();
                 //TODO: copy runtime by custom command (like symbolic-link)
                 cpfield->rule    = "win_file_copy_cppdeprule";
                 cpfield->inputs  = {cgn::NinjaFile::escape_path(src)};
                 cpfield->outputs = {cgn::NinjaFile::escape_path(dst)};
-                field->order_only += cpfield->outputs;
+                field.order_only += cpfield->outputs;
                 // entry->order_only += cpfield->outputs;
             }
 
-        return write_ninja_phony_entry(mk, field->outputs);
+        s3->mk->ninja->append_build(field);
     } // if (role=='s' or 'x')
-} //CxxWorker::default_step3_win()
 
-void CxxWorker::default_step3_xnix()
+    return s3->done_with_entry(pack_out);
+} //default_step3_win()
+
+
+static cgn::LinkAndRunInfo default_step3_xnix(CxxWorker::Stage3In *s3)
 {
     std::string ccenv;
     std::vector<std::string> njdep_setenv;
-    if (s2out.env_loader_script.size()){
-        ccenv += two_escape(s2out.env_loader_script) + " && ";
-        njdep_setenv = {cgn::NinjaFile::escape_path(s2out.env_loader_script)};
+    if (s3->toolchain->env_loader_script.size()){
+        ccenv += s3->two_escape(s3->toolchain->env_loader_script) + " && ";
+        njdep_setenv = {cgn::NinjaFile::escape_path(s3->toolchain->env_loader_script)};
     }
 
-    if (s2out.is_compiler_controlled_link == false) {
-        mk->errmsg = "Only is_compiler_controlled_link==true supported.";
-        return ;
+    if (s3->toolchain->exe_arg.is_compiler_controlled_link == false
+     || s3->toolchain->so_arg.is_compiler_controlled_link == false) {
+        s3->mk->errmsg = "Only is_compiler_controlled_link==true supported.";
+        return {};
     }
 
-    if (mk->ninja) {
+    if (s3->mk->ninja) {
         static std::string rule_path = api.get_filepath(rule_ninja);
-        mk->ninja->append_include(rule_path);
+        s3->mk->ninja->append_include(rule_path);
+
+        s3->mk->ninja->append_variable("cflags_c",   s3->gen_cflags("-I", "-D", s3->toolchain->c_arg));
+        s3->mk->ninja->append_variable("cflags_cpp", s3->gen_cflags("-I", "-D", s3->toolchain->cpp_arg));
+        s3->mk->ninja->append_variable("cflags_asm", s3->gen_cflags("-I", "-D", s3->toolchain->asm_arg));
     }
 
     //=== Section 3: make ninja file ===
@@ -901,81 +933,53 @@ void CxxWorker::default_step3_xnix()
     // carg.cflags and carg.ldflags : already two escaped
     std::vector<std::string> obj_out;
     std::vector<std::string> obj_out_ninja_esc;
-    std::string def_file;
 
-    for (auto &path_in : self_src) {
-        auto conv_resp = src_path_convert(path_in, mk, false);
-        auto &path_out = conv_resp.first; auto &file_type = conv_resp.second;
-        if (file_type == 0)
-            continue;
-
-        if (file_type == 'D') {
-            def_file = path_in;
-            continue;
-        }
+    for (auto &src_in : s3->src_files) {
+        auto src_out = s3->suggest_objout(src_in);
 
         cgn::NinjaFile::BuildSection field;
         field.rule = "gcc";
-        field.inputs  = {cgn::NinjaFile::escape_path(path_in)};
-        field.outputs = {cgn::NinjaFile::escape_path(path_out)};
-        field.order_only = ninja_order_only_dep;
-        if (file_type == '+') {
-            field.variables["cc"] = ccenv + two_escape(s2out.exe_cxx);
-            field.variables["cflags"] = list2str(s2out.cpp_arg.cflags)
-                                      + list2str(s2out.cpp_arg.include_dirs, "-I")
-                                      + list2str(s2out.cpp_arg.defines, "-D");
-        }else if (file_type == 'A') {
-            field.variables["cc"] = ccenv + two_escape(s2out.exe_asm);
-            field.variables["cflags"] = list2str(s2out.asm_arg.cflags)
-                                      + list2str(s2out.asm_arg.include_dirs, "-I")
-                                      + list2str(s2out.asm_arg.defines, "-D");
+        field.inputs  = {cgn::NinjaFile::escape_path(src_in)};
+        field.outputs = {cgn::NinjaFile::escape_path(src_out.first)};
+        field.order_only = s3->ninja_order_only_dep;
+        if (src_out.second == '+') {
+            field.variables["cc"] = ccenv + s3->two_escape(s3->toolchain->exe_cxx);
+            field.variables["cflags"] = "$cflags_cpp";
+        }else if (src_out.second == 'A') {
+            field.variables["cc"] = ccenv + s3->two_escape(s3->toolchain->exe_asm);
+            field.variables["cflags"] = "$cflags_asm";
         }else {
-            field.variables["cc"] = ccenv + two_escape(s2out.exe_cc);
-            field.variables["cflags"] = list2str(s2out.c_arg.cflags)
-                                      + list2str(s2out.c_arg.include_dirs, "-I")
-                                      + list2str(s2out.c_arg.defines, "-D");
+            field.variables["cc"] = ccenv + s3->two_escape(s3->toolchain->exe_cc);
+            field.variables["cflags"] = "$cflags_c";
         }
 
-        if (mk->ninja)
-            mk->ninja->append_build(field);
-        obj_out.push_back(path_out);
+        if (s3->mk->ninja)
+            s3->mk->ninja->append_build(field);
+        obj_out.push_back(src_out.first);
         obj_out_ninja_esc.push_back(field.outputs[0]);
     } //endfor (auto &path_in : self_src)
 
     // build.ninja : cxx_sources()
     // cxx_sources() cannot process any field of LinkAndRunInfo
     // so add the .obj file generated by itself then return
-    if (target_role == 'o') {
-        // write target result
-        s3out.object_files = obj_out;
-        return write_ninja_phony_entry(mk, obj_out_ninja_esc);
-    }
+    if (s3->target_role == 'o')
+        return s3->done_with_entry(obj_out);
 
+    CxxWorker::PackOut pack_out = s3->suggest_packout();
 
     // build.ninja : cxx_static()
     //  deps.obj + self.srcs.o => rv[LRinfo].a
     //  deps.rt / deps.so / deps.a => rv[LRinfo]
-    if (target_role == 'a') {
-        std::string outfile = mk->out_prefix + "lib" + mk->name + ".a";
-        if (perferred_binary_name.size())
-            outfile = mk->out_prefix + perferred_binary_name;
-        
-        // write target result
-        s3out.static_files = std::vector<std::string>{outfile};
-
-        if (!mk->ninja)
-            return ;
-
-        std::string outfile_njesc = cgn::NinjaFile::escape_path(outfile);
+    if (s3->mk->ninja && s3->target_role == 'a') {
+        std::string outfile_njesc = cgn::NinjaFile::escape_path(pack_out.packout_file);
         cgn::NinjaFile::BuildSection field;
         field.rule = "gcc_ar";
         field.inputs = obj_out_ninja_esc
-                     + cgn::NinjaFile::escape_path(self_extra.object_files);
+                     + cgn::NinjaFile::escape_path(s3->src_extra.object_files);
         field.outputs = {outfile_njesc};
-        field.variables["exe"] = ccenv + two_escape(s2out.exe_ar);
-        field.variables["arflags"] = list2str(s2out.ar_arg_arflags);
-        mk->ninja->append_build(field);
-        return write_ninja_phony_entry(mk, field.outputs);
+        field.variables["exe"] = ccenv + s3->two_escape(s3->toolchain->exe_ar);
+        field.variables["arflags"] = s3->two_escape_to_string(s3->toolchain->ar_arg_arflags);
+        s3->mk->ninja->append_build(field);
     }
 
 
@@ -988,114 +992,93 @@ void CxxWorker::default_step3_xnix()
     //   deps.object + deps.static + self.srcs.o => self.so / self.exe
     //   with carg.ldflags and -wholearchive:x._wholearchive_a
     //   self.so + {so from deps} => rv[LRinfo].so
-    if (target_role == 's' || target_role == 'x') {
-        std::string filename;
-        std::string outfile;
-        std::string outfile_njesc;
-        if (target_role == 's')
-            outfile = mk->out_prefix + (filename = "lib" + mk->name + ".so");
-        else
-            outfile = mk->out_prefix + (filename = mk->name);
-        if (perferred_binary_name.size())
-            outfile = mk->out_prefix + (filename = perferred_binary_name);
-        outfile_njesc = cgn::NinjaFile::escape_path(outfile);
-
-        std::string ldflags; {
-            auto &xarg = (target_role=='s'? s2out.so_arg : s2out.exe_arg);
-            if (s2out.is_compiler_controlled_link) {
-                ldflags += list2str(xarg.compiler_driven_ldflags)
-                         + list2str(xarg.ldflags, "-Wl,");
-            }else
-                ldflags = list2str(xarg.ldflags);
-        }
+    if (s3->mk->ninja && (s3->target_role == 's' || s3->target_role == 'x')) {
+        std::vector<std::string> &ldflags = (s3->target_role=='s'? s3->toolchain->so_arg : s3->toolchain->exe_arg).ldflags;
         //prepare rpath argument
         //  this is seen as target ldflags, so put on the tail of cargs.ldflags
         // TODO: macos bsd-linker ldflags?
-        if (mk->trimmed_cfg["os"] == "linux") {
-            if (mk->trimmed_cfg["pkg_mode"] != "") {
-                ldflags += "-Wl,--enable-new-dtags " + two_escape("-Wl,-rpath=$ORIGIN") + " ";
-                s3out.runtime_files[cgn::make_path_base_out(filename)] = outfile;
-            }
+        if (s3->mk->trimmed_cfg["os"] == "linux") {
+            if (s3->mk->trimmed_cfg["pkg_mode"] != "")
+                ldflags += {"-Wl,--enable-new-dtags", "-Wl,--rpath=$ORIGIN"};
             else {
-                ldflags += "-Wl,--enable-new-dtags ";
-                for (auto &so : self_extra.shared_files) {
+                // do not need to copy .so without pkg_mode.
+                pack_out.packout_rt_filename = pack_out.packout_rt_filepath = "";
+                ldflags += {"-Wl,--enable-new-dtags"};
+                for (auto &so : s3->src_extra.shared_files) {
                     auto path1    = cgn::Tools::parent_path(so);
-                    auto path_rel = cgn::Tools::rebase_path(path1, mk->out_prefix);
-                    ldflags += two_escape("-Wl,--rpath=$ORIGIN/" + path_rel) + " ";
+                    auto path_rel = cgn::Tools::rebase_path(path1, s3->mk->out_prefix);
+                    ldflags += {"-Wl,--rpath=$ORIGIN/" + path_rel};
                 }
             }
 
             // ldflags += {"-Wl,--version-script=" + def_file};
             // ldflags += {"-Wl,-exported_symbols_list,\"" + def_file + "\""};
-            if (def_file.size())
-                ldflags += "-Wl,--export-dynamic-symbol-list=" + def_file + " ";
+            if (s3->def_file.size())
+                ldflags += {"-Wl,--export-dynamic-symbol-list=" + s3->def_file};
         }
-        s3out.shared_files = std::vector<std::string>{outfile};
 
         // generate ninja target
-        if (!mk->ninja)
-            return ;
-        auto *field = mk->ninja->append_build();
+        auto *field = s3->mk->ninja->append_build();
         field->rule = "crun_rsp";
         field->inputs = obj_out_ninja_esc 
-                      + cgn::NinjaFile::escape_path(self_extra.object_files);
-        field->implicit_inputs = cgn::NinjaFile::escape_path(self_extra.static_files) 
-                               + cgn::NinjaFile::escape_path(self_extra.shared_files)
+                      + cgn::NinjaFile::escape_path(s3->src_extra.object_files);
+        field->implicit_inputs = cgn::NinjaFile::escape_path(s3->src_extra.static_files) 
+                               + cgn::NinjaFile::escape_path(s3->src_extra.shared_files)
                                + njdep_setenv;
-        field->outputs = {outfile_njesc};
-        field->order_only = ninja_order_only_dep;
-        field->variables["exe"] = two_escape(target_role=='s'? s2out.exe_solink : s2out.exe_xlink);
+        field->outputs = {cgn::NinjaFile::escape_path(pack_out.packout_file)};
+        field->order_only = s3->ninja_order_only_dep;
+        field->variables["exe"] = s3->two_escape(s3->target_role=='s'? s3->toolchain->exe_solink : s3->toolchain->exe_xlink);
         
         // ninja target : compile commands
         // --start-group   : {all.obj} {dep.static without whole} -l{dep.shared}
         // --whole-archive : {static_files from inherit dep}
-        std::string ldarg_wholearchive = list2str(two_escape(self_extra.static_files));
-        std::string ldarg_others = list2str(two_escape(obj_out))
-                    + list2str(two_escape(self_extra.object_files))
-                    + list2str(two_escape(*self_extra_no_whole))
-                    + list2str(two_escape(self_extra.shared_files), "-l:");
+        std::vector<std::string> ldarg_others = obj_out + s3->src_extra.object_files + *s3->src_extra_no_whole;
+        for (auto &so : s3->src_extra.shared_files)
+            ldarg_others += {"-l:" + so};
 
-        ldflags += + "-o " + two_escape(outfile) + " ";
-        if (mk->trimmed_cfg["cxx_toolchain"] == "xcode")
-            ldflags += ldarg_wholearchive + "-Wl,-force_load " + ldarg_others + " ";
+        ldflags += {"-o" + pack_out.packout_file};
+        if (s3->mk->trimmed_cfg["cxx_toolchain"] == "xcode")
+            ldflags += s3->src_extra.static_files + cgn::SList{"-Wl,-force_load"} + ldarg_others;
         else { //linux
-            if (ldarg_wholearchive.size())
-                ldflags += "-Wl,--whole-archive " + ldarg_wholearchive 
-                         + "-Wl,--no-whole-archive ";
+            if (s3->src_extra.static_files.size())
+                ldflags += cgn::SList{"-Wl,--whole-archive"} 
+                         + s3->src_extra.static_files 
+                         + cgn::SList{"-Wl,--no-whole-archive"};
             if (ldarg_others.size())
-                ldflags += "-Wl,--start-group " + ldarg_others + "-Wl,--end-group ";
+                ldflags += cgn::SList{"-Wl,--start-group"} 
+                         + ldarg_others 
+                         + cgn::SList{"-Wl,--end-group"};
         }
 
-        field->variables["args"] = ldflags + "-o " + two_escape(outfile);
-        field->variables["desc"] = "LINK " + outfile_njesc;
+        field->variables["args"] = s3->two_escape_to_string(ldflags);
+        field->variables["desc"] = "LINK " + cgn::NinjaFile::escape_path(pack_out.packout_file);
 
         // copy runtime when cxx_executable()
-        if (target_role == 'x')
-            for (auto &one_entry : self_extra.runtime_files) {
+        if (s3->target_role == 'x')
+            for (auto &one_entry : s3->src_extra.runtime_files) {
                 const auto &dst1 = one_entry.first;
                 if (dst1.type != dst1.BASE_ON_OUTPUT)
                     continue;
-                auto dst  = api.rebase_path(dst1, ".", mk);
+                auto dst  = api.rebase_path(dst1, ".", s3->mk);
                 auto &src = one_entry.second;
-                auto *cpfield = mk->ninja->append_build();
+                auto *cpfield = s3->mk->ninja->append_build();
                 //TODO: copy runtime by custom command (like symbolic-link)
                 cpfield->rule    = "unix_cp";
                 cpfield->inputs  = {cgn::NinjaFile::escape_path(src)};
                 cpfield->outputs = {cgn::NinjaFile::escape_path(dst)};
                 field->order_only += cpfield->outputs;
-                // entry->order_only += cpfield->outputs;
             }
-
-        return write_ninja_phony_entry(mk, field->outputs);
     } // endif (role=='s' or 'x')
-} //CxxWorker::default_step3_xnix()
 
-void CxxWorker::step3_gen_ninja()
+    return s3->done_with_entry(pack_out);
+} //default_step3_xnix()
+
+cgn::LinkAndRunInfo CxxWorker::step3_gen_ninja(CxxWorker::Stage3In *s3) const
 {
-    if (mk->trimmed_cfg["os"] == "win")
-        return default_step3_win();
+    if (s3->mk->trimmed_cfg["os"] == "win")
+        return default_step3_win(s3);
     else
-        return default_step3_xnix();
+        return default_step3_xnix(s3);
 } //CxxWorker::step3_gen_ninja()
 
 }; //namespace

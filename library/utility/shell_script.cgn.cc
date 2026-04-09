@@ -4,6 +4,8 @@
 void ShellScriptWorker::preconfig(cgn::CGNTargetOpt *opt) {
     this->opt = opt;
     opt->cfg.visit_keys({"host_shell"});
+    if (opt->cfg["host_os"] != "win")
+        _content += "#!/bin/sh\n";
 }
 
 void ShellScriptWorker::append_setenv(const std::string &key, const std::string &value) {
@@ -42,9 +44,10 @@ void ShellScriptWorker::append_escaped_cmd(const std::string &line) {
         _content += "if %ERRORLEVEL% NEQ 0 (exit /b %ERRORLEVEL%)\n";
     }
     else {
-        _content += line + "\n";
-        _content += "if [ $? -ne 0 ]; then\n"
-                    "  exit $?\n"
+        _content += line + "\n"
+                  + "RET=$?\n";
+        _content += "if [ $RET -ne 0 ]; then\n"
+                    "  exit $RET\n"
                     "fi\n";
     }
 }
@@ -122,7 +125,7 @@ void ShellScript::interpret(context_type &x)
     }
     else {
         for (auto &p : x.script_outputs) {
-            std::string op = api.rebase_path(p, "", mk);
+            std::string op = api.rebase_path(p, ".", mk);
             field->outputs += {mk->ninja->escape_path(op)};
         }
         auto *phony = mk->ninja->append_build();

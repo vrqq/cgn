@@ -1,3 +1,35 @@
+## Features
+
+	* `cxx_sources(name, x)` — Compiles source files to object files. No standalone artifact.
+	* `cxx_static(name, x)` — Creates a static library (`.a` / `.lib`).
+	* `cxx_shared(name, x)` — Creates a shared library (`.so` / `.dll`).
+	* `cxx_executable(name, x)` — Creates an executable. Copies all `.runtime` deps to the output folder.
+	* `cxx_prebuilt(name, x)` — Wraps pre-built binaries/headers into the CGN dependency graph.
+	* clang ThinLTO
+	* TODO: MSVC incremental build
+	* TODO: Linux symbolic link for .runtime (Windows 因权限问题只能copy)
+	* private语义: 生成dll，是否在打包时 obj/.a 同时 抹掉内部的dllexport？目前dep.static和dep.obj内自己定义是否export （例如使用ranlib）
+
+## `.add_dep()` flags
+
+| Flag | Meaning |
+|------|---------|
+| `cxx::private_dep` | (default) Consume dep's `CxxInfo` and `LinkAndRunInfo` for the current target only; do not propagate upstream. (仅对自己有效, 依赖项不向上传递)|
+| `cxx::inherit` | Consume dep's info for the current target AND propagate it upstream to all consumers. (对自己和有效 且依赖项尽可能向上传递)|
+| `cxx::archive` | *(static lib only)* Pack dep's object files / static libs into the current target. Prefers consuming `LinkAndRunInfo.static` and `LinkAndRunInfo.object` at this level; any remainder follows `private_dep`/`inherit` rules. |
+| `cxx::order_dep` | Build-order dependency only; all `TargetInfo` from dep is discarded. |
+| `cxx::_no_whole` | *(shared lib only)* Do not use whole-archive linking on dep's static library. |
+
+`LinkAndRunInfo.runtime` entries are always stopped at `cxx_executable()` and copied to the same output folder, regardless of which flag is used.
+
+## `this` vs `this.pub` (CxxInfo fields)
+
+| Field | Scope |
+|-------|-------|
+| `x.srcs`, `x.defines`, `x.include_dirs`, `x.cflags`, `x.ldflags` | Applied **only** to the current target; not visible to consumers. (对自己有效) |
+| `x.pub.defines`, `x.pub.include_dirs`, `x.pub.cflags`, `x.pub.ldflags` | Exported to all consumers via `inherit`; **do not include ** to the current target itself. (对外有效)|
+
+* 若需要同时对自己和对外有效则需要同时设置这两组值
 
 ## Feature
     * `cxx_sources(cxx::CxxSourcesContext)`
@@ -5,19 +37,6 @@
     * `cxx_shared(cxx::CxxSharedContext)`
     * `cxx_executable(cxx::CxxExecutableContext)`
 	* `cxx_prebuilt(cxx::PrebuiltContext)`
-    * clang ThinLTO
-    * TODO: msvc incremental build
-
-**.add_dep()**
-* `cxx::private_dep` 仅对自己有效 : 依赖项不向上传递
-* `cxx::inherit` 对自己和有效 且public : 依赖项尽可能向上传递
-* `cxx::pack_obj` 特殊flag 尽可能的将从dep来的obj/static_lib打包
-	* 尽量在当前target消费掉 `LinkAndRunInfo.static` 和 `LinkAndRunInfo.object` 不向上传递, 若消费不掉 再遵循`private_dep` 和 `inherit` 两个flag决定是否传递.
-* `LinkAndRunInfo.runtime` 无论哪种flag, 均截止至`cxx_executable()`并复制到同文件夹
-
-**(CxxInfo)this 和 this.pub**
-* `(CxxInfo)this` 仅对自己有效 不对外public
-* `this.pub` 仅对外有效 不对自己生效
 
 ## interpreter 接受的 config
 见 cgn.d/README.md
@@ -34,88 +53,65 @@
 ## interpreter 输出规范
 * 所有 target 均直接在 `out_prefix` 中输出 .o / .a / .so / .lib 等
 * 仅 cxx_executable() 才将 `deps_info[BuildAndRunInfo].runtime` 复制到 `out_prefix` 中
-    * TODO: Linux 系统可 symbolic link, Windows 因权限问题只能copy
+    * 
+
+## interpreter 接受的 config
+见 cgn.d/README.md
+
+**ROADMAP**
+* MacOS cxx_toolchain == xcode : XCode.app/clang and OS bsd linker       (UP!)
+* MacOS cxx_toolchain == llvm  : clang and llvm-linker
+* Linux cxx_toolchain == llvm : clang and llvm linker (ld.lld)  		 (UP!)
+* Linux cxx_toolchain == gcc  : gcc and binutil-ld  					 (UP!)
+* Win   cxx_toolchain == llvm : VS-Inside clang-cl.exe and lld-link.exe  (UP!)
+* Win   cxx_toolchain == msvc : VS-Inside cl.exe and link.exe  			 (UP!)
+* Win   cxx_toolchain == gcc  : gcc.exe and ld.exe
 
 ## C/C++ interpreter 处理流程
 仅处理dep上游传来的 `BuildAndRunInfo` 和 `CxxInfo`, 其余一律转发.
-下文缩写: `dep` from dep-input, `rv` 当前target的输出, `self_buildarg` 作用于当前target的编译参数, `move()`表示将该项目移走并清空
+下文缩写: `pub` from dep-input, `rv` 当前target的输出, `self_buildarg` 作用于当前target的编译参数, `move()`表示将该项目移走并清空
 
 ```
-// cxx::pack_obj 不起作用
 cxx_sources(x) {
-	for dep.BuildAndRunInfo
-		dep => rv
-	for priv_dep dep.CxxInfo
-		dep => self_buildarg
-	for inherit dep.CxxInfo
-		dep => self_buildarg + rv[CxxInfo]
+	for all_dep.BuildAndRunInfo
+		all_dep => rv[BuildAndRunInfo]
+	for priv_dep.CxxInfo
+		priv_dep => self_buildarg
+	for inherit_dep.CxxInfo
+		inherit_dep => self_buildarg + rv[CxxInfo]
 	gen-ninja: x.src => x.obj => rv[BuildAndRunInfo].obj 
 }
 
-
-// Option : pack_obj 优先控制 是否将dep.obj打包进当前.a
 cxx_static(x) {
-	for pack_obj dep.BuildAndRunInfo
+	for _archive_dep.BuildAndRunInfo
 		move(dep.obj) => self.src
-	for inherit dep.BuildAndRunInfo
-		dep => rv[BuildAndRunInfo]
-	for priv_dep dep.CxxInfo
-		dep => self_buildarg
-	for inherit dep.CxxInfo
-		dep => self_buildarg + rv[cxxInfo]
+	for inherit_dep.BuildAndRunInfo
+		inherit_dep => rv[BuildAndRunInfo]
+	for priv_dep.CxxInfo
+		priv_dep => self_buildarg
+	for inherit_dep.CxxInfo
+		inherit_dep => self_buildarg + rv[cxxInfo]
 	gen-ninja: x.src => x.a => rv[BuildAndRunInfo].a
 }
 
-// Option : pack_obj 优先控制 是否将dep.obj + wholearchive(dep.static) 打包进当前.so
 cxx_shared/cxx_executable(x) {
-	for priv_dep dep.CxxInfo
+	for priv_dep.CxxInfo
 		dep => self_buildarg
-	for inherit dep.CxxInfo
+	for inherit.CxxInfo
 		dep => self_buildarg + rv[CxxInfo]
-	for pack_obj dep.BuildAndRunInfo
-		move(dep.static) => wholearchive into x.so
-		move(dep.object) => x.src
-	for private/inherit dep.BuildAndRunInfo
+	for _no_whole_dep.BuildAndRunInfo
+		move(dep.static) => x._self_no_whole_archive
+	for all_dep.BuildAndRunInfo
+		move(dep.obj) => self.src (for linking)
+		move(dep.static) => wholearchive into x.so (for linking)
 		self_buildarg.ldflags += "rpath=dep.shared" (UNIX and NOT-PKG)
-		self_buildarg.ldflags += dep.shared + dep.object + dep.static
+		self_buildarg.ldflags += dep.shared (for linking)
 		dep.runtime => rv[BuildAndRunInfo].runtime (for SHARED target)
 		exec("cp dep.runtime => x.out_folder") && clear(dep.runtime) (for EXECUTABLE target)
 	for inherit dep.BuildAndRunInfo
 		dep => rv[BuildAndRunInfo]
-	x.src => x.so/x.exe => rv[BuildAndRunInfo].so + rv[BuildAndRunInfo].rt
+	gen-ninja: x.src => x.so/x.exe => rv[BuildAndRunInfo].so + rv[BuildAndRunInfo].rt
 	if target==WIN and x.src.contain(".mainfest"): (both PKG and NOT-PKG)
-		x.so => target_out/{manifest_name}/x.so
-		rv[BuildAndRunInfo].rt = {"manifest_pkg_name/x.dll"}
-		rv[CxxInfo].ldflags += "/manifestdependency:x.manifest"
-	if target==WIN: (both PKG and NOT-PKG)
-		x.so => target_out/x.so
-	if target==UNIX and PKG-mode:
-		x.so => target_out/{target_name}/x.so
-		rv[CxxInfo].ldflags += "rpath={target_name}"
-		rv[brInfo].rt += "x.so -> {target_name}/x.so"
-	// Option : 控制CxxInfo是否暴露 + 是否 /Wholearchive:.a
-	//
-	// Reason : 由于interpreter不晓得源码内写了哪些dllexport 故
-	//			CxxInfo暴露时 就认为 dep.static 的函数也需要暴露
-	//			dep.shared 同理 暴露给上游 link
-	//			即使 obj 没打进当前dll 他也会随着TargetInfo 到上游
-	//			从而引发潜在的 symbol-collection
-	//			一般 dll/exe 还独立发布 (处理全部
-	//		    DYNDEP-DLL 之后就不含 undefined symbol 了)
-	//
-	//			故private语义 需打包 obj/.a 同时 抹掉内部的dllexport
+		pack manifest into current output.
 }
 ```
-
-**可能的改进 (TODO) **
-* `cxx_sources(x)`
-	* inherit : 暴露 dep.CxxInfo
-	* privcfg : 隐藏 dep.CxxInfo 例如从当前target间接调用dep内函数
-* `cxx_static(x)`
-	* packobj + inherit : dep.obj -> thisrv.static && 暴露 dep.CxxInfo
-	* nopack  + inherit : dep.obj -> thisrv.obj    && 暴露 dep.CxxInfo
-	* packobj + privcfg : dep.obj -> thisrv.static && 不暴露 dep.CxxInfo && 削减 ranlib
-	* nopack  + privcfg : dep.obj -> thisrv.obj    && 不暴露 dep.CxxInfo
-* `cxx_shared/cxx_executable(x)`
-	* privdep : dep.obj 抹掉导出表
-	* inherit : dep.obj 正常link

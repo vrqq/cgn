@@ -147,6 +147,7 @@ private:
     // script_cc : args from --scriptcc
     // scriptcc_debug_mode : args from --scriptcc_debug
     // halt_on_error : args from --halt_on_error
+    // mcp_mode : do not print anything to stdout, args from --mcp-mode
     std::filesystem::path cgn_out;
     std::filesystem::path analysis_path;
     std::filesystem::path obj_main_ninja;
@@ -156,6 +157,7 @@ private:
     std::string cgnapi_winimp;
     bool scriptcc_debug_mode = false;
     bool halt_on_error = false;
+    bool mcp_mode = false;
 
     // std::unordered_set<std::string> adep_cycle_detection;
 

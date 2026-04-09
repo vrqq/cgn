@@ -34,6 +34,9 @@ namespace cgnv1 {
         void verbose_paragraph(const std::string &text);
         // void paragraph(const std::string &color_title, const std::string &normal_body);
 
+        // For mcp mode, do not print anything to stdout.
+        void disable_log() { _override_disable_flag = true; }
+
         // Toggle verbose mode
         void set_verbose(bool enable);
         bool is_verbose() { return _is_verbose; }
@@ -41,6 +44,7 @@ namespace cgnv1 {
         ~Logger();
 
     private:
+        bool _override_disable_flag = false;
         bool _is_verbose;
         void *line_printer;
     };

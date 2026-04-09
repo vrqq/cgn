@@ -11,26 +11,26 @@ namespace cxx {
 // /WHOLEARCHIVE in default
 enum class DepType : char{
     // (DO NOT CONSUME ANY TargetInfo from dep)
-    // only define the build order, drop the return info from deps. 
-    // Add order_only dependency for current target.
+    // Only establishes build order; all return info from deps is dropped.
+    // Adds an order-only dependency for the current target.
     _order_dep = 1,
 
     // (aka PRIVATE)
-    // the default flag, the dependents were only used in private,
-    // utilize dep[CxxInfo] and dep[LinkAndRunInfo] in private and 
-    // do not expose from current target,
-    // see details in cxx language note.
+    // The default flag. The dependency is used privately:
+    // consume dep[CxxInfo] and dep[LinkAndRunInfo] in private,
+    // and do not expose them from the current target.
+    // See details in the cxx language note.
     _private_dep = 1L << 2,
 
     // (aka PUBLIC)
-    // consume and inherit the dep[CxxInfo] and dep[LinkAndRunInfo] from dependents, 
+    // Consume and propagate dep[CxxInfo] and dep[LinkAndRunInfo] upstream.
     _inherit = 1L << 3,
 
-    // ar rcs on both self.srcs[] and deps[LinkAndRun].object_files
-    // consume dep[CxxInfo].object_files to current static library (ar rcs).
+    // Archive (ar rcs) both self.srcs[] and deps[LinkAndRun].object_files
+    // into the current static library.
     _archive = 1L << 4,
 
-    // [shared_library only] no-whole-archive on deps[LinkAndRun].static_library
+    // (shared library only) Do not apply whole-archive on deps[LinkAndRun].static_library.
     _no_whole = 1L << 5,
 };
 
@@ -71,6 +71,40 @@ private:
     LANGCXX_CGN_BUNDLE_API const static cgn::BaseInfo::VTable &_glb_cxx_vtable();
 }; //struct CxxInfo
 
+struct CxxToolchainInfo
+{
+    std::string exe_cc, exe_cxx, exe_asm, exe_solink, exe_xlink, exe_ar;
+ 
+    // for MSVC : derivatives of vcvarsall.bat
+    // for RHEL : "scl enable gcc-toolset-x bash" (NOT IMPLEMENT)
+    cgn::GraphNode *env_loader_script_anode = nullptr;
+    std::string     env_loader_script;
+    
+    // MSVC143 : Visual C++ 2022 (aka Visual C++ 14.3)
+    // MSVC142 : Visual C++ 2019 (aka Visual C++ 14.2)
+    // MSVC141 : Visual C++ 2017 (aka Visual C++ 14.1)
+    // MSVC140 : Visual C++ 2015 (aka Visual C++ 14.0)
+    std::string msvc_ver1;
+
+    // TBD: rename to c_opt, cpp_opt, exe_opt, ar_opt
+    struct CompilingOption {
+        // include_dirs and defines would be escaped in stage2 with current shell.
+        std::vector<std::string> include_dirs, cflags, defines;
+    }c_arg, cpp_arg, asm_arg;
+
+    struct {
+        // true: $(exe_cc == exe_solink / exe_xlink) -fuse-ld=lld 
+        //       $(exe_cc == exe_solink / exe_xlink) -fuse-ld=gold
+        // false: exe_solink / exe_xlink = ld / ld.lld / lib.exe / ...
+        bool is_compiler_controlled_link;
+
+        // is_compiler_controlled_link == true: ldflags like '-Wl,--rpath=$ORIGIN'
+        // is_compiler_controlled_link == false: ldflags like '-rpath=\\$ORIGIN' or '/L:ws2_32.lib'
+        std::vector<std::string> ldflags;
+    }exe_arg, so_arg;
+
+    std::vector<std::string> ar_arg_arflags;
+}; //struct CxxToolchainInfo
 
 struct CxxContext : CxxInfo, protected cgn::QuickDepContext
 {
@@ -98,15 +132,20 @@ struct CxxContext : CxxInfo, protected cgn::QuickDepContext
 
     cgn::Configuration &cfg;
 
+    CxxToolchainInfo get_toolchain_info() {
+        return get_toolchain_info(cfg);
+    }
+    CxxToolchainInfo get_toolchain_info(cgn::Configuration &cfg);
+
     // Add target dependency
     // @param label : factory label
     // @param cfg   : the config
     // @param flag  :
-    //    - order_dep : same as order_only in ninjabuild
-    //    - priv_dep  : apply CxxInfo and LinkAndRunInfo on current target only
-    //    - inherit   : priv_dep and expose from current target
-    //    - archive   : (static lib only) archive deps[LinkAndRun].object to current .a
-    //    - no_whole  : (shared lib only) do not use /WHOLEARCHIVE on deps[LinkAndRun].static
+    //    - order_dep   : same as order_only in ninjabuild
+    //    - private_dep : apply CxxInfo and LinkAndRunInfo on current target only
+    //    - inherit     : private_dep and expose from current target
+    //    - archive     : (static lib only) archive deps[LinkAndRun].object to current .a
+    //    - no_whole    : (shared lib only) do not use /WHOLEARCHIVE on deps[LinkAndRun].static
     LANGCXX_CGN_BUNDLE_API cgn::CGNTarget add_dep(
         const std::string &label, cgn::Configuration cfg, DepType flag
     );
@@ -153,61 +192,72 @@ using CxxSharedContext  = CxxContextType<'s'>;
 using CxxExecutableContext = CxxContextType<'x'>;
 
 
-
-struct CxxToolchainInfo
+class LANGCXX_CGN_BUNDLE_API CxxWorker
 {
-    std::string exe_cc, exe_cxx, exe_asm, exe_solink, exe_xlink, exe_ar;
-
-    // is_compiler_controlled_link: 
-    //   true: $(exe_cc == exe_solink) -fuse-ld=lld -fuse-ld=gold
-    bool is_compiler_controlled_link;
- 
-    // for MSVC : derivatives of vcvarsall.bat
-    // for RHEL : "scl enable gcc-toolset-x bash" (NOT IMPLEMENT)
-    cgn::GraphNode *env_loader_script_anode = nullptr;
-    std::string     env_loader_script;
-    
-    // MSVC143 : Visual C++ 2022 (aka Visual C++ 14.3)
-    // MSVC142 : Visual C++ 2019 (aka Visual C++ 14.2)
-    // MSVC141 : Visual C++ 2017 (aka Visual C++ 14.1)
-    // MSVC140 : Visual C++ 2015 (aka Visual C++ 14.0)
-    std::string msvc_ver1;
-
-    //
-    // extra_cflags_cpp, extra_cflags_c, extra_cflags_asm: extra flag for specific language.
-    //
-    // No str-escape for the variable below; user must escape as needed.  
-    // The first part is usually compiler options and needs no escaping  
-    // (e.g., `--sysroot=`). Only the latter part generally requires it  
-    // (e.g., `$ORIGIN` → `\$ORIGIN`).  
-    // CxxInfo arg;
-
-    // In stage1, all variable valid
-    // In stage2, merge all variable into only *_src.cflags and *_out.ldflags.
-    // In stage3, generate ninja file
-    // TODO: rename to c_opt, cpp_opt, exe_opt, ar_opt
-    struct {
-        std::vector<std::string> include_dirs, cflags, defines;
-    }c_arg, cpp_arg, asm_arg;
-    struct {
-        std::vector<std::string> ldflags, compiler_driven_ldflags;
-    }exe_arg, so_arg;
-
-    std::vector<std::string> ar_arg_arflags;
-}; //struct CxxToolchainInfo
-
-class CxxWorker {
 public:
-    // win10==0x0A00; win7==0x0601;
-    // win8.1/Server2012R2==0x0603;
-    static constexpr const char* DEFAULT_MINIMUM_WINVER = "0x0A00";
+    struct PackOut {
+        std::string packout_file; // .a / .so / .dll
+        std::string packout_rt_filepath; // .dll path for runtime_files
+        std::string packout_rt_filename; // .dll name for runtime_files
+    };
+    struct Stage3In {
+        char target_role;
+        cgn::CGNTargetMaker *mk;
 
-    virtual std::string step1_test_param(cgn::Configuration &cfg, const std::string &via);
+        // exe_cc, exe_link, ...
+        // cflags_c, cflags_cpp, cflags_asm, ldflags_so, ldflags_exe, arflags
+        // - .cflags  don't have {'/I$include_dirs', '/D$defines' ...}
+        // - .ldflags don't have {'-wholearchive', '/DEF', ...}
+        // - arflags  don't have {'/DEF:', ...}
+        CxxToolchainInfo *toolchain;
 
-    // TODO: cannot visit CxxContext from inherit class.
-    virtual std::string step2_confirm(CxxContext &x);
+        // src_extra, src_extra
+        // - self_src    have {'a.cpp', 'b.cpp'}, don't have '*.cpp'
+        // - self_extra  have LinkAndRunInfo{.shared[], .static[], .object[]}
+        std::string def_file;
+        std::vector<std::string> src_files;
+        cgn::LinkAndRunInfo      src_extra; // considered as output of self_src
+        std::vector<std::string> *src_extra_no_whole = nullptr;
+        std::vector<std::string> ninja_order_only_dep;
 
-    virtual void step3_gen_ninja();
+        
+        // @return : the obj file of current src, and the file type ('c', 'A' or '+')
+        std::pair<std::string, char> suggest_objout(std::string &src);
+
+        // valid when target_role == 'a' / 's' / 'x'
+        // For the case of windows shared lib, the .dll is runtime file and the .lib is import table.
+        //    packout_file : 'path/to/<stem>.lib'
+        //    packout_rt_filepath: 'path/to/<stem>.dll'
+        //    packout_rt_filename: '<stem>.dll'
+        // @return : lib/exe output path suggestion for current target.
+        const PackOut &suggest_packout() const { return pack_out_suggestion; }
+
+        std::vector<std::string> gen_cflags(
+            const std::string &include_prefix,
+            const std::string &define_prefix,
+            const CxxToolchainInfo::CompilingOption &info) const;
+
+        std::string two_escape(const std::string &in) const;
+        std::vector<std::string> two_escape(std::vector<std::string> in) const;
+        std::string two_escape_to_string(std::vector<std::string> in) const;
+
+        // for cxx_sources() of current target, use done_with_entry(obj_files[]),
+        // otherwise use done_with_entry().
+        cgn::LinkAndRunInfo done_with_entry(const std::vector<std::string> &obj_files);
+        cgn::LinkAndRunInfo done_with_entry(const PackOut &out);
+    
+    private: friend class CxxWorker;
+        PackOut pack_out_suggestion;
+    }; //Stage3In
+
+    // @return first: toolchain info for step2, second: error message if test failed.
+    virtual std::pair<CxxToolchainInfo, std::string> 
+    step1_test_param(cgn::Configuration &cfg, const std::string &via) const;
+    
+    // TODO: cannot visit CxxContext from inherit class, no virtual supported currently.
+    Stage3In step2_confirm(CxxToolchainInfo &s1out, CxxContext &x) const;
+
+    virtual cgn::LinkAndRunInfo step3_gen_ninja(Stage3In *in) const;
 
     template<typename T, 
         typename = typename std::enable_if<std::is_base_of<CxxWorker, T>::value>::type> 
@@ -219,73 +269,9 @@ public:
         });
     }
 
-protected: friend class CxxInterpreter;
-    // step1 output (for step2 input)
-    CxxToolchainInfo s1out;
-
-    // dep_pack.run  (-> exe)
-    // dep_pack.obj  (-> static_lib) pack whole
-    // dep_pack.a    (-> shared)     pack whole
-    // dep_use.a     (-> shared)     pack necessary
-    // dep_use.obj   (-> shared)     pach whole
-    // dep_use.so    (-> shared)     link
-    // self_extra
-    //
-    // step2 output, for step3 input
-    // self_src, self_extra
-    // - self_src    have {'a.cpp', 'b.cpp'}, don't have '*.cpp'
-    // - self_extra  have LinkAndRunInfo{.shared[], .static[], .object[]}
-    // exe_cc, exe_link, ...
-    // cflags_c, cflags_cpp, cflags_asm, ldflags_so, ldflags_exe, arflags
-    // - cflags_ANY  don't have {'/I$include_dirs', '/D$defines' ...}
-    // - ldflags_ANY don't have {'-wholearchive', '/DEF', ...}
-    // - arflags     don't have {'/DEF:', ...}
-    char target_role;
-    std::string perferred_binary_name;
-    cgn::CGNTargetMaker *mk;
-    CxxToolchainInfo s2out;
-    std::vector<std::string> self_src;
-    cgn::LinkAndRunInfo      self_extra; // considered as output of self_src
-    std::vector<std::string> *self_extra_no_whole = nullptr;
-    std::vector<std::string> ninja_order_only_dep;
-    
-    // step3 output : s3out
-    // generate current target output by 
-    //   * compiler and its flags $s2out
-    //   * source code $self_src
-    //   * lib deps $self_extra
-    // foreach ninja obj target, set order_only=$ninja_order_only_dep
-    cgn::LinkAndRunInfo s3out;
-
-protected:
-    //helper function: convert list to string
-    template<typename T> static std::string 
-    list2str(const T &in, const std::string prefix="", 
-        std::function<std::string(const std::string&)> fn_escape = nullptr)
-    {
-        std::string rv;
-        for (auto &it : in)
-            rv += prefix + (fn_escape?fn_escape(it):it) + " ";
-        return rv;
-    }
-
-    std::string two_escape(const std::string &in) const {
-        return cgn::NinjaFile::escape_path(
-            cgn::CGN::shell_escape(in, mk->trimmed_cfg["host_shell"])
-        );
-    }
-    std::vector<std::string> two_escape(std::vector<std::string> in) const {
-        for (auto &it : in)
-            it = two_escape(it);
-        return in;
-    }
-
-private:
+private: friend class CxxInterpreter;
     // storage for bind_worker()
     static std::unordered_map<std::string, std::function<std::unique_ptr<CxxWorker>()>> gen_worker;
-
-    void default_step3_win();
-    void default_step3_xnix();
 }; //class CxxWorker
 
 struct CxxInterpreter

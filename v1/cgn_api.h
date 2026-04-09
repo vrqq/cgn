@@ -32,7 +32,7 @@ struct CGN_EXPORT Tools {
 
     static HostInfo get_host_info();
 
-    // TBD: Do we need to expose these advcopy tool?
+    // TBD: Decide whether to expose the advanced-copy utilities below.
     struct PatchSearchResult {
         std::string PATH_SEPARATOR;
 
@@ -104,10 +104,10 @@ struct CGN_EXPORT Tools {
 
 
     // expand CGNPath to relative path of working-root or absolute path
-    // * if p.rpath is absoulte path, return directly.
-    // * If p.type == BASE_ON_OUTPUT : only CGNTargetMaker can be used.
-    // * If p.type == BASE_ON_WORKINGROOT : the param 'opt' is ignored.
-    // @param p : path in
+    // * If p.rpath is an absolute path, return it directly.
+    // * If p.type == BASE_ON_OUTPUT: only CGNTargetMaker can be used here.
+    // * If p.type == BASE_ON_WORKINGROOT: the 'opt' parameter is ignored.
+    // @param p : input path
     // @param opt : current environment
     // @param new_base : The directory to convert the paths to be relative to. 
     //          if new_base is the empty string, absolute path returned.
@@ -131,9 +131,9 @@ struct CGN_EXPORT Tools {
         CGNTargetOpt *opt
     );
 
-    // convert path 'in' to OS-dependent separator style, even if the path does 
-    // not exist. remove section which name '.'(dot) at begin or end.
-    // The final '/' will be kept to indicate that is directory.
+    // Convert path 'in' to the OS-preferred separator style without resolving it.
+    // Removes any leading or trailing '.' (dot) path segments.
+    // The final '/' is kept to indicate that the path is a directory.
     // For windows, convert "c:" to "C:" (uppercase)
     // 
     // Example:
@@ -153,9 +153,13 @@ struct CGN_EXPORT Tools {
     // Retrive filename of the input
     static std::string filename_of_path(const std::string &in);
 
+    // @return : the extension of the filename, starting with '.' (dot)
     static std::string extension_of_path(const std::string &in);
 
-    // checking 'p' is inside 'dir' or not
+    // @return : the extension of the filename, starting with '.' (dot)
+    static std::string lowercase_extension_of_path(const std::string &in);
+
+    // Check whether path 'p' is inside 'dir'.
     static bool is_file_inside(const std::string &p, const std::string &dir);
 
     static std::unordered_map<std::string, std::string> read_kvfile(
@@ -203,7 +207,7 @@ struct CGN_EXPORT Tools {
     //    ./././a/b/c => a_/b_/c
     static std::string mangle_path_to_relative(const std::string &cpath, const char alter_prefix = 'R');
 
-    //@depecated
+    //@deprecated
     static std::string mangle_path(const std::string &file, const std::string &base);
     // static bool is_absolute_path(const std::string &path);
 

@@ -1,0 +1,26 @@
+{
+  "_comment": "CGN MCP Server configuration template. Copy relevant sections into your MCP client config.",
+  "_how_to_generate_cgn_mcp_binary_file": "Using ./debug.sh @cgn.d//mcp to create release version of cgn mcp service.",
+  "mcpServers": {
+    "cgn": {
+      "_comment_linux_debug": "Linux debug build with LLVM + ASAN",
+      "command": "${workspaceFolder}/cgn-out/obj/@cgn.d_/mcp_/cgn_mcp_FFFF8987/cgn_mcp",
+      "args": ["--target", "llvm,debug,asan", "--cgn-out", "cgn-out"]
+    },
+    "cgn_linux_release": {
+      "_comment": "Linux release build with GCC",
+      "command": "${workspaceFolder}/cgn-out/obj/@cgn.d_/mcp_/cgn_mcp_FFFF8987/cgn_mcp",
+      "args": ["--target", "gcc,release", "--cgn-out", "cgn-out"]
+    },
+    "cgn_mac_debug": {
+      "_comment": "macOS debug build with Xcode toolchain",
+      "command": "./@cgn.d/build_mac/cgn_mcp",
+      "args": ["--target", "xcode,debug,asan", "--cgn-out", "cgn-out"]
+    },
+    "cgn_windows_debug": {
+      "_comment": "Windows debug build with MSVC (run from Developer Command Prompt or with --winenv)",
+      "command": "./@cgn.d/build_wind/cgn_mcp.exe",
+      "args": ["--target", "msvc,debug", "--cgn-out", "cgn-out", "--winenv"]
+    }
+  }
+}

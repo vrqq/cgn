@@ -6,7 +6,7 @@ OS_TYPE=$(uname)
 if [[ "$OS_TYPE" == "Linux" ]]; then
     ./@cgn.d/build_linuxd/cgn --halt_on_error --target llvm,debug,asan query $@
 elif [[ "$OS_TYPE" == "Darwin" ]]; then
-    ./@cgn.d/build_mac/cgn --halt_on_error --target xcode,debug,asan build $@
+    ./@cgn.d/build_mac/cgn --halt_on_error --target xcode,debug,asan query $@
 else
     echo "Unsupported operating system: $OS_TYPE"
     exit 1

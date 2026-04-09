@@ -1,6 +1,7 @@
 #define LANGCXX_CGN_BUNDLE_IMPL
 #include "cxx.cgn.h"
 #include "cxx_worker.hxx"
+#include <regex>
 
 namespace cxx {
 
@@ -133,35 +134,45 @@ cgn::CGNTarget CxxContext::add_dep(
 
 void CxxInterpreter::interpret(context_type &x)
 {
-    CxxWorker worker;
-    std::string errmsg = worker.step1_test_param(x.cfg, "");
-    if (errmsg.size())
-        return x.opt->set_fail(errmsg);
+    // Find custom worker if specified, otherwise use default one.
+    std::unique_ptr<CxxWorker> worker;
+    std::string suite = x.cfg["cxx_toolchain"];
+    if (suite.size() && suite[0] == '@') {
+        auto fd = CxxWorker::gen_worker.find(suite);
+        if (fd == CxxWorker::gen_worker.end())
+            return x.opt->set_fail("CxxWorker not found: " + suite);
+        worker = fd->second();
+    }
+    else
+        worker = std::unique_ptr<CxxWorker>(new CxxWorker);
 
-    errmsg = worker.step2_confirm(x);
-    if (errmsg.size())
-        return x.opt->set_fail(errmsg);
-    if (!worker.mk)
-        return ;
-    worker.mk->merge_from(x.quickdep_result);
+    // Worker step1
+    std::pair<CxxToolchainInfo, std::string> s1resp = worker->step1_test_param(x.cfg, "");
+    if (s1resp.second.size())
+        return x.opt->set_fail(s1resp.second);
 
-    worker.step3_gen_ninja();
+    // Worker step2
+    CxxWorker::Stage3In s2out = worker->step2_confirm(s1resp.first, x);
+    if (s2out.mk == nullptr || s2out.mk->errmsg.size())
+        return;
+    s2out.mk->merge_from(x.quickdep_result);
 
-    worker.mk->merge_entry(&worker.s3out);
-    worker.mk->outputs = worker.s3out.object_files
-                       + worker.s3out.shared_files
-                       + worker.s3out.static_files;
+    // Worker step3
+    cgn::LinkAndRunInfo s3out = worker->step3_gen_ninja(&s2out);
+    s2out.mk->merge_entry(&s3out);
 }
 
 CxxToolchainInfo CxxInterpreter::test_param(
     cgn::Configuration &cfg, const std::string &via
 ) {
     CxxWorker worker;
-    std::string errmsg = worker.step1_test_param(cfg, via);
-    if (errmsg.size())
-        throw std::runtime_error{errmsg};
-    return worker.s1out;
+    auto s1resp = worker.step1_test_param(cfg, via);
+    if (s1resp.second.size())
+        throw std::runtime_error{s1resp.second};
+    return s1resp.first;
 }
+
+std::unordered_map<std::string, std::function<std::unique_ptr<CxxWorker>()>> CxxWorker::gen_worker;
 
 // CxxPrebuiltInterpreter
 // ----------------------
@@ -196,11 +207,13 @@ void CxxPrebuiltInterpreter::interpret(context_type &x)
         fd1 = (fd1 == file.rpath.npos? 0: fd1+1);
         if (fddot == file.rpath.npos || fddot < fd1)
             continue;
+        std::string filename = file.rpath.substr(fd1);
         std::string stem = file.rpath.substr(fd1, fddot-fd1);
         std::string ext  = file.rpath.substr(fddot);
-        // std::string fullp = api.locale_path(opt->src_prefix + file);
         std::string fullp = api.rebase_path(file, ".", mk);
-        if (ext == ".so")
+        // Match xxx.so, xxx.so.1, xxx.so.1.2, etc. using regex on filename
+        static const std::regex so_pattern(R"(^.*\.so(\.[0-9]+)*$)");
+        if (std::regex_match(filename, so_pattern))
             lrinfo->shared_files.push_back(fullp);
         else if (ext == ".a")
             lrinfo->static_files.push_back(fullp);
@@ -211,7 +224,7 @@ void CxxPrebuiltInterpreter::interpret(context_type &x)
         else if (ext == ".lib")
             dotlib.push_back({stem, fullp});
         else
-            lrinfo->runtime_files[cgn::make_path_base_out(stem + "." + ext)] = fullp;
+            lrinfo->runtime_files[cgn::make_path_base_out(stem + ext)] = fullp;
         mk->outputs += {fullp};
     }
     for (auto item : dotlib)

@@ -445,6 +445,13 @@ std::string Tools::extension_of_path(const std::string &in)
     return p.extension().string();
 }
 
+std::string Tools::lowercase_extension_of_path(const std::string &in)
+{
+    auto ext = extension_of_path(in);
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c){ return std::tolower(c); });
+    return ext;
+}
+
 // p is REL, dir is ABS : abs(p), fs::relative()
 // p is ABS, dir is ABS : fs::relative()
 // p is REL, dir is REL : fs::relative()
