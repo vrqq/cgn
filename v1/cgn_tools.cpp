@@ -953,9 +953,10 @@ bool Tools::is_directory_case_sensitive(const std::string& directory)
         return true;
 }
 
-void Tools::remove_duplicate_inplace(std::vector<std::string> &data, bool front_to_end)
+template<typename T, typename TypeHash>
+void _remove_duplicate_inplace_impl(T &data, bool front_to_end)
 {
-    std::unordered_set<std::string> visited;
+    std::unordered_set<typename T::value_type, TypeHash> visited;
     if (front_to_end) {
         std::size_t i=0;
         for (std::size_t j=0; j<data.size(); j++)
@@ -965,8 +966,8 @@ void Tools::remove_duplicate_inplace(std::vector<std::string> &data, bool front_
     }
     else {
         std::vector<bool> flag_keep(data.size(), true);
-        for (std::size_t i = data.size()-1; i>=0; i--)
-            flag_keep[i] = (visited.insert(data[i]).second == true);
+        for (std::size_t i = data.size(); i>0; i--)
+            flag_keep[i-1] = (visited.insert(data[i-1]).second == true);
         std::size_t i = 0;
         for (std::size_t j=0; j<data.size(); j++)
             if (flag_keep[j])
@@ -974,20 +975,32 @@ void Tools::remove_duplicate_inplace(std::vector<std::string> &data, bool front_
         data.resize(i);
     }
 }
-
-std::string Tools::get_lowercase_extension(const std::string &fpath)
+void Tools::remove_duplicate_inplace(std::vector<std::string> &data, bool front_to_end)
 {
-    auto fd = fpath.rfind('.');
-    if (fd == fpath.npos)
-        return "";
-    
-    std::string ext = fpath.substr(fd+1);
-    for (char &c : ext)  // to lower case
-        if ('A' <= c && c <= 'Z')
-            c = c - 'A' + 'a';
-    
-    return ext;
+    _remove_duplicate_inplace_impl<
+        std::vector<std::string>, std::hash<std::string>
+    >(data, front_to_end);
 }
+void Tools::remove_duplicate_inplace(CGNPathArray &data, bool front_to_end)
+{
+    _remove_duplicate_inplace_impl<
+        CGNPathArray, CGNPath::Hasher
+    >(data, front_to_end);
+}
+
+// std::string Tools::get_lowercase_extension(const std::string &fpath)
+// {
+//     auto fd = fpath.rfind('.');
+//     if (fd == fpath.npos)
+//         return "";
+    
+//     std::string ext = fpath.substr(fd+1);
+//     for (char &c : ext)  // to lower case
+//         if ('A' <= c && c <= 'Z')
+//             c = c - 'A' + 'a';
+    
+//     return ext;
+// }
 
 int Tools::win_copy(const std::string &_src, const std::string &_dst)
 {

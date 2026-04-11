@@ -614,6 +614,19 @@ CxxWorker::Stage3In CxxWorker::step2_confirm(CxxToolchainInfo &s1out, CxxContext
     // generate result InfoTable
     if (!s2out.mk->merge_from(x._pub_infos) || !s2out.mk->merge_entry(&x.pub))
         s2out.mk->errmsg = "CxxInterpreter: internal error on generate InfoTable";
+    
+    // remove duplicate in current.pub[CxxInfo and LinkAndRunInfo]
+    cxx::CxxInfo *pubcxxinfo = s2out.mk->get<cxx::CxxInfo>(false);
+    if (pubcxxinfo) {
+        cgn::Tools::remove_duplicate_inplace(pubcxxinfo->include_dirs);
+        cgn::Tools::remove_duplicate_inplace(pubcxxinfo->defines, false);
+    }
+    cgn::LinkAndRunInfo *publnr = s2out.mk->get<cgn::LinkAndRunInfo>(false);
+    if (publnr) {
+        cgn::Tools::remove_duplicate_inplace(publnr->object_files);
+        cgn::Tools::remove_duplicate_inplace(publnr->static_files);
+        cgn::Tools::remove_duplicate_inplace(publnr->shared_files);
+    }
 
     return s2out;
 } //CxxWorker::step2_confirm()

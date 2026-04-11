@@ -561,6 +561,18 @@ CGNImpl::_create_target_impl(
         suggest_label = b_opt_in->out_parent_prefix + b_opt_in->name;
     }
 
+    // find cache_before_trim
+    // Here we assume all function are unstateful, no time-related or env-related 
+    // variable used in target creation, so that the same label+cfgid_before_trim 
+    // would always generate the same target.
+    // For eaxample if rpm in OS upgraded, and we depend on that, the cache would 
+    // be invalid, user must be restart cgn to clear the cache in memory.
+    std::string early_cache_name = suggest_label + "#" + cfgid_before_trim;
+    if (auto fd = targets_before_trim.find(early_cache_name); fd != targets_before_trim.end()) {
+        logger.println("CreateTarget (Hit cache)", suggest_label + " #" + cfgid_before_trim);
+        return *fd->second;
+    }
+
     logger.println("CreateTarget ", suggest_label + " #" + cfgid_before_trim);
 
     CGNTargetOpt a_opt;
@@ -771,7 +783,9 @@ CGNImpl::_create_target_impl(
     } // otherwise case 3: do not change anode
 
     // write target cache
-    targets[now_rt.target_maker->get_cache_name()] = *now_rt.target_maker.get();
+    targets_before_trim[early_cache_name] = &(
+        targets[now_rt.target_maker->get_cache_name()] = *now_rt.target_maker.get()
+    );
 
     // put current target into main_ninja
     std::ofstream fout(obj_main_ninja, std::ios::app);

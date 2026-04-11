@@ -195,8 +195,12 @@ private:
     // std::unordered_map<std::string, NamedFactory> named_factories;
 
     //targets[out_prefix]
-    //  targets["cgn-out/obj/hello_world_00000000/"]
+    // - targets["cgn-out/obj/hello_world_00000000/"]
+    //   for quick lookup after trim in confirm_target_opt()
+    // - targets_before_trim["<out_parent_prefix> + name + "_" + cfgid_before_trim ] 
+    //   for quick lookup in beginning of create_target().
     std::unordered_map<std::string, CGNTarget> targets;
+    std::unordered_map<std::string, CGNTarget*> targets_before_trim;
     
     // targets entry (obj_main_ninja)
     std::unordered_set<std::string> main_subninja;

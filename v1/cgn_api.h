@@ -243,6 +243,7 @@ struct CGN_EXPORT Tools {
 
     // remove duplicate items in list.
     static void remove_duplicate_inplace(std::vector<std::string> &data, bool front_to_end = true);
+    static void remove_duplicate_inplace(CGNPathArray &data, bool front_to_end = true);
 
     template<typename T, typename Handle = std::function<std::string(const std::string &)>
     > std::string convert_list_to_string(
@@ -254,7 +255,7 @@ struct CGN_EXPORT Tools {
         return rv;
     }
 
-    static std::string get_lowercase_extension(const std::string &filename);
+    // static std::string get_lowercase_extension(const std::string &filename);
 
     static int win_copy(const std::string &src, const std::string &dst);
 
