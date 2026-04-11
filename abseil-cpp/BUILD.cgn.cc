@@ -214,9 +214,9 @@ cmake("cmake_absl", x) {
 
 // TODO: This parser is too slow to commit, we use ":cmake_absl" for current stage.
 // parse abseil-src.h to define targets.
-// #include "abseil-target_define.hxx"
+#include "abseil-target_define.hxx"
 
 alias("abseil-cpp", x) {
-    // x.actual_label = ":all";
-    x.actual_label = ":cmake_absl";
+    x.actual_label = ":all";
+    // x.actual_label = ":cmake_absl";
 }

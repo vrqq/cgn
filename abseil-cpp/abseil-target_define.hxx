@@ -43,21 +43,20 @@ static int _target_init = []() {
         if (in.public_)
             target_all.push_back(":" + in.name);
         auto factory = [in, expand](cxx::CxxSourcesContext &x) {
-            for (auto it : in.srcs) {
+            for (auto it : in.srcs + in.hdrs) {
                 std::string str = expand(x.cfg, it);
-                if (str.size() && str.back() == 'c')
+                std::string ext = api.lowercase_extension_of_path(str);
+                if (str.size() && (ext == ".cc" || ext == ".c"))
                     x.srcs += {cgn::make_path_base_script("repo/" + in.basedir + "/" + str)};
             }
-
-            if (in.public_)
-                x.pub.include_dirs = x.include_dirs;
-            
-            if (x.srcs.size()) {
+            if (x.srcs.size())
                 x.include_dirs = {"repo"};
-                for (auto it : in.deps)
-                    if (it.size() > 6 && it.substr(0, 6) == "absl::")
-                        x.add_dep(":" + it.substr(6), cxx::private_dep);
-            }
+            
+            for (auto it : in.deps)
+                if (it.size() > 6 && it.substr(0, 6) == "absl::")
+                    x.add_dep(":" + it.substr(6), cxx::private_dep);
+            if (in.public_)
+                x.pub.include_dirs = {"repo"};
         };
         factories.push_back(
             api.bind_target_factory<cxx::CxxSourcesInterpreter>(in.name, factory)

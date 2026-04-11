@@ -22,6 +22,10 @@ alias("zlib", x) {
     x.actual_label = ":z";
 }
 
+alias("z_static", x) {
+    x.actual_label = ":z";
+}
+
 cxx_executable("zlib_test", x) {
     x.srcs = {"repo/test/example.c"};
     x.add_dep(":z", cxx::private_dep);

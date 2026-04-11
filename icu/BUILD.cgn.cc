@@ -130,6 +130,22 @@ cxx_prebuilt("icu4c_static", x) {
     };
 }
 
+// The library is too large so we have to use dynamic library here
+cxx_prebuilt("icu4c_shared", x) {
+    auto tgt = x.add_dep(":icu4c_build");
+    std::string instdir = tgt.outputs[0];
+    x.pub.include_dirs = {
+        cgn::make_path_base_working(instdir + "/include")
+    };
+    x.files = {
+        cgn::make_path_base_working(instdir + "/lib/libicuuc.so.78.2"),
+        cgn::make_path_base_working(instdir + "/lib/libicui18n.so.78.2"),
+        cgn::make_path_base_working(instdir + "/lib/libicuio.so.78.2"),
+        cgn::make_path_base_working(instdir + "/lib/libicutu.so.78.2"),
+        cgn::make_path_base_working(instdir + "/lib/libicudata.so.78.2"),
+    };
+}
+
 alias("icu", x) {
-    x.actual_label = ":icu4c_static";
+    x.actual_label = ":icu4c_shared";
 }

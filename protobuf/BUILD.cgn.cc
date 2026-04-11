@@ -130,7 +130,7 @@ cxx_executable("protoc-gen-upbdefs", x) {
 }
 
 
-cxx_static("libprotoc", x) {
+cxx_static("protoc_static", x) {
     if (x.cfg["os"] == "win")
         x.perferred_binary_name = "protoc.lib";
     else
@@ -140,7 +140,7 @@ cxx_static("libprotoc", x) {
     x.pub.include_dirs = {"repo/src"};
     config_target(x);
     x.srcs = add_prefix(libprotoc_srcs, "repo/");
-    x.add_dep(":libprotobuf", cxx::private_dep);
+    x.add_dep(":protobuf_static", cxx::private_dep);
     x.add_dep(":upb", cxx::inherit);
     x.add_dep("@third_party//abseil-cpp", cxx::inherit);
 }
@@ -149,8 +149,8 @@ cxx_executable("protoc", x) {
     x.include_dirs = {"repo/src", "repo"};
     x.srcs = {"repo/src/google/protobuf/compiler/main.cc"};
     config_target(x);
-    x.add_dep(":libprotoc", cxx::private_dep);
-    x.add_dep(":libprotobuf", cxx::private_dep);
+    x.add_dep(":protoc_static", cxx::private_dep);
+    x.add_dep(":protobuf_static", cxx::private_dep);
     x.add_dep("@third_party//abseil-cpp", cxx::private_dep);
 }
 
@@ -160,7 +160,7 @@ alias("host_compiler", x) {
     x.load_named_config("host_release");
 }
 
-cxx_static("libprotobuf-lite", x) {
+cxx_static("protobuf-lite_static", x) {
     if (x.cfg["os"] == "win")
         x.perferred_binary_name = "protobuf-lite.lib";
     else
@@ -175,7 +175,7 @@ cxx_static("libprotobuf-lite", x) {
     x.add_dep("@third_party//abseil-cpp", cxx::inherit);
 }
 
-cxx_static("libprotobuf", x) {
+cxx_static("protobuf_static", x) {
     if (x.cfg["os"] == "win")
         x.perferred_binary_name = "protobuf.lib";
     else
@@ -193,7 +193,7 @@ cxx_static("libprotobuf", x) {
 }
 
 alias("protobuf", x) {
-    x.actual_label = ":libprotobuf";
+    x.actual_label = ":protobuf_static";
 }
 
 //TODO: 当前问题

@@ -9,7 +9,7 @@ git("zstd.git", x) {
     x.commit_id = "794ea1b0afca0f020f4e57b6732332231fb23c70";
 }
 
-cxx_static("zstd", x) {
+cxx_static("zstd_static", x) {
     x.defines = {"XXH_NAMESPACE=ZSTD_", "ZSTD_MULTITHREAD", 
         "ZSTD_LEGACY_SUPPORT=1",
         "ZSTD_LEGACY_MULTITHREADED_API"};
@@ -39,9 +39,7 @@ cxx_static("zstd", x) {
     };
 }
 
-alias("lib", x) { x.actual_label = ":zstd"; }
-
-cxx_executable("exe", x) {
+cxx_executable("zstd_exe", x) {
     x.defines = {"ZSTD_GZCOMPRESS", "ZSTD_GZDECOMPRESS"};
     x.perferred_binary_name = std::string{"zstd"} + (x.cfg["os"] == "win"?".exe":"");
     x.srcs = {
@@ -59,5 +57,7 @@ cxx_executable("exe", x) {
     };
 
     x.add_dep("@third_party//zlib:z", cxx::private_dep);
-    x.add_dep(":zstd", cxx::private_dep);
+    x.add_dep(":zstd_static", cxx::private_dep);
 }
+
+alias("zstd", x) { x.actual_label = ":zstd_static"; }

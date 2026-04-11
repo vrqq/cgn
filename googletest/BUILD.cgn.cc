@@ -1,9 +1,5 @@
 #include <cgn>
 
-void myfunc1(GitFetcher::context_type& x) {}
-std::shared_ptr<void> myvar1 = api.bind_target_factory<GitFetcher>(CGN_ULABEL_PREFIX "NAMENAME", &myfunc1);
-
-
 git("googletest.git", x) {
     x.repo = "https://github.com/google/googletest.git";
     x.commit_id = "2954cb8d879886403d55343f941ae7d0216e0f6b";
