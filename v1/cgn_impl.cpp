@@ -1162,8 +1162,8 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     logger.println("Loading fileDB");
     graph.db_load((analysis_path / ".cgn_deps").string());
     if (cmd_kvargs.count("verbose")) {
-        std::ofstream fmermaid(analysis_path / ".memraid");
-        fmermaid<<graph.get_memraid_flowchart();
+        std::ofstream fdot(analysis_path / ".dot");
+        fdot<<graph.export_graphviz_dot();  
     }
 
     //CGN cell init

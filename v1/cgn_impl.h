@@ -114,6 +114,9 @@ public:
 
     std::string expand_filelabel_to_filepath(const std::string &in) const;
 
+    std::string export_mermaid_flowchart() const { return graph.export_mermaid_flowchart(); }
+    std::string export_graphviz_dot() const { return graph.export_graphviz_dot(); }
+
     std::unique_ptr<ConfigurationManager> cfg_mgr;
     std::unordered_map<std::string, std::string> cmd_kvargs;
 

@@ -366,6 +366,9 @@ public:
 
     std::string get_cgn_binary_mirror_path() const;
 
+    // for debug purpose.
+    std::string get_graph(const std::string &type) const;
+
     ~CGN();
 
     Logger *logger = nullptr;

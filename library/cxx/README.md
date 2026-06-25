@@ -20,6 +20,8 @@
 | `cxx::order_dep` | Build-order dependency only; all `TargetInfo` from dep is discarded. |
 | `cxx::_no_whole` | *(shared lib only)* Do not use whole-archive linking on dep's static library. |
 
+Flags can be combined: `cxx::inherit | cxx::archive`.
+
 `LinkAndRunInfo.runtime` entries are always stopped at `cxx_executable()` and copied to the same output folder, regardless of which flag is used.
 
 ## `this` vs `this.pub` (CxxInfo fields)

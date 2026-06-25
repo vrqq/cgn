@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <string>
 #include <unordered_map>
@@ -258,6 +259,23 @@ try{do{
         std::cout<<"\n--- Analyse Result ---\n"<<rv.to_string(type)<<std::endl;
         if (rv.errmsg.size())
             std::cout<<rv.errmsg<<std::endl;
+        return 0;
+    }
+
+    if (args[0] == "graphviz" && args.size() >= 2) {
+        std::string filename = args[1];
+        std::string content = api.get_graph("graphviz");
+        if (content.empty()) {
+            std::cerr<<"Internal error, no content."<<std::endl;
+            return 1;
+        }
+        std::ofstream ofs(filename);
+        if (!ofs) {
+            std::cerr<<"Failed to open file: "<<filename<<std::endl;
+            return 1;
+        }
+        ofs << content;
+        api.logger->paragraph("Build dependency graph are exported to " + filename);
         return 0;
     }
 

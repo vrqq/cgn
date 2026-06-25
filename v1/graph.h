@@ -107,7 +107,10 @@ public:
 
     void db_load(const std::string &filename);
 
-    std::string get_memraid_flowchart();
+    // export memraid description for graph visualization.
+    std::string export_mermaid_flowchart() const;
+
+    std::string export_graphviz_dot() const;
 
     Graph(Logger *logger);
     ~Graph();

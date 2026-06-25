@@ -137,6 +137,15 @@ std::string CGN::get_cgn_binary_mirror_path() const
     return pimpl->cgn_exe_shadow.string();
 }
 
+std::string CGN::get_graph(const std::string &type) const
+{
+    if (type == "mermaid")
+        return pimpl->export_mermaid_flowchart();
+    if (type == "graphviz")
+        return pimpl->export_graphviz_dot();
+    return "";
+}
+
 CGN::~CGN()
 {
     release();

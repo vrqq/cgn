@@ -513,7 +513,7 @@ CxxWorker::Stage3In CxxWorker::step2_confirm(CxxToolchainInfo &s1out, CxxContext
             return x.opt->set_fail("Unsupported src " + p.to_string()), s2out;
 
         auto check_and_add = [&](const std::string &p2) {
-            if (api.lowercase_extension_of_path(p2) == "def")
+            if (api.lowercase_extension_of_path(p2) == ".def")
                 s2out.def_file = p2;
             else
                 s2out.src_files += {p2};
@@ -561,7 +561,8 @@ CxxWorker::Stage3In CxxWorker::step2_confirm(CxxToolchainInfo &s1out, CxxContext
             ext1 = (x.cfg["os"]=="win"? ".lib": ".a");
         else
             ext1 = (x.cfg["os"]=="win"? (x.role=='s'?".dll":".exe"): (x.role=='s'?".so":""));
-        pack_out.packout_file = s2out.mk->out_prefix + x.name + ext1;
+        std::string prefix = (x.role != 'x' && x.cfg["os"]!="win")? "lib":"";
+        pack_out.packout_file = s2out.mk->out_prefix + prefix + x.name + ext1;
 
         if (x.role == 's' || x.role == 'x') {
             if (x.cfg["os"] == "win") {
@@ -569,7 +570,7 @@ CxxWorker::Stage3In CxxWorker::step2_confirm(CxxToolchainInfo &s1out, CxxContext
                 pack_out.packout_rt_filename = x.name + ".lib";
             }else {
                 pack_out.packout_rt_filepath = pack_out.packout_file;
-                pack_out.packout_rt_filename = x.name + ext1;
+                pack_out.packout_rt_filename = prefix + x.name + ext1;
             }
         }
     }
@@ -1014,8 +1015,6 @@ static cgn::LinkAndRunInfo default_step3_xnix(CxxWorker::Stage3In *s3)
             if (s3->mk->trimmed_cfg["pkg_mode"] != "")
                 ldflags += {"-Wl,--enable-new-dtags", "-Wl,--rpath=$ORIGIN"};
             else {
-                // do not need to copy .so without pkg_mode.
-                pack_out.packout_rt_filename = pack_out.packout_rt_filepath = "";
                 ldflags += {"-Wl,--enable-new-dtags"};
                 for (auto &so : s3->src_extra.shared_files) {
                     auto path1    = cgn::Tools::parent_path(so);
@@ -1076,12 +1075,17 @@ static cgn::LinkAndRunInfo default_step3_xnix(CxxWorker::Stage3In *s3)
                 auto &src = one_entry.second;
                 auto *cpfield = s3->mk->ninja->append_build();
                 //TODO: copy runtime by custom command (like symbolic-link)
-                cpfield->rule    = "unix_cp";
+                cpfield->rule    = "unix_file_copy_cppdeprule";
                 cpfield->inputs  = {cgn::NinjaFile::escape_path(src)};
                 cpfield->outputs = {cgn::NinjaFile::escape_path(dst)};
                 field->order_only += cpfield->outputs;
             }
     } // endif (role=='s' or 'x')
+
+    // Do not need to add current .so to runtime_files without 'pkg_mode',
+    // just using --rpath to locate
+    if ((s3->target_role == 's' || s3->target_role == 'x') && s3->mk->trimmed_cfg["pkg_mode"] == "")
+        pack_out.packout_rt_filename = pack_out.packout_rt_filepath = "";
 
     return s3->done_with_entry(pack_out);
 } //default_step3_xnix()

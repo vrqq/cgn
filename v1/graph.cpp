@@ -637,7 +637,7 @@ void Graph::file_mark_recycle(std::size_t offset, uint32_t whole_block_size)
 }
 
 
-std::string Graph::get_memraid_flowchart()
+std::string Graph::export_mermaid_flowchart() const
 {
     auto str_status = [](const GraphNode::Status &in) {
         if (in == GraphNode::Latest)
@@ -646,27 +646,87 @@ std::string Graph::get_memraid_flowchart()
             return "Stale";
         return "Unknown";
     };
-    
+
+    // Assign stable sequential IDs since self_offset may be 0
+    // for nodes not yet flushed to the DB file.
+    std::unordered_map<const GraphNode*, std::size_t> node_id;
+    std::size_t id_counter = 1;
+    for (auto &[name, anode] : nodes)
+        node_id[&anode] = id_counter++;
+
     std::stringstream ss;
-    ss<<"---\n"
-        "title: CGN AnalysisGraph\n"
-        "---\n"
-        "flowchart LR\n";
-    
+    ss << "---\n"
+          "title: CGN AnalysisGraph\n"
+          "---\n"
+          "flowchart LR\n";
+
     for (auto &[name, anode] : nodes) {
-        ss << "  " << anode._title->self_offset 
-           << "[\"`" + name + " (" + str_status(anode.status) + ")";
-        for (auto file : anode.files) {
-            ss<<"\n    | mtime="<<file->mem_mtime<<" "<<*(file->strkey);
-        }
+        std::size_t nid = node_id[&anode];
+        ss << "  N" << nid
+           << "[\"`" << name << " (" << str_status(anode.status) << ")";
+        for (auto file : anode.files)
+            ss << "\n    | mtime=" << file->mem_mtime << " " << *(file->strkey);
         ss << "`\"]\n";
 
-        for (auto e = anode.head; e; e=edges[e].next)
-            if (edges[e].to != nullptr)
-                ss<< "  " << anode._title->self_offset << " --> " 
-                  << edges[e].to->_title->self_offset <<"\n";
+        for (GraphEdgeID e = anode.head; e; e = edges[e].next) {
+            // skip logically-deleted edges
+            if (edges[e].from == nullptr || edges[e].to == nullptr)
+                continue;
+            auto fd = node_id.find(edges[e].to);
+            if (fd != node_id.end())
+                ss << "  N" << nid << " --> N" << fd->second << "\n";
+        }
     }
 
+    return ss.str();
+}
+
+std::string Graph::export_graphviz_dot() const
+{
+    auto str_status = [](const GraphNode::Status &in) {
+        if (in == GraphNode::Latest)
+            return "Latest";
+        else if (in == GraphNode::Stale)
+            return "Stale";
+        return "Unknown";
+    };
+
+    // Assign stable sequential IDs since self_offset may be 0
+    // for nodes not yet flushed to the DB file.
+    std::unordered_map<const GraphNode*, std::size_t> node_id;
+    std::size_t id_counter = 1;
+    for (auto &[name, anode] : nodes)
+        node_id[&anode] = id_counter++;
+
+    std::stringstream ss;
+    ss << "digraph CGNAnalysisGraph {\n"
+          "  rankdir=LR;\n"
+          "  node [shape=record];\n";
+
+    for (auto &[name, anode] : nodes) {
+        std::size_t nid = node_id[&anode];
+
+        // Build label: escape special chars for DOT record syntax
+        // Use HTML-like label for multi-line content
+        ss << "  N" << nid << " [label=\"{" << name
+           << " (" << str_status(anode.status) << ")";
+        for (auto file : anode.files)
+            ss << " | mtime=" << file->mem_mtime << " " << *(file->strkey);
+        ss << "}\"];\n";
+    }
+
+    for (auto &[name, anode] : nodes) {
+        std::size_t nid = node_id[&anode];
+        for (GraphEdgeID e = anode.head; e; e = edges[e].next) {
+            if (edges[e].from == nullptr || edges[e].to == nullptr)
+                continue;
+            auto fd = node_id.find(edges[e].to);
+            if (fd != node_id.end())
+                ss << "  N" << nid << " -> N" << fd->second << ";\n";
+        }
+    }
+
+    ss << "}\n";
     return ss.str();
 }
 

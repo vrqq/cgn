@@ -47,3 +47,8 @@ rule win_file_copy_cppdeprule
     command = xcopy.exe ${in} ${out} /-I /H /Y
     description = COPY ${in} => ${OUT}
     restat = 1
+
+rule unix_file_copy_cppdeprule
+    command = install ${in} ${out}
+    description = COPY ${in} => ${out}
+    restat = 1
