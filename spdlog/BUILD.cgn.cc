@@ -22,6 +22,13 @@ cxx_static("spdlog", x) {
     else
         x.pub.defines += {"SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG"};
 
-    x.srcs = {base + "/src/*.cpp"};
+    x.srcs = {
+        base + "/src/async.cpp",
+        base + "/src/cfg.cpp",
+        base + "/src/color_sinks.cpp",
+        base + "/src/file_sinks.cpp",
+        base + "/src/spdlog.cpp",
+        base + "/src/stdout_sinks.cpp",
+    };
     x.add_dep("@third_party//fmt", cxx::inherit);
 }

@@ -41,7 +41,7 @@ shell_script("icu4c_build", x) {
             api.convert_list_to_string(cxxparam.cpp_arg.cflags), 
             x.cfg["host_shell"]));
         x.worker.append_setenv("LDFLAGS",api.shell_escape(
-            api.convert_list_to_string(cxxparam.exe_arg.compiler_driven_ldflags), 
+            api.convert_list_to_string(cxxparam.exe_arg.ldflags), 
             x.cfg["host_shell"]));
 
         std::vector<std::string> OPTS = {"--enable-static", "--enable-renaming"};

@@ -34,7 +34,41 @@ static std::string _tbb_def_file(const cgn::Configuration cfg) {
 
 cxx_shared("tbb", x) {
     x.pub.include_dirs = x.include_dirs = {"repo/include"};
-    x.srcs = {"repo/src/tbb/*.cpp", _tbb_def_file(x.cfg)};
+    x.srcs = {
+        "repo/src/tbb/address_waiter.cpp",
+        "repo/src/tbb/allocator.cpp",
+        "repo/src/tbb/arena.cpp",
+        "repo/src/tbb/arena_slot.cpp",
+        "repo/src/tbb/concurrent_bounded_queue.cpp",
+        "repo/src/tbb/dynamic_link.cpp",
+        "repo/src/tbb/exception.cpp",
+        "repo/src/tbb/global_control.cpp",
+        "repo/src/tbb/governor.cpp",
+        "repo/src/tbb/itt_notify.cpp",
+        "repo/src/tbb/main.cpp",
+        "repo/src/tbb/market.cpp",
+        "repo/src/tbb/misc.cpp",
+        "repo/src/tbb/misc_ex.cpp",
+        "repo/src/tbb/observer_proxy.cpp",
+        "repo/src/tbb/parallel_pipeline.cpp",
+        "repo/src/tbb/private_server.cpp",
+        "repo/src/tbb/profiling.cpp",
+        "repo/src/tbb/queuing_rw_mutex.cpp",
+        "repo/src/tbb/rml_tbb.cpp",
+        "repo/src/tbb/rtm_mutex.cpp",
+        "repo/src/tbb/rtm_rw_mutex.cpp",
+        "repo/src/tbb/semaphore.cpp",
+        "repo/src/tbb/small_object_pool.cpp",
+        "repo/src/tbb/task.cpp",
+        "repo/src/tbb/task_dispatcher.cpp",
+        "repo/src/tbb/task_group_context.cpp",
+        "repo/src/tbb/tcm_adaptor.cpp",
+        "repo/src/tbb/thread_dispatcher.cpp",
+        "repo/src/tbb/threading_control.cpp",
+        "repo/src/tbb/thread_request_serializer.cpp",
+        "repo/src/tbb/version.cpp",
+        _tbb_def_file(x.cfg),
+    };
 
     if (x.cfg["cxx_toolchain"] == "gcc" || x.cfg["cxx_toolchain"] == "llvm") {
         if (x.cfg["cpu"] == "x86" || x.cfg["cpu"] == "x86_64")
