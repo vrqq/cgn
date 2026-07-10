@@ -56,5 +56,5 @@ cxx_shared("shared", x) {
 }
 
 alias("date", x) {
-    x.actual_label = ":data_static";
+    x.actual_label = ":static";
 }
