@@ -32,7 +32,7 @@ void Logger::paragraph(const std::string &text)
 
 void Logger::verbose_paragraph(const std::string &text)
 {
-    if (_is_verbose)
+    if (_is_verbose && !_override_disable_flag)
         paragraph(text);
 }
 

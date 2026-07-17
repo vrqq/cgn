@@ -1,16 +1,13 @@
 // CGN MCP Server (mcp_server.cpp)
 // Implements the Model Context Protocol (MCP) 2024-11-05 over stdin/stdout JSON-RPC 2.0.
 //
-// Startup arguments (written once in the MCP client config file, NOT typed each time):
-//   cgn_mcp --target llvm,debug,asan --cgn-out cgn-out [--halt_on_error] [--verbose]
-//
 // These map 1:1 to cgn CLI arguments so the same cgn_setup.cgn.cc logic applies.
 //
 // MCP tools exposed:
-//   cgn_analyse   -- Analyse a target (no build)
-//   cgn_build     -- Analyse and build a target
-//   cgn_query     -- Query target info and resolved configuration
-//   cgn_list_configs -- List all named configurations from cgn_setup.cgn.cc
+//   build     -- Analyse and build a target
+//   query     -- Query target info and resolved configuration
+//   list_configs -- List all named configurations from cgn_setup.cgn.cc
+//   
 
 #include <iostream>
 #include <string>
@@ -18,12 +15,12 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <cctype>
 #include <functional>
 #include <stdexcept>
 
-#include <nlohmann/json.hpp>
-#include "cgn_api.h"
-#include "logger.h"
+#include "../json/single_include/nlohmann/json.hpp"
+#include "../v1/cgn_api.h"
 
 using json = nlohmann::json;
 
@@ -59,9 +56,11 @@ static const std::string MCP_PROTOCOL_VERSION = "2024-11-05";
 static const std::string SERVER_NAME    = "cgn-mcp";
 static const std::string SERVER_VERSION = "1.0.0";
 
-// Write a JSON-RPC response to stdout (newline-delimited)
+// Write a standard MCP stdio frame to stdout.
 static void send_response(const json &resp) {
-    std::cout << resp.dump() << "\n";
+    const std::string payload = resp.dump();
+    std::cout << "Content-Length: " << payload.size() << "\r\n\r\n"
+              << payload;
     std::cout.flush();
 }
 
@@ -81,6 +80,51 @@ static void send_error(const json &id, int code, const std::string &message) {
     });
 }
 
+static std::string strip_cr(std::string line) {
+    if (!line.empty() && line.back() == '\r')
+        line.pop_back();
+    return line;
+}
+
+static bool read_message(json &req) {
+    std::string line;
+
+    while (std::getline(std::cin, line)) {
+        line = strip_cr(std::move(line));
+        if (line.empty())
+            continue;
+
+        if (line.rfind("Content-Length:", 0) == 0) {
+            std::size_t content_length = 0;
+            try {
+                content_length = std::stoul(line.substr(std::string("Content-Length:").size()));
+            } catch (...) {
+                throw std::runtime_error{"Invalid Content-Length header."};
+            }
+
+            // Consume headers until the blank line that separates them from the body.
+            while (std::getline(std::cin, line)) {
+                line = strip_cr(std::move(line));
+                if (line.empty())
+                    break;
+            }
+
+            std::string body(content_length, '\0');
+            std::cin.read(body.data(), static_cast<std::streamsize>(content_length));
+            if (static_cast<std::size_t>(std::cin.gcount()) != content_length)
+                throw std::runtime_error{"Unexpected end of input while reading framed MCP message."};
+
+            req = json::parse(body);
+            return true;
+        }
+
+        req = json::parse(line);
+        return true;
+    }
+
+    return false;
+}
+
 // ─── Tool definitions ────────────────────────────────────────────────────────
 
 static json make_tools_list() {
@@ -88,29 +132,8 @@ static json make_tools_list() {
         {
             {"name", "cgn_analyse"},
             {"description",
-             "Analyse a CGN target (loads BUILD.cgn.cc, resolves deps, generates build.ninja) "
-             "without executing ninja. Use this to inspect the dependency graph and output "
-             "info (CxxInfo, LinkAndRunInfo, etc.) of any target."},
-            {"inputSchema", {
-                {"type", "object"},
-                {"properties", {
-                    {"target_label", {
-                        {"type", "string"},
-                        {"description", "Factory label, e.g. '@cell//dir:name' or ':local_target'"}
-                    }},
-                    {"config_name", {
-                        {"type", "string"},
-                        {"description", "Named config from cgn_setup.cgn.cc (default: 'DEFAULT')"}
-                    }}
-                }},
-                {"required", json::array({"target_label"})}
-            }}
-        },
-        {
-            {"name", "cgn_build"},
-            {"description",
-             "Analyse and build a CGN target. Equivalent to running './debug.sh @cell//target'. "
-             "Returns the path(s) of the primary output files on success."},
+             "Analyse a CGN target without building it. Returns the resolved configuration "
+             "and target analysis result."},
             {"inputSchema", {
                 {"type", "object"},
                 {"properties", {
@@ -124,6 +147,26 @@ static json make_tools_list() {
                     }}
                 }},
                 {"required", json::array({"target_label"})}
+            }}
+        },
+        {
+            {"name", "cgn_build"},
+            {"description",
+             "Analyse and build a CGN target with a named configuration from cgn_setup.cgn.cc. "
+             "Returns the primary output path on success."},
+            {"inputSchema", {
+                {"type", "object"},
+                {"properties", {
+                    {"target_label", {
+                        {"type", "string"},
+                        {"description", "Factory label, e.g. '@cell//dir:name'"}
+                    }},
+                    {"config_name", {
+                        {"type", "string"},
+                        {"description", "Required named configuration from cgn_setup.cgn.cc, e.g. 'debug' or 'release'"}
+                    }}
+                }},
+                {"required", json::array({"target_label", "config_name"})}
             }}
         },
         {
@@ -150,9 +193,7 @@ static json make_tools_list() {
         {
             {"name", "cgn_list_configs"},
             {"description",
-             "List all named configurations defined in cgn_setup.cgn.cc, "
-             "showing each key-value pair. Use this to discover available config names "
-             "(e.g. 'DEFAULT', 'host_release') and their exact settings."},
+             "List every named configuration defined by cgn_setup.cgn.cc and its key-value settings."},
             {"inputSchema", {
                 {"type", "object"},
                 {"properties", {}},
@@ -199,6 +240,8 @@ static json tool_build(const json &params) {
 
     if (!is_safe_label(label))
         throw std::runtime_error{"Invalid target_label: contains unsafe characters."};
+    if (cfg_name.empty())
+        throw std::runtime_error{"cgn_build requires a non-empty config_name."};
 
     auto cfg   = load_config(cfg_name);
     auto exe   = api.build(label, cfg);
@@ -233,12 +276,11 @@ static json tool_query(const json &params) {
 }
 
 static json tool_list_configs(const json &/*params*/) {
-    // Query a few known config names; report what's available.
-    std::vector<std::string> candidates{"DEFAULT", "host_release"};
+    auto names = api.list_configs();
     std::ostringstream out;
     out << "Named configurations in cgn_setup.cgn.cc:\n\n";
 
-    for (auto &name : candidates) {
+    for (const auto &name : names) {
         auto [cfg, anode] = api.query_config(name);
         if (anode) {
             out << "[" << name << "]\n";
@@ -247,6 +289,9 @@ static json tool_list_configs(const json &/*params*/) {
             out << "\n";
         }
     }
+
+    if (names.empty())
+        out << "None. Define at least one configuration in cgn_setup.cgn.cc.\n";
 
     return {{"content", json::array({{{"type","text"}, {"text", out.str()}}})}};
 }
@@ -310,21 +355,22 @@ static void handle_request(const json &req) {
 static int show_help(const char *arg0) {
     std::cerr << arg0 << " [options]\n"
               << "  CGN MCP server — write these args in your MCP client config file.\n\n"
-              << "  Compile this file by using 'cgn --some-args build @cgn.d//mcp'\n"
+              << "  Compile this file by using 'ninja -f build_<os>.ninja'\n"
               << "Options:\n"
-              << "  --target <tokens>    Comma-separated config tokens (e.g. llvm,debug,asan)\n"
-              << "  --cgn-out <dir>      Output directory (default: cgn-out)\n"
-              << "  -C <dir>             Alias for --cgn-out\n"
+              << "  --cgn_out <dir>      Output directory (default: cgn-out)\n"
+              << "  -C <dir>             Alias for --cgn_out\n"
               << "  --halt_on_error      Abort on any analysis error\n"
               << "  --verbose / -V       Verbose output\n"
               << "  --scriptcc <path>    C++ compiler for .cgn.cc files\n"
               << "  --winenv             Load MSVC environment (Windows)\n\n"
+              << "There are other custom cli options work for cgn_setup.cgn.cc which not listed here, \n"
+              << "like --target <target_name> to judge configs['DEFAULT'].\n\n" 
               << "Example MCP config:\n"
               << "  {\n"
               << "    \"mcpServers\": {\n"
               << "      \"cgn\": {\n"
-              << "        \"command\": \"./cgn-out/obj/@cgn.d_/mcp_/cgn_mcp_FFFF9222/cgn_mcp\",\n"
-              << "        \"args\": [\"--target\", \"llvm,debug,asan\", \"--cgn-out\", \"cgn-out\"]\n"
+              << "        \"command\": \"./@cgn.d/build_linuxd/cgn\",\n"
+              << "        \"args\": [\"--cgn_out\", \"cgn-out\", \"--halt_on_error\", \"mcp\"]\n"
               << "      }\n"
               << "    }\n"
               << "  }\n";
@@ -333,51 +379,15 @@ static int show_help(const char *arg0) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-int main(int argc, char **argv) {
-    // Parse arguments — same style as cli.cpp
-    std::unordered_set<std::string> single_opts{"halt_on_error", "verbose", "winenv", "scriptcc_debug"};
-    std::unordered_map<std::string, std::string> kvargs;
-
-    for (int i = 1; i < argc;) {
-        std::string k{argv[i]};
-        if (k.size() >= 2 && k[0] == '-') {
-            k = (k[1] == '-') ? k.substr(2) : k.substr(1);
-            if (k == "C") k = "cgn-out";
-            if (k == "V") k = "verbose";
-
-            if (single_opts.count(k)) { kvargs[k] = ""; i++; }
-            else if (i + 1 < argc)   { kvargs[k] = argv[i+1]; i += 2; }
-            else                     { return show_help(argv[0]); }
-        }
-        else { i++; } // ignore positional args
-    }
-
-    if (!kvargs.count("cgn-out"))
-        kvargs["cgn-out"] = "cgn-out";
-    
-    // enable mcp_mode
-    kvargs["mcp_mode"] = "";
-
-    // Initialize CGN
-    auto api_guard = std::shared_ptr<int>(new int,
-        [](int *p){ api.release(); delete p; });
-
-    try {
-        api.init(kvargs);
-    }
-    catch (const std::exception &e) {
-        std::cerr << "cgn_mcp: init failed: " << e.what() << "\n";
-        return 1;
-    }
-
-    api.logger->println("CGN mcp ready", "");
-
-    // MCP main loop — read newline-delimited JSON from stdin
-    std::string line;
-    while (std::getline(std::cin, line)) {
-        if (line.empty()) continue;
+int mcp_server()
+{
+    // MCP main loop — accept standard framed stdio messages, but keep the
+    // raw JSON line format working for direct shell probes.
+    while (true) {
+        json req;
         try {
-            json req = json::parse(line);
+            if (!read_message(req))
+                break;
             handle_request(req);
         }
         catch (const json::parse_error &e) {

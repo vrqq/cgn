@@ -138,6 +138,27 @@ inline cgn::Configuration config_guessor_notest(
     return config_guessor(argls);
 }
 
+inline cgn::Configuration generate_host_debug(
+    std::unordered_set<std::string> argcmd={}
+) {
+    cgn::HostInfo hinfo = cgn::Tools::get_host_info();
+    std::unordered_set<std::string> args{"release", hinfo.cpu, hinfo.os};
+    if (hinfo.os == "win")
+        args.insert({"msvc", "msvc_MDd", "CONSOLE", "cmd"});
+    else if (hinfo.os == "linux")
+        args.insert({"gcc", "debug", "asan", "bash"});
+    else if (hinfo.os == "mac")
+        args.insert({"xcode", "debug", "asan", "zsh"});
+    else
+        args.insert({"llvm", "debug", "asan", "bash"});
+    
+    // a special argument only sensed from command line input
+    if (argcmd.count("src_no_caps"))
+        args.insert("src_no_caps");
+    
+    return config_guessor(args);
+}
+
 inline cgn::Configuration generate_host_release(
     std::unordered_set<std::string> argcmd={}
 ) {

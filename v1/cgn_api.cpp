@@ -77,6 +77,11 @@ CGN::query_config(const std::string &name) const
     return {cfg, anode};
 }
 
+std::vector<std::string> CGN::list_configs() const
+{
+    return pimpl->cfg_mgr->list_names();
+}
+
 void CGN::add_adep_edge(GraphNode *early, GraphNode *late)
 {
     return pimpl->add_adep(early, late);

@@ -1,71 +1,59 @@
 # CGN MCP Server
 
-The `cgn_mcp` binary is a [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that exposes CGN build capabilities to AI agents (GitHub Copilot, Claude Desktop, Cursor, etc.).
+The CGN MCP server exposes the in-process CGN API over MCP stdio. It keeps the
+analysis graph alive between requests, so repeated target queries can reuse the
+loaded scripts and target cache.
 
-## Build
+## Build And Configure
+
+From the monorepo root:
 
 ```sh
-# Linux debug
-./debug.sh @cgn.d//mcp:cgn_mcp
-
-# Linux release
-./release.sh @cgn.d//mcp:cgn_mcp
-
-# macOS
-./debug.sh @cgn.d//mcp:cgn_mcp   # uses Xcode toolchain from cgn_setup
+cd @cgn.d
+ninja -f build_linux.ninja
+cd ..
+./@cgn.d/build_linuxd/cgn --cgn_out cgn-out mcp
 ```
 
-The binary is placed in `cgn-out/obj/cgn.d_/mcp_/cgn_mcp_HASHID/cgn_mcp`.
+Configure your MCP client with the command in [MCP configuration](MCP_CONFIG.md).
+The server process must start in the monorepo root so it can load
+`cgn_setup.cgn.cc`.
 
-## Configuration
+## Tool Contract
 
-MCP arguments (`--target`, `--cgn-out`, etc.) are written **once** in your MCP client's config file — not typed at the CLI each time. Copy the relevant block from `cgn_mcp_config.example.json`:
+| Tool | Required arguments | Result |
+|---|---|---|
+| `cgn_list_configs` | none | Every named configuration and its settings. |
+| `cgn_analyse` | `target_label` | Resolved configuration and analysis result; no Ninja build. |
+| `cgn_query` | `target_label` | Full target information and resolved configuration. |
+| `cgn_build` | `target_label`, `config_name` | Builds a target with the named configuration. |
+
+All target tools accept an optional `config_name` except `cgn_build`, where it
+is required. Tool labels must use CGN label syntax, for example
+`@mycell//app:server`.
+
+## Agent Workflow
+
+1. Call `cgn_list_configs` to discover configuration names.
+2. Call `cgn_analyse` or `cgn_query` to inspect a target.
+3. Call `cgn_build` with both `target_label` and the chosen `config_name`.
+
+Example build arguments:
 
 ```json
 {
-  "mcpServers": {
-    "cgn": {
-      "command": "./@cgn.d/build_linuxd/cgn_mcp",
-      "args": ["--target", "llvm,debug,asan", "--cgn-out", "cgn-out"]
-    }
-  }
+  "target_label": "@mycell//app:server",
+  "config_name": "debug"
 }
 ```
 
-### VS Code (GitHub Copilot / Copilot Chat)
+Do not use `--target` in the MCP server command to select a build
+configuration. `--target` only alters `DEFAULT` when the server starts and
+makes calls dependent on process startup arguments. Named configurations in
+`cgn_setup.cgn.cc` are explicit and reproducible.
 
-Add the block above to `.vscode/mcp.json` in your workspace root, or to your user settings under `"mcp"`.
+## Failure Handling
 
-### Claude Desktop
-
-Add to `~/.config/claude/claude_desktop_config.json` (Linux) or `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS).
-
-### Cursor
-
-Add to `.cursor/mcp.json` in the workspace root.
-
-## Available Tools
-
-| Tool | Description |
-|------|-------------|
-| `cgn_analyse` | Analyse a target (resolve deps, generate ninja) without building |
-| `cgn_build` | Build a target and return primary output path(s) |
-| `cgn_query` | Show the resolved Configuration and full analysis result |
-| `cgn_list_configs` | List all named configs from `cgn_setup.cgn.cc` |
-
-## Argument Reference
-
-| Argument | Description | Example |
-|----------|-------------|---------|
-| `--target <tokens>` | Comma-separated config tokens (same as `./debug.sh`) | `llvm,debug,asan` |
-| `--cgn-out <dir>` / `-C <dir>` | Output directory | `cgn-out` |
-| `--halt_on_error` | Exit on first analysis error | — |
-| `--verbose` / `-V` | Verbose output | — |
-| `--scriptcc <path>` | Custom C++ compiler for `.cgn.cc` files | `/usr/bin/clang++` |
-| `--winenv` | Load MSVC environment before compiling scripts (Windows) | — |
-
-## How It Works
-
-`cgn_mcp` starts up once, calls `api.init()` with the args from the MCP config, then enters a loop reading newline-delimited JSON-RPC 2.0 messages from stdin and writing responses to stdout — the standard MCP transport.
-
-Each tool call directly invokes `api.create_target()` or `api.build()` (the same functions used by `cgn_analyse` / `cgn_build` in the CLI). The CGN analysis graph is retained in memory between calls, so repeated queries on the same target are fast (cache hits).
+- Unknown configuration: inspect `cgn_list_configs`, then define the required name in `cgn_setup.cgn.cc`.
+- Invalid label: use only CGN label characters and a valid `@cell//dir:name` target.
+- Script compile or `dlopen` failure: use `cgn_analyse` first and repair the reported `.cgn.cc` error.

@@ -144,7 +144,7 @@ private:
     // analysis_path : cgn_out/analysis_<os><cpu><dbg/rel>
     // obj_main_ninja : the ninja build entry
     // obj_placeholder_ninja : the file generating in build phase.
-    // cgn_out : args from --cgn-out
+    // cgn_out : args from --cgn_out (legacy --cgn-out is accepted)
     // cgn_out_unixsep : cgn_out with '/' unix-path-separator
     // cgnapi_winimp : (windows-only) input argument for @cgn.d/pe_loader
     // script_cc : args from --scriptcc

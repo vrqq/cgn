@@ -15,6 +15,7 @@ void init_win_exception_handler();
 
 int show_helper(const char *arg0) {
     std::cerr<<arg0<<"\n"
+             <<"     mcp\n"
              <<"     analyse <target_label>\n"
              <<"     build   <target_label>\n"
              <<"     run     <target_label>\n"
@@ -23,7 +24,7 @@ int show_helper(const char *arg0) {
              <<"     preload\n"
              <<"     clean\n"
              <<"  Options:\n"
-             <<"     -C / --cgn-out <dir_name>\n"
+             <<"     -C / --cgn_out <dir_name>\n"
              <<"     -V / --verbose\n"
              <<"     --winenv\n"
              <<"     --scriptcc_debug\n"
@@ -89,12 +90,16 @@ extern int advcopy_main(const std::vector<std::string> &argv);
 
 // extern int dev_helper();
 
+int mcp_server();
+
 int main(int argc, char **argv)
 {
     // parse input cmdline
     // -------------------
     std::unordered_set<std::string> single_options{
-        "scriptcc_debug", "halt_on_error", "verbose", "winenv"
+        "scriptcc_debug", "scriptcc-debug",
+        "halt_on_error", "halt-on-error", "halt_onerror", "halt-onerror",
+        "verbose", "winenv"
     };
     std::vector<std::string> args;
     std::unordered_map<std::string, std::string> args_kv;
@@ -107,7 +112,7 @@ int main(int argc, char **argv)
                 k = k.substr(1);
             //try expand
             if (k == "C")
-                k = "cgn-out";
+                k = "cgn_out";
             else if (k == "V")
                 k = "verbose";
 
@@ -184,19 +189,20 @@ try{do{
     // cgn::CGN API call
     // -----------------
 
-    // requirement argument check
-    if (args_kv.count("cgn_out")) {
-        std::cerr<<"Incorrect use of argument 'cgn_out', use 'cgn-out' instead."<<std::endl;
-        return 1;
+    // Prefer cgn_out. Keep cgn-out as a compatibility fallback.
+    if (!args_kv.count("cgn_out")) {
+        if (auto fd = args_kv.find("cgn-out"); fd != args_kv.end())
+            args_kv["cgn_out"] = fd->second;
+        else
+            args_kv["cgn_out"] = "cgn-out";
     }
-    if (auto fd = args_kv.find("cgn-out"); fd != args_kv.end()){
-        if (fd->second.empty()) {
-            std::cerr<<"Invalid cgn-out dir"<<std::endl;
-            return show_helper(argv[0]);
-        }
-    }else
-        args_kv["cgn-out"] = "cgn-out";
+    if (args_kv["cgn_out"].empty()) {
+        std::cerr<<"Invalid cgn_out dir"<<std::endl;
+        return show_helper(argv[0]);
+    }
 
+    if (args[0] == "mcp")
+        args_kv["mcp_disable_cout"] = "";
 
     auto api_release = std::shared_ptr<int>(new int, [](int* p){ 
         api.release(); delete p;
@@ -204,6 +210,10 @@ try{do{
 
     // api.init()
     api.init(args_kv);
+
+    if (args[0] == "mcp") {
+        return mcp_server();
+    }
     
     // using config 'DEFAULT' if no cfgname assigned
     auto load_cfg = [](const std::string &name) -> cgnv1::Configuration {
@@ -256,7 +266,9 @@ try{do{
         std::cout<<"\n--- Input Configuration ---\n"
                  <<cgnv1::Logger::fmt_list(cfg, "", 999) <<std::endl;
 
-        std::cout<<"\n--- Analyse Result ---\n"<<rv.to_string(type)<<std::endl;
+        std::cout<<"\n--- Analyse Result ---\n"
+                 <<(type == 'h'? "Use --verbose to show more details.\n":"")
+                 <<rv.to_string(type)<<std::endl;
         if (rv.errmsg.size())
             std::cout<<rv.errmsg<<std::endl;
         return 0;
@@ -288,12 +300,12 @@ try{do{
     // [CMD] cgn clean
     if (args[0] == "clean") {
         std::cout<<"Cleaning..."<<std::endl;
-        std::filesystem::path dir{args_kv["cgn-out"]};
+        std::filesystem::path dir{args_kv["cgn_out"]};
         if (std::filesystem::exists(dir / ".cgn_out_root.stamp"))
             std::filesystem::remove_all(dir);
         else
             std::cerr<<dir.string()<<"\n"
-                     <<"Warning: it seems not a cgn-out folder, do nothing."<<std::endl;
+                     <<"Warning: it seems not a CGN output folder, do nothing."<<std::endl;
         return 0;
     }
 

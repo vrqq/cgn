@@ -57,7 +57,7 @@ cgn::CGNTarget CxxContext::add_dep(
 
     // call merge() for unused field
     for (auto &rhs : early.data())
-        if (rhs.first != "CxxInfo" && rhs.first != "LinkAndRunInfo")
+        if (rhs.first != typeid(cxx::CxxInfo).name() && rhs.first != typeid(cgn::LinkAndRunInfo).name())
             _pub_infos.merge_entry(rhs.first, rhs.second.get());
 
     // rhs[CxxInfo]

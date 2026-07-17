@@ -977,15 +977,22 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     scriptcc_debug_mode = cmd_kvargs.count("scriptcc_debug") || cmd_kvargs.count("scriptcc-debug");
     halt_on_error = cmd_kvargs.count("halt_on_error") || cmd_kvargs.count("halt_onerror") 
                  || cmd_kvargs.count("halt-on-error") || cmd_kvargs.count("halt-onerror");
-    mcp_mode = cmd_kvargs.count("mcp_mode") || cmd_kvargs.count("mcp-mode");
-    if (mcp_mode)
+    if (cmd_kvargs.count("mcp_disable_cout"))
         logger.disable_log();
     logger.set_verbose(cmd_kvargs.count("verbose"));
     logger.verbose_paragraph("CWD: " + std::filesystem::current_path().string());
 
+    // Prefer cgn_out. Accept the legacy cgn-out key for direct API callers.
+    if (!this->cmd_kvargs.count("cgn_out")) {
+        if (auto fd = this->cmd_kvargs.find("cgn-out"); fd != this->cmd_kvargs.end())
+            this->cmd_kvargs["cgn_out"] = fd->second;
+        else
+            this->cmd_kvargs["cgn_out"] = "cgn-out";
+    }
+
     //init path
     std::string dsuffix = (scriptcc_debug_mode? "d":"");
-    cgn_out = Tools::locale_path(cmd_kvargs.at("cgn-out"));
+    cgn_out = Tools::locale_path(this->cmd_kvargs.at("cgn_out"));
     cgn_out_unixsep = cgn_out.string();
     #ifdef _WIN32
         #ifdef _DEBUG

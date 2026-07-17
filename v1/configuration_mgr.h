@@ -23,6 +23,9 @@ public:
     std::pair<Configuration, GraphNode *>
     get(const std::string name) const;
 
+    // List names assigned by cgn_setup.cgn.cc.
+    std::vector<std::string> list_names() const;
+
     std::string get_name_id_mapper(const std::string &name) const;
 
     //Save configuration and write into .cfg file.

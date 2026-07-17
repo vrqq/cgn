@@ -5,6 +5,7 @@
 #include <string>
 #include <memory>
 #include <functional>
+#include <cstdint>
 #include "cgn_type.h"
 #include "logger.h"
 
@@ -301,6 +302,9 @@ public:
     // Query named configuration assigned in cgn_setup.cgn.cc
     std::pair<Configuration, GraphNode *>
     query_config(const std::string &name) const;
+
+    // List configuration names assigned in cgn_setup.cgn.cc.
+    std::vector<std::string> list_configs() const;
     
     // Manually add an analyse dependency edge from 'early' to 'late' in Graph.
     void add_adep_edge(GraphNode *early, GraphNode *late);
@@ -342,7 +346,8 @@ public:
 
     // The init function must be called before others.
     // @param kvargs : 
-    //          kvargs["cgn-out"] = OS-perferred-path-string of output path (requirement)
+    //          kvargs["cgn_out"] = OS-perferred-path-string of output path (preferred)
+    //          kvargs["cgn-out"] = legacy spelling, accepted when cgn_out is absent
     //          kvargs["verbose"] : enable verbose mode
     //          kvargs["scriptcc_debug"] : enable debug mode for ScriptCC
     //          kvargs["halt_on_error"] : exit when analyse_target() return error

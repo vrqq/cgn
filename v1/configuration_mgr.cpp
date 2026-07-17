@@ -7,6 +7,7 @@
 //  Using ninja.deps=gcc/msvc to compile BUILD.cgn.cc to keep update 
 //  with root 'cgn' file.
 //
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <cstdint>
@@ -120,6 +121,15 @@ ConfigurationManager::get(const std::string name) const {
     if (auto fd = named_cfgs.find(name); fd != named_cfgs.end())
         return {*(fd->second), anode};
     return {Configuration{}, anode};
+}
+
+std::vector<std::string> ConfigurationManager::list_names() const {
+    std::vector<std::string> names;
+    names.reserve(named_cfgs.size());
+    for (const auto &[name, unused] : named_cfgs)
+        names.push_back(name);
+    std::sort(names.begin(), names.end());
+    return names;
 }
 
 ConfigurationID ConfigurationManager::commit(Configuration &cfg)

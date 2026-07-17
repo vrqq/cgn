@@ -39,7 +39,7 @@ cxx_static("cgn_static", x) {
 }
 
 cxx_executable("cgn", x) {
-    x.srcs = {base + "v1/cli.cpp", base + "v1/cli_advcopy.cpp"};
+    x.srcs = {base + "v1/cli.cpp", base + "v1/cli_advcopy.cpp", base + "mcp/mcp_server.cpp"};
     if (x.cfg["os"] == "mac")
         x.ldflags = {"-Wl,-undefined,dynamic_lookup"};
     

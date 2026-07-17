@@ -1,3 +1,6 @@
 [submodule "ninjabuild"]
 	path = ninjabuild
 	url = https://github.com/ninja-build/ninja.git
+[submodule "json"]
+	path = json
+	url = https://github.com/nlohmann/json.git

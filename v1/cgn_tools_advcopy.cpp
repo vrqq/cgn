@@ -69,7 +69,7 @@ static void path_search_impl(
     std::string remain,
     AdvanceCopy::SearchRecord &rec
 ) {
-    assert(!fs::is_symlink(prefix) && fs::is_directory(prefix));
+    assert(fs::is_directory(prefix));
     if (rec.errmsg.size())
         return ;
 
@@ -116,7 +116,8 @@ static void path_search_impl(
         rec.node_need_watch.push_back(prefix);
     
     // iterator all files in current dir and match
-    // symlink is seen as 'normal-file' and do not forward it.
+    // A symlink is an end-node in the final section, but directory symlinks
+    // can be forwarded through when matching more path sections.
     // condition to match:
     //       ( pattern_last_section && (is_symlink || is_regular_file) )
     //   || ( !pattern_last_section && !is_symlink && is_directory )
@@ -135,10 +136,11 @@ static void path_search_impl(
         std::string ffname = ff.path().filename().string();
         bool ff_is_endnode = ff.is_symlink() || ff.is_regular_file();
         bool ff_is_dir = !ff.is_symlink() && ff.is_directory();
+        bool ff_can_forward = ff.is_directory();
         // bool can_match = (pattern_last_section && (ff.is_symlink() || ff.is_regular_file()))
         //              || (!pattern_last_section && !ff.is_symlink() && ff.is_directory());
         bool matched = false;
-        if (pattern_last_section || ff_is_dir) {
+        if (pattern_last_section || ff_can_forward) {
             if (fdstar == now.npos)
                 matched = (now == ffname);
             else if (now.size()-1 > ffname.size())
@@ -158,7 +160,7 @@ static void path_search_impl(
                 rec.node_need_watch.push_back(ff.path());
             }
         }
-        else if (ff_is_dir)
+        else if (ff_can_forward)
             path_search_impl(ff.path(), remain, rec);
     } //endfor(dir_iterator{prefix})
 

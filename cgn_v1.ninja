@@ -38,6 +38,7 @@ build $builddir/msvc_symbol_host.o: cc pe_loader/msvc_symbol_host.cpp
 ## CLI Entry
 ## =========
 build $builddir/cli.o : cc v1/cli.cpp
+build $builddir/mcp_server.o : cc mcp/mcp_server.cpp
 build $builddir/cli_advcopy.o : cc v1/cli_advcopy.cpp
 build $builddir/win_exception.o : cc v1/win_exception.cpp
 
@@ -67,7 +68,7 @@ build $builddir/cgn_v1.a : ar $
 
 
 ## Linux/Unix target
-build $builddir/cgn : link $builddir/cli.o $builddir/cli_advcopy.o $builddir/win_exception.o $builddir/cgn_v1.a
+build $builddir/cgn : link $builddir/cli.o $builddir/cli_advcopy.o $builddir/win_exception.o $builddir/mcp_server.o $builddir/cgn_v1.a
 
 ## Windows target
-build $builddir/cgn.exe : link $builddir/cli.o $builddir/cli_advcopy.o $builddir/win_exception.o $builddir/cgn_v1.a
+build $builddir/cgn.exe : link $builddir/cli.o $builddir/cli_advcopy.o $builddir/win_exception.o $builddir/mcp_server.o $builddir/cgn_v1.a
