@@ -12,7 +12,7 @@ From the monorepo root:
 cd @cgn.d
 ninja -f build_linux.ninja
 cd ..
-./@cgn.d/build_linuxd/cgn --cgn_out cgn-out mcp
+./@cgn.d/build_linuxd/cgn --cgn_out cgn-out --scriptcc_debug --halt_on_error mcp
 ```
 
 Configure your MCP client with the command in [MCP configuration](MCP_CONFIG.md).

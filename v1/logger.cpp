@@ -1,3 +1,4 @@
+#include <iostream>
 #include "logger.h"
 #include "../ninjabuild/src/line_printer.h"
 
@@ -11,8 +12,10 @@ std::string Logger::fmt_color(const std::string &ss, const char *c) const
 
 void Logger::println(const std::string &title, const std::string &body, const char *title_color)
 {
-    if (_override_disable_flag)
+    if (_override_disable_flag){
+        std::cerr<<title<<" "<<body<<std::endl;
         return;
+    }
     std::string fulltxt = (title.size()?fmt_color(title, title_color):"") + body;
     if (_is_verbose)
         return paragraph(fulltxt);

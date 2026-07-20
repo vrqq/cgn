@@ -201,8 +201,11 @@ try{do{
         return show_helper(argv[0]);
     }
 
-    if (args[0] == "mcp")
-        args_kv["mcp_disable_cout"] = "";
+    if (args[0] == "mcp") {
+        // CGN's build path captures child stdout in MCP mode.  Without this,
+        // Ninja status lines are written into the JSON-RPC stream.
+        args_kv["_mcp_mode"] = "";
+    }
 
     auto api_release = std::shared_ptr<int>(new int, [](int* p){ 
         api.release(); delete p;

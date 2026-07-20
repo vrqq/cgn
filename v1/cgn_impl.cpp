@@ -977,7 +977,8 @@ CGNImpl::CGNImpl(std::unordered_map<std::string, std::string> cmd_kvargs)
     scriptcc_debug_mode = cmd_kvargs.count("scriptcc_debug") || cmd_kvargs.count("scriptcc-debug");
     halt_on_error = cmd_kvargs.count("halt_on_error") || cmd_kvargs.count("halt_onerror") 
                  || cmd_kvargs.count("halt-on-error") || cmd_kvargs.count("halt-onerror");
-    if (cmd_kvargs.count("mcp_disable_cout"))
+    mcp_mode = cmd_kvargs.count("_mcp_mode");
+    if (mcp_mode)
         logger.disable_log();
     logger.set_verbose(cmd_kvargs.count("verbose"));
     logger.verbose_paragraph("CWD: " + std::filesystem::current_path().string());

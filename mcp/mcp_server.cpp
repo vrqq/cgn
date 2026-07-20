@@ -56,11 +56,12 @@ static const std::string MCP_PROTOCOL_VERSION = "2024-11-05";
 static const std::string SERVER_NAME    = "cgn-mcp";
 static const std::string SERVER_VERSION = "1.0.0";
 
-// Write a standard MCP stdio frame to stdout.
+// MCP stdio transport uses newline-delimited JSON-RPC.  stdout is exclusively
+// reserved for these messages: clients treat any other bytes (including the
+// legacy Content-Length framing used by older LSP-style transports) as an
+// invalid response and will wait until their initialization timeout.
 static void send_response(const json &resp) {
-    const std::string payload = resp.dump();
-    std::cout << "Content-Length: " << payload.size() << "\r\n\r\n"
-              << payload;
+    std::cout << resp.dump() << '\n';
     std::cout.flush();
 }
 
@@ -196,7 +197,7 @@ static json make_tools_list() {
              "List every named configuration defined by cgn_setup.cgn.cc and its key-value settings."},
             {"inputSchema", {
                 {"type", "object"},
-                {"properties", {}},
+                {"properties", json::object()},
                 {"required", json::array()}
             }}
         }
@@ -381,8 +382,9 @@ static int show_help(const char *arg0) {
 
 int mcp_server()
 {
-    // MCP main loop — accept standard framed stdio messages, but keep the
-    // raw JSON line format working for direct shell probes.
+    api.logger->println("MCP ready");
+    // MCP clients send newline-delimited JSON.  read_message also accepts the
+    // legacy Content-Length form so existing local probes remain usable.
     while (true) {
         json req;
         try {
