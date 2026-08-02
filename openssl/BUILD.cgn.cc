@@ -65,6 +65,8 @@ shell_script("openssl3_build", x) {
         cfg_arg = "linux-x86-clang";
     else if (x.cfg["os"]=="linux" && x.cfg["cpu"]=="x86_64" && linux_llvm)
         cfg_arg = "linux-x86_64-clang";
+    else if (x.cfg["os"]=="mac" && x.cfg["cpu"]=="arm64")
+        cfg_arg = "darwin64-arm64";
     else {
         x.opt->set_fail("Unsupported platform.");
         return ;
@@ -74,7 +76,7 @@ shell_script("openssl3_build", x) {
     std::string arg_build_type = (x.cfg["optimization"] == "debug"?"--debug":"--release");
 
     // CC and CFLAGS
-    if (x.cfg["os"] == "linux") {
+    if (x.cfg["os"] == "linux" || x.cfg["os"] == "mac") {
         cxx::CxxToolchainInfo cxx_toolchain = cxx::CxxInterpreter::test_param(x.cfg, "minimum");
         std::string cflags_str = api.convert_list_to_string(cxx_toolchain.c_arg.cflags);
         x.worker.append_setenv("CC", cxx_toolchain.exe_cc);
@@ -100,6 +102,7 @@ shell_script("openssl3_build", x) {
     std::string build_log   = api.rebase_path(cgn::make_path_base_out("build.log"), "", mk);
     std::string instl_log   = api.rebase_path(cgn::make_path_base_out("install.log"), "", mk);
     std::string config_log  = api.rebase_path(cgn::make_path_base_out("config.log"), "", mk);
+    std::string unix_libdir = (x.cfg["os"] == "mac"? "lib" : "lib64");
     api.mkdir(api.rebase_path(build_dir, "", mk));
     api.mkdir(install_dir);
     api.mkdir(etc_dir);
@@ -122,8 +125,8 @@ shell_script("openssl3_build", x) {
     else 
         x.script_outputs = {
             cgn::make_path_base_out("install/bin/openssl"),
-            cgn::make_path_base_out("install/lib64/libssl.a"),
-            cgn::make_path_base_out("install/lib64/libcrypto.a")
+            cgn::make_path_base_out("install/" + unix_libdir + "/libssl.a"),
+            cgn::make_path_base_out("install/" + unix_libdir + "/libcrypto.a")
         };
 
     // prepare enviromnent for make / nmake
@@ -191,11 +194,13 @@ cxx_prebuilt("openssl3_static" , x) {
         // return ;
     }
     else {
+        std::string unix_libdir = (x.cfg["os"] == "mac"? "lib" : "lib64");
         x.files = {
-            cgn::make_path_base_working(instdir + "/lib64/libssl.a"),
-            cgn::make_path_base_working(instdir + "/lib64/libcrypto.a"),
+            cgn::make_path_base_working(instdir + "/" + unix_libdir + "/libssl.a"),
+            cgn::make_path_base_working(instdir + "/" + unix_libdir + "/libcrypto.a"),
         };
-        x.system_libs = {"dl"};
+        if (x.cfg["os"] == "linux")
+            x.system_libs = {"dl"};
     }
 }
 
@@ -217,6 +222,13 @@ cxx_prebuilt("openssl3_shared", x) {
                 cgn::make_path_base_working(instdir + "/bin/libcrypto-3-x64.pdb")
             };
     }
+    else if (x.cfg["os"] == "mac")
+        x.files = {
+            cgn::make_path_base_working(instdir + "/lib/libssl.dylib"),
+            cgn::make_path_base_working(instdir + "/lib/libssl.3.dylib"),
+            cgn::make_path_base_working(instdir + "/lib/libcrypto.dylib"),
+            cgn::make_path_base_working(instdir + "/lib/libcrypto.3.dylib")
+        };
     else
         x.files = {
             cgn::make_path_base_working(instdir + "/lib64/libssl.so"),

@@ -67,8 +67,11 @@ cxx_shared("tbb", x) {
         "repo/src/tbb/threading_control.cpp",
         "repo/src/tbb/thread_request_serializer.cpp",
         "repo/src/tbb/version.cpp",
-        _tbb_def_file(x.cfg),
     };
+    if (x.cfg["os"] == "linux")
+        x.ldflags += {"-Wl,--version-script=@third_party/oneapi/" + _tbb_def_file(x.cfg)};
+    else
+        x.srcs += {_tbb_def_file(x.cfg)};
 
     if (x.cfg["cxx_toolchain"] == "gcc" || x.cfg["cxx_toolchain"] == "llvm") {
         if (x.cfg["cpu"] == "x86" || x.cfg["cpu"] == "x86_64")
@@ -113,7 +116,10 @@ cxx_shared("tbbmalloc", x) {
               "repo/src/tbbmalloc/backref.cpp",
               "repo/src/tbbmalloc/frontend.cpp",
               "repo/src/tbbmalloc/large_objects.cpp",
-              "repo/src/tbbmalloc/tbbmalloc.cpp", 
-              _tbb_def_file(x.cfg)};
+              "repo/src/tbbmalloc/tbbmalloc.cpp"};
+    if (x.cfg["os"] == "linux")
+        x.ldflags += {"-Wl,--version-script=@third_party/oneapi/" + _tbb_def_file(x.cfg)};
+    else
+        x.srcs += {_tbb_def_file(x.cfg)};
     x.defines = {"__TBBMALLOC_BUILD"};
 }
