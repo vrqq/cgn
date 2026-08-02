@@ -1,9 +1,62 @@
 #pragma once
+#include <algorithm>
 #include <cassert>
+#include <cctype>
 #include <cstring>
 #include "cxx.cgn.h"
 
 namespace cxx {
+
+static std::string lowercase_extension_of_path(const std::string &in)
+{
+    std::string ext = api.extension_of_path(in);
+    std::transform(ext.begin(), ext.end(), ext.begin(),
+        [](unsigned char c) { return std::tolower(c); });
+    return ext;
+}
+
+template<typename T, typename TypeHash>
+static void remove_duplicate_inplace_impl(T &data, bool front_to_end)
+{
+    std::unordered_set<typename T::value_type, TypeHash> visited;
+    if (front_to_end) {
+        std::size_t i = 0;
+        for (std::size_t j = 0; j < data.size(); j++)
+            if (visited.insert(data[j]).second)
+                std::swap(data[i++], data[j]);
+        data.resize(i);
+    }
+    else {
+        std::vector<bool> keep(data.size(), true);
+        for (std::size_t i = data.size(); i > 0; i--)
+            keep[i - 1] = visited.insert(data[i - 1]).second;
+        std::size_t i = 0;
+        for (std::size_t j = 0; j < data.size(); j++)
+            if (keep[j])
+                std::swap(data[i++], data[j]);
+        data.resize(i);
+    }
+}
+
+static void remove_duplicate_inplace(std::vector<std::string> &data, bool front_to_end = true)
+{
+    remove_duplicate_inplace_impl<std::vector<std::string>, std::hash<std::string>>(
+        data, front_to_end);
+}
+
+static void remove_duplicate_inplace(cgn::CGNPathArray &data, bool front_to_end = true)
+{
+    remove_duplicate_inplace_impl<cgn::CGNPathArray, cgn::CGNPath::Hasher>(
+        data, front_to_end);
+}
+
+static void append_variable(
+    cgn::NinjaFile *ninja,
+    const std::string &name,
+    const std::vector<std::string> &values)
+{
+    ninja->append_variable(name, api.convert_list_to_string(values));
+}
 
 //
 // Step 1 test param
@@ -409,14 +462,15 @@ static std::pair<CxxToolchainInfo, std::string> step1_linuxllvm_and_xcode(cgn::C
         ldflags_1st += {
             "-flto", 
         };
-        ldflags_1st += {
-            "-Wl,--exclude-libs=ALL", 
-            "-Wl,--discard-all",
-            // "-Wl,--thinlto-jobs=0", 
-            // "-Wl,--thinlto-cache-dir=./thinlto_cache", 
-            // "-Wl,--thinlto-cache-policy,cache_size_bytes=1g",
-            "-Wl,--warn-unresolved-symbols"
-        };
+        if (cfg["os"] == "linux")
+            ldflags_1st += {
+                "-Wl,--exclude-libs=ALL", 
+                "-Wl,--discard-all",
+                // "-Wl,--thinlto-jobs=0", 
+                // "-Wl,--thinlto-cache-dir=./thinlto_cache", 
+                // "-Wl,--thinlto-cache-policy,cache_size_bytes=1g",
+                "-Wl,--warn-unresolved-symbols"
+            };
     }
 
     //["llvm_stl"]
@@ -513,7 +567,7 @@ CxxWorker::Stage3In CxxWorker::step2_confirm(CxxToolchainInfo &s1out, CxxContext
             return x.opt->set_fail("Unsupported src " + p.to_string()), s2out;
 
         auto check_and_add = [&](const std::string &p2) {
-            if (api.lowercase_extension_of_path(p2) == ".def")
+            if (lowercase_extension_of_path(p2) == ".def")
                 s2out.def_file = p2;
             else
                 s2out.src_files += {p2};
@@ -535,9 +589,9 @@ CxxWorker::Stage3In CxxWorker::step2_confirm(CxxToolchainInfo &s1out, CxxContext
         return s2out;
 
     s2out.src_extra = x._lnr_to_self;
-    cgn::Tools::remove_duplicate_inplace(s2out.src_extra.object_files);
-    cgn::Tools::remove_duplicate_inplace(s2out.src_extra.static_files);
-    cgn::Tools::remove_duplicate_inplace(s2out.src_extra.shared_files);
+    remove_duplicate_inplace(s2out.src_extra.object_files);
+    remove_duplicate_inplace(s2out.src_extra.static_files);
+    remove_duplicate_inplace(s2out.src_extra.shared_files);
     s2out.src_extra_no_whole = &x._self_no_whole_archive;
 
     s2out.target_role = x.role;
@@ -595,7 +649,7 @@ CxxWorker::Stage3In CxxWorker::step2_confirm(CxxToolchainInfo &s1out, CxxContext
         for (auto &p : x.include_dirs + x._cxx_to_self.include_dirs)
             final_inc += {api.rebase_path(p, ".", s2out.mk)};
         final_inc += xsrc->include_dirs;
-        cgn::Tools::remove_duplicate_inplace(final_inc);
+        remove_duplicate_inplace(final_inc);
         std::swap(xsrc->include_dirs, final_inc);
     }
     for (auto xout : {&s1out.exe_arg, &s1out.so_arg})
@@ -619,14 +673,14 @@ CxxWorker::Stage3In CxxWorker::step2_confirm(CxxToolchainInfo &s1out, CxxContext
     // remove duplicate in current.pub[CxxInfo and LinkAndRunInfo]
     cxx::CxxInfo *pubcxxinfo = s2out.mk->get<cxx::CxxInfo>(false);
     if (pubcxxinfo) {
-        cgn::Tools::remove_duplicate_inplace(pubcxxinfo->include_dirs);
-        cgn::Tools::remove_duplicate_inplace(pubcxxinfo->defines, false);
+        remove_duplicate_inplace(pubcxxinfo->include_dirs);
+        remove_duplicate_inplace(pubcxxinfo->defines, false);
     }
     cgn::LinkAndRunInfo *publnr = s2out.mk->get<cgn::LinkAndRunInfo>(false);
     if (publnr) {
-        cgn::Tools::remove_duplicate_inplace(publnr->object_files);
-        cgn::Tools::remove_duplicate_inplace(publnr->static_files);
-        cgn::Tools::remove_duplicate_inplace(publnr->shared_files);
+        remove_duplicate_inplace(publnr->object_files);
+        remove_duplicate_inplace(publnr->static_files);
+        remove_duplicate_inplace(publnr->shared_files);
     }
 
     return s2out;
@@ -647,7 +701,7 @@ CxxWorker::Stage3In CxxWorker::step2_confirm(CxxToolchainInfo &s1out, CxxContext
 // TODO : in windows, ninja have bug that cannot mkdir end with '..'
 std::pair<std::string, char> CxxWorker::Stage3In::suggest_objout(std::string &file_in)
 {
-    std::string ext = api.lowercase_extension_of_path(file_in);
+    std::string ext = lowercase_extension_of_path(file_in);
     
     char rv_type = 0;
     if (ext == ".cc" || ext == ".cpp" || ext == ".cxx" || ext == ".c++")
@@ -776,9 +830,12 @@ static cgn::LinkAndRunInfo default_step3_win(CxxWorker::Stage3In *s3)
                       njenv_cflags_cpp = "cflags_cpp", 
                       njenv_cflags_asm = "cflags_asm";
     if (s3->mk->ninja) {
-        s3->mk->ninja->append_variable(njenv_cflags_c, s3->gen_cflags("/I", "/D", s3->toolchain->c_arg));
-        s3->mk->ninja->append_variable(njenv_cflags_cpp, s3->gen_cflags("/I", "/D", s3->toolchain->cpp_arg));
-        s3->mk->ninja->append_variable(njenv_cflags_asm, s3->gen_cflags("/I", "/D", s3->toolchain->asm_arg));
+        append_variable(s3->mk->ninja.get(), njenv_cflags_c,
+            s3->gen_cflags("/I", "/D", s3->toolchain->c_arg));
+        append_variable(s3->mk->ninja.get(), njenv_cflags_cpp,
+            s3->gen_cflags("/I", "/D", s3->toolchain->cpp_arg));
+        append_variable(s3->mk->ninja.get(), njenv_cflags_asm,
+            s3->gen_cflags("/I", "/D", s3->toolchain->asm_arg));
 
         static std::string rule_path = api.get_filepath(rule_ninja);
         s3->mk->ninja->append_include(rule_path);
@@ -935,9 +992,12 @@ static cgn::LinkAndRunInfo default_step3_xnix(CxxWorker::Stage3In *s3)
         static std::string rule_path = api.get_filepath(rule_ninja);
         s3->mk->ninja->append_include(rule_path);
 
-        s3->mk->ninja->append_variable("cflags_c",   s3->gen_cflags("-I", "-D", s3->toolchain->c_arg));
-        s3->mk->ninja->append_variable("cflags_cpp", s3->gen_cflags("-I", "-D", s3->toolchain->cpp_arg));
-        s3->mk->ninja->append_variable("cflags_asm", s3->gen_cflags("-I", "-D", s3->toolchain->asm_arg));
+        append_variable(s3->mk->ninja.get(), "cflags_c",
+            s3->gen_cflags("-I", "-D", s3->toolchain->c_arg));
+        append_variable(s3->mk->ninja.get(), "cflags_cpp",
+            s3->gen_cflags("-I", "-D", s3->toolchain->cpp_arg));
+        append_variable(s3->mk->ninja.get(), "cflags_asm",
+            s3->gen_cflags("-I", "-D", s3->toolchain->asm_arg));
     }
 
     //=== Section 3: make ninja file ===

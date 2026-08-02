@@ -1,0 +1,33 @@
+## CGN Development bootstrap
+## builddir : the output folder
+## ============================
+##
+## WARNING: UNTESTED ##
+## ================= ##
+
+builddir = build_mac
+
+cflags = -I. -std=c++17 -fcolor-diagnostics -O2 $
+         -fshow-column -fshow-source-location -fcaret-diagnostics $
+         -fstandalone-debug -fno-limit-debug-info -DCGN_EXE_IMPLEMENT
+
+rule cc
+    deps    = gcc
+    depfile = $out.d
+    command = clang++ -MMD -MF $out.d $cflags -c $in -o $out
+
+rule ar
+    command = rm -f ${out} && ar rcs ${out} ${in}
+
+## -Wl,-U,__Z9cgn_setupR12CGNInitSetup $
+##
+rule link
+    deps    = gcc
+    depfile = $out.d
+    command = clang++ -MMD -MF $out.d $cflags $
+              -Wl,-undefined,dynamic_lookup $
+              -Wl,-all_load -Wl,-rpath,@executable_path $
+              -fvisibility=default $in -o $out
+
+include cgn_v1.ninja
+default $builddir/cgn

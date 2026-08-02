@@ -5,7 +5,7 @@
 ## WARNING: UNTESTED ##
 ## ================= ##
 
-builddir = build_mac
+builddir = build_macd
 
 cflags = -I. -g -std=c++17 -fsanitize=address -fcolor-diagnostics $
          -fshow-column -fshow-source-location -fcaret-diagnostics $
@@ -17,7 +17,7 @@ rule cc
     command = clang++ -MMD -MF $out.d $cflags -c $in -o $out
 
 rule ar
-    command = ar rcs ${out} ${in}
+    command = rm -f ${out} && ar rcs ${out} ${in}
 
 ## -Wl,-U,__Z9cgn_setupR12CGNInitSetup $
 ##
@@ -26,7 +26,8 @@ rule link
     depfile = $out.d
     command = clang++ -MMD -MF $out.d $cflags $
               -Wl,-undefined,dynamic_lookup $
-              -Wl,-all_load -fvisibility=default $in -o $out
+              -fvisibility=hidden -fsanitize=address -fsanitize=undefined $
+              -Wl,-all_load -Wl,-rpath,@executable_path -fvisibility=default $in -o $out
 
 include cgn_v1.ninja
 default $builddir/cgn

@@ -2,8 +2,16 @@
 #include <string>
 #include <unordered_map>
 #include "../../cgn.h"
-#include "../../rule_marco.h"
-#include "../../provider_dep.h"
+#ifdef _WIN32
+    #ifdef XCODEPROJ_CGN_IMPL
+        #define XCODEPROJ_CGN_API  __declspec(dllexport)
+    #else
+        #define XCODEPROJ_CGN_API
+    #endif
+#else
+    #define XCODEPROJ_CGN_API __attribute__((visibility("default")))
+#endif
+
 
 namespace xcode {
 
@@ -11,18 +19,19 @@ namespace xcode {
 //  * buildsettings[CONFIGURATION_BUILD_DIR]=<target_out_dir>/bin
 // xcodebuild 
 //  -project <context.project>
-//  -scheme All
+//  -scheme <context.scheme> or -target <context.targets[0]> ...
 //  -configuration <cfg[optimization]>
 //  -sdk <context.sdk>
 //  -arch <cfg[cpu]>
-//  -target <cfg[os]>
 //  -xcconfig <context.xcconfig>
-//  -derivedDataPath <target_out_dir>/build
+//  -derivedDataPath <target_out_dir>/derived
 //  x.buildsettings[] (k=v k=v ...)
 // ---------------------------------------------------------------
-struct XCodeProjectContext : public cgn::TargetInfoDep<true>
+struct XCodeProjectContext : protected cgn::QuickDepContext
 {
     const std::string name;
+
+    cgn::Configuration &cfg;
 
     // path to 'xxx.xcodeproj'
     std::string project;
@@ -34,8 +43,15 @@ struct XCodeProjectContext : public cgn::TargetInfoDep<true>
     // empty list to build all targets
     std::vector<std::string> targets;
 
+    // build specified shared scheme inside project
+    // if non-empty, this is used instead of targets
+    std::string scheme;
+
     // file insided with relavent path of <target_out>/bin
     std::vector<std::string> outputs;
+
+    // Files that should cause xcodebuild to rerun when changed.
+    std::vector<cgn::CGNPath> extra_watch_files;
 
     // This value would be checked with cfg[os], empty allowed.
     // possible value: macosx10.11
@@ -43,8 +59,8 @@ struct XCodeProjectContext : public cgn::TargetInfoDep<true>
 
     std::unordered_map<std::string, std::string> buildsettings;
 
-    XCodeProjectContext(const cgn::Configuration &cfg, cgn::CGNTargetOpt opt) 
-    : cgn::TargetInfoDep<true>(cfg, opt), name(opt.factory_name) {}
+    XCODEPROJ_CGN_API XCodeProjectContext(cgn::CGNTargetOpt *opt) 
+    : cgn::QuickDepContext(opt), name(opt->name), cfg(opt->cfg) {}
 
     friend struct XCodeProjectInterpreter;
 };
@@ -54,7 +70,7 @@ struct XCodeProjectInterpreter
     using context_type = XCodeProjectContext;
     
     constexpr static cgn::ConstLabelGroup<1> preload_labels() {
-        return {"@cgn.d//library/xcode.cgn.bundle"};
+        return {"@cgn.d//library/external/xcode.cgn.cc"};
     }
 
     // Return
@@ -63,7 +79,7 @@ struct XCodeProjectInterpreter
     //  [LinkAndRunInfo]
     //      shared: .dylib
     //      static: .a
-    static cgn::TargetInfos interpret(context_type &x, cgn::CGNTargetOpt opt);
+    XCODEPROJ_CGN_API static void interpret(context_type &x);
 };
 
 }
